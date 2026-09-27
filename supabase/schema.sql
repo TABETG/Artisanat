@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Boutique Tamurt — base de données
--- À coller UNE FOIS dans Supabase → SQL Editor → New query → Run
+-- À coller dans Supabase → SQL Editor → New query → Run
+-- (peut être relancé sans risque après une mise à jour)
 -- =====================================================================
 
 -- ---------- Produits ----------
@@ -122,6 +123,26 @@ create policy "admin modifie photos" on storage.objects
 drop policy if exists "admin supprime photos" on storage.objects;
 create policy "admin supprime photos" on storage.objects
   for delete to authenticated using (bucket_id = 'product-images' and public.is_admin());
+
+-- ---------- Alertes « prévenez-moi quand c'est de retour » ----------
+create table if not exists public.stock_alerts (
+  id          bigint generated always as identity primary key,
+  product_id  uuid not null references public.products(id) on delete cascade,
+  email       text not null check (char_length(email) <= 200 and email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  notified    boolean not null default false,
+  created_at  timestamptz not null default now(),
+  unique (product_id, email)
+);
+alter table public.stock_alerts enable row level security;
+
+-- n'importe quel visiteur peut laisser son email (mais pas lire ceux des autres)
+drop policy if exists "visiteur demande alerte" on public.stock_alerts;
+create policy "visiteur demande alerte" on public.stock_alerts
+  for insert to anon, authenticated with check (notified = false);
+
+drop policy if exists "admin gere alertes" on public.stock_alerts;
+create policy "admin gere alertes" on public.stock_alerts
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 create index if not exists products_active_created_idx on public.products (active, created_at desc);
 create index if not exists orders_created_idx on public.orders (created_at desc);

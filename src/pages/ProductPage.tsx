@@ -5,6 +5,7 @@ import { getProduct } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { useCart } from '../context/CartContext';
 import { ProductImage } from '../components/ProductImage';
+import { StockAlertForm } from '../components/StockAlertForm';
 import { categoryLabel, SHOP } from '../config';
 import { formatDimensions, formatPrice } from '../lib/format';
 import { SHIPPING } from '../shipping';
@@ -71,7 +72,10 @@ export function ProductPage() {
             {product.material && (<><dt className="text-henne">Matière</dt><dd>{product.material}</dd></>)}
             {product.origin && (<><dt className="text-henne">Origine</dt><dd>{product.origin}</dd></>)}
             <dt className="text-henne">Disponibilité</dt>
-            <dd>{soldOut ? 'Vendu' : product.stock === 1 ? 'Pièce unique, prête à partir' : `${product.stock} disponibles`}</dd>
+            <dd className={soldOut ? 'text-garance font-medium' : product.stock <= 3 && product.stock > 1 ? 'text-garance' : ''}>
+              {soldOut ? 'Rupture de stock' : product.stock === 1 ? 'Pièce unique, prête à partir'
+                : product.stock <= 3 ? `Plus que ${product.stock} disponibles` : `${product.stock} disponibles`}
+            </dd>
           </dl>
 
           {!soldOut && product.stock > 1 && (
@@ -84,15 +88,18 @@ export function ProductPage() {
 
           <div className="mt-6">
             {soldOut ? (
-              <div className="bg-laine-fonce p-4 rounded-sm">
-                <p className="font-medium">Cette pièce a trouvé preneur.</p>
-                <p className="text-sm mt-1">Une pièce semblable vous intéresse ? <Link to="/contact" className="text-garance underline">Écrivez-nous</Link>.</p>
-              </div>
+              <StockAlertForm productId={product.id} />
             ) : (
               <button onClick={() => add(product, quantity)} disabled={!canAdd}
                 className="w-full sm:w-auto bg-garance text-laine px-10 py-4 rounded-sm text-lg font-medium hover:bg-nuit disabled:opacity-50">
                 {canAdd ? 'Ajouter au panier' : 'Déjà dans votre panier'}
               </button>
+            )}
+            {!soldOut && inCart > 0 && (
+              <p className="mt-3 text-sm text-henne">
+                Dans votre panier : {inCart}.{' '}
+                <Link to="/boutique" className="text-garance underline">Continuer mes achats</Link>
+              </p>
             )}
           </div>
 

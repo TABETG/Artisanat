@@ -14,6 +14,7 @@ import { AdminNewPassword } from './pages/admin/AdminNewPassword';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminProductForm } from './pages/admin/AdminProductForm';
 import { AdminOrders } from './pages/admin/AdminOrders';
+import { AdminStockAlerts } from './pages/admin/AdminStockAlerts';
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="produits/nouveau" element={<AdminProductForm />} />
         <Route path="produits/:id" element={<AdminProductForm />} />
         <Route path="commandes" element={<AdminOrders />} />
+        <Route path="alertes" element={<AdminStockAlerts />} />
       </Route>
     </Routes>
   );

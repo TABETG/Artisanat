@@ -13,7 +13,8 @@ export function Layout() {
     <div className="min-h-screen flex flex-col">
       {DEMO_MODE && (
         <p className="bg-safran text-encre text-center text-sm px-4 py-2">
-          Mode démonstration : produits d’exemple, paiement désactivé. Voir le guide pour brancher la boutique.
+          Mode démonstration : paiement simulé, aucune carte débitée.{' '}
+          <a href="/admin" className="underline font-medium">Tester l’espace vendeur</a>
         </p>
       )}
       <Header />

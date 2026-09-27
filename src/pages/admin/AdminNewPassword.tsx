@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { DEMO_MODE } from '../../lib/supabase';
+import { updatePassword } from '../../lib/api';
 import { AdminMessage } from './AdminLayout';
 import { Field, Input } from './ui';
 
@@ -9,14 +10,17 @@ export function AdminNewPassword() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  if (!supabase) return <AdminMessage title="Espace vendeur pas encore branché" />;
+  if (DEMO_MODE) return <AdminMessage title="Indisponible en démonstration" />;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (password.length < 10) return setError('Choisissez au moins 10 caractères.');
-    const { error } = await supabase!.auth.updateUser({ password });
-    if (error) return setError('Le lien a expiré. Redemandez un email depuis la page de connexion.');
-    navigate('/admin', { replace: true });
+    try {
+      await updatePassword(password);
+      navigate('/admin', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    }
   }
 
   return (

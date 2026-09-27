@@ -62,3 +62,17 @@ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: string }> 
   delivered: { label: 'Livrée', tone: 'bg-emerald-100 text-emerald-800' },
   cancelled: { label: 'Annulée', tone: 'bg-stone-200 text-stone-600' },
 };
+
+export interface StockAlert {
+  id: number;
+  product_id: string;
+  email: string;
+  notified: boolean;
+  created_at: string;
+}
+
+export interface AdminCounts {
+  outOfStock: number;
+  alertsPending: number;
+  ordersToPrepare: number;
+}

@@ -18,7 +18,10 @@ Durée : environ 1 heure. Aucune installation sur votre ordinateur.
 cd boutique-tamurt
 docker compose up
 ```
-Ouvrir http://localhost:5173 — produits d’exemple, paiement désactivé.
+Ouvrir http://localhost:5173 — produits et photos d’exemple, paiement simulé.
+
+Espace vendeur de démonstration : http://localhost:5173/admin — identifiants préremplis `demo@tamurt.fr` / `demo`.
+Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser la démonstration » en haut).
 
 ---
 
@@ -27,6 +30,7 @@ Ouvrir http://localhost:5173 — produits d’exemple, paiement désactivé.
 1. Créer un compte sur https://supabase.com → **New project** (région : *Europe West — Paris* ou *Frankfurt*).
 2. **SQL Editor → New query** : coller tout le fichier `supabase/schema.sql` → **Run**.
 3. **Authentication → Users → Add user → Create new user** : email + mot de passe du propriétaire (cocher *Auto Confirm User*).
+   *Facultatif* : coller aussi `supabase/produits-exemple.sql` pour avoir 6 produits avec photos d’exemple.
 4. Ouvrir `supabase/ajouter-proprietaire.sql`, remplacer l’email, le coller dans le SQL Editor → **Run**.
 5. **Authentication → Sign In / Providers** : désactiver **Allow new users to sign up** (personne d’autre ne peut créer de compte).
 6. **Project Settings → API** : noter `Project URL`, la clé `anon public` et la clé `service_role` (secrète).
@@ -70,6 +74,13 @@ Ouvrir http://localhost:5173 — produits d’exemple, paiement désactivé.
 3. URL : `https://VOTRE-SITE.netlify.app/.netlify/functions/stripe-webhook`
 4. Copier le **secret de signature** (`whsec_...`) dans Netlify → `STRIPE_WEBHOOK_SECRET` → redéployer.
 
+## 4 bis. Email automatique « rupture de stock » (facultatif, gratuit)
+
+Sans cette étape, les ruptures s’affichent quand même dans l’espace vendeur (onglet **Alertes stock**).
+Pour recevoir aussi un email :
+1. Créer un compte sur https://resend.com → **API Keys → Create**.
+2. Dans Netlify, ajouter `RESEND_API_KEY` (la clé) et `OWNER_EMAIL` (votre email, le même que le compte Resend) → redéployer.
+
 ## 5. Tester avant d’ouvrir
 
 1. Aller sur `/admin`, se connecter, **Ajouter un produit** avec une photo.
@@ -81,6 +92,7 @@ Ouvrir http://localhost:5173 — produits d’exemple, paiement désactivé.
 
 - Nom, email, téléphone, WhatsApp, SIRET, adresse : `src/config.ts`
 - Frais et pays de livraison : `src/shipping.ts`
+- Photos d’exemple : dossier `public/exemples/` (illustrations générées, à remplacer par vos vraies photos)
 - Textes « Notre histoire » et pages légales : `src/pages/StoryPage.tsx`, `src/pages/LegalPages.tsx` (à faire relire)
 - Nom de domaine : Netlify → **Domain management → Add a domain**
 
@@ -92,6 +104,8 @@ Chaque `git push` met le site à jour automatiquement.
 
 - **Ajouter un produit** : `/admin` → *Ajouter un produit* → photos, nom, prix, quantité → *Enregistrer*. Fonctionne sur téléphone (appareil photo direct).
 - **Retirer un produit** sans le supprimer : décocher *En ligne*.
+- **Rupture de stock** : quand la quantité tombe à 0, le produit reste visible avec « Rupture de stock », une pastille rouge apparaît sur *Alertes stock* (et un email si l’étape 4 bis est faite). *Remettre en vente* en un clic.
+- **Clients qui attendent** : sur un produit en rupture, les visiteurs peuvent laisser leur email. Dans *Alertes stock*, bouton *Écrire à ces clients* dès que le produit revient.
 - **Nouvelle commande** : email de Stripe + onglet *Commandes → À préparer*. Adresse du client, articles, bouton *Prévenir le client par email*.
 - **Après expédition** : saisir le numéro de suivi, passer l’étape à *Expédiée*.
 - **Rembourser** : lien *Voir le paiement dans Stripe* dans la commande → *Rembourser*.

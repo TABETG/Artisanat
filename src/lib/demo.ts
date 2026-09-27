@@ -1,18 +1,48 @@
-import { Product } from '../types';
+import { Order, Product, StockAlert } from '../types';
 
-const base = { material: 'Laine de mouton', active: true, created_at: '2026-01-01T00:00:00Z', images: [] as string[] };
+// Photos d'exemple (dossier public/exemples) — à remplacer par vos vraies photos
+const img = (name: string) => [`/exemples/${name}-1.jpg`, `/exemples/${name}-2.jpg`];
+const base = { material: 'Laine de mouton', active: true };
 
 export const DEMO_PRODUCTS: Product[] = [
-  { ...base, id: 'demo-1', name: 'Tapis Azilal aux losanges', category: 'tapis', price_cents: 89000, stock: 1, width_cm: 160, length_cm: 240, origin: 'Moyen Atlas', featured: true,
-    description: 'Fond de laine écrue, losanges tracés à main levée en rouge garance et safran. Nœuds serrés, franges d’origine.' },
-  { ...base, id: 'demo-2', name: 'Tapis Beni Ouarain', category: 'tapis', price_cents: 124000, stock: 1, width_cm: 200, length_cm: 300, origin: 'Moyen Atlas', featured: true,
+  { ...base, id: 'demo-1', name: 'Tapis Azilal aux losanges', category: 'tapis', price_cents: 89000, stock: 1, width_cm: 160, length_cm: 240, origin: 'Moyen Atlas', featured: true, images: img('tapis-azilal'), created_at: '2026-09-20T10:00:00Z',
+    description: 'Fond de laine écrue, losanges tracés à main levée en rouge garance, safran et indigo. Nœuds serrés, franges d’origine.' },
+  { ...base, id: 'demo-2', name: 'Tapis Beni Ouarain', category: 'tapis', price_cents: 124000, stock: 1, width_cm: 200, length_cm: 300, origin: 'Moyen Atlas', featured: true, images: img('tapis-beni-ouarain'), created_at: '2026-09-18T10:00:00Z',
     description: 'Laine épaisse et moelleuse, lignes brunes naturelles non teintes. Un tapis qui se pose au sol comme une couverture.' },
-  { ...base, id: 'demo-3', name: 'Kilim Zanafi', category: 'tapis', price_cents: 42000, stock: 1, width_cm: 120, length_cm: 180, origin: 'Haut Atlas', featured: true,
-    description: 'Tissage plat réversible, bandes indigo et motifs brodés. Léger, il se déplace facilement d’une pièce à l’autre.' },
-  { ...base, id: 'demo-4', name: 'Coussin en laine tissée', category: 'coussins', price_cents: 6500, stock: 6, width_cm: 45, length_cm: 45, origin: 'Atelier', featured: true,
+  { ...base, id: 'demo-3', name: 'Kilim Zanafi', category: 'tapis', price_cents: 42000, stock: 2, width_cm: 120, length_cm: 180, origin: 'Haut Atlas', featured: true, images: img('kilim-zanafi'), created_at: '2026-09-15T10:00:00Z',
+    description: 'Tissage plat réversible, bandes indigo et triangles. Léger, il se déplace facilement d’une pièce à l’autre.' },
+  { ...base, id: 'demo-4', name: 'Coussin en laine tissée', category: 'coussins', price_cents: 6500, stock: 6, width_cm: 45, length_cm: 45, origin: 'Atelier', featured: true, images: img('coussin-laine'), created_at: '2026-09-12T10:00:00Z',
     description: 'Face tissée à la main, dos en coton épais, fermeture discrète. Garnissage plume fourni.' },
-  { ...base, id: 'demo-5', name: 'Plaid Hanbel rayé', category: 'plaids', price_cents: 18000, stock: 3, width_cm: 130, length_cm: 190, origin: 'Atelier', featured: false,
+  { ...base, id: 'demo-5', name: 'Plaid Hanbel rayé', category: 'plaids', price_cents: 18000, stock: 3, width_cm: 130, length_cm: 190, origin: 'Atelier', featured: false, images: img('plaid-hanbel'), created_at: '2026-09-10T10:00:00Z',
     description: 'Couverture de laine à rayures fines, pour le canapé ou le pied de lit.' },
-  { ...base, id: 'demo-6', name: 'Petit tapis Boucherouite', category: 'tapis', price_cents: 29000, stock: 0, width_cm: 90, length_cm: 150, origin: 'Atelier', featured: false, material: 'Laine et coton recyclé',
-    description: 'Tissé à partir de chutes de laine et de tissus colorés. Pièce vendue, visible pour inspiration.' },
+  { ...base, id: 'demo-6', name: 'Petit tapis Boucherouite', category: 'tapis', price_cents: 29000, stock: 0, width_cm: 90, length_cm: 150, origin: 'Atelier', featured: false, material: 'Laine et coton recyclé', images: img('tapis-boucherouite'), created_at: '2026-09-01T10:00:00Z',
+    description: 'Tissé à partir de chutes de laine et de tissus colorés. Chaque boucherouite est une explosion de couleurs unique.' },
 ];
+
+export const DEMO_ORDERS: Order[] = [
+  {
+    id: 'demo-cmd-1', stripe_session_id: 'demo_1', stripe_payment_id: null,
+    email: 'claire.martin@exemple.fr', customer_name: 'Claire Martin', phone: '+33 6 12 34 56 78',
+    shipping_name: 'Claire Martin',
+    shipping_address: { line1: '12 rue des Lilas', postal_code: '69003', city: 'Lyon', country: 'FR' },
+    subtotal_cents: 29000, shipping_cents: 1500, total_cents: 30500, status: 'paid',
+    tracking_number: null, note: null, created_at: '2026-09-26T15:42:00Z',
+    order_items: [{ id: 1, product_id: 'demo-6', name: 'Petit tapis Boucherouite', unit_price_cents: 29000, quantity: 1 }],
+  },
+  {
+    id: 'demo-cmd-2', stripe_session_id: 'demo_2', stripe_payment_id: null,
+    email: 'thomas.dubois@exemple.fr', customer_name: 'Thomas Dubois', phone: '+32 470 12 34 56',
+    shipping_name: 'Thomas Dubois',
+    shipping_address: { line1: 'Avenue Louise 88', postal_code: '1050', city: 'Bruxelles', country: 'BE' },
+    subtotal_cents: 13000, shipping_cents: 1500, total_cents: 14500, status: 'shipped',
+    tracking_number: '6A12345678901', note: null, created_at: '2026-09-22T09:10:00Z',
+    order_items: [{ id: 2, product_id: 'demo-4', name: 'Coussin en laine tissée', unit_price_cents: 6500, quantity: 2 }],
+  },
+];
+
+export const DEMO_ALERTS: StockAlert[] = [
+  { id: 1, product_id: 'demo-6', email: 'sophie.l@exemple.fr', notified: false, created_at: '2026-09-26T18:00:00Z' },
+  { id: 2, product_id: 'demo-6', email: 'karim.b@exemple.fr', notified: false, created_at: '2026-09-27T08:30:00Z' },
+];
+
+export const DEMO_ADMIN = { email: 'demo@tamurt.fr', password: 'demo' };

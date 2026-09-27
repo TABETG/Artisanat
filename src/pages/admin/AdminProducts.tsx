@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { adminListProducts, deleteProduct, setProductActive } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatPrice } from '../../lib/format';
@@ -43,6 +43,20 @@ export function AdminProducts() {
         </Link>
       </div>
 
+      {(() => {
+        const out = (data ?? []).filter((p) => p.active && p.stock === 0);
+        if (!out.length) return null;
+        return (
+          <Link to="/admin/alertes" className="mt-6 flex items-start gap-3 bg-garance/10 text-garance p-4 rounded-md hover:bg-garance/15">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <span>
+              <strong>{out.length} produit{out.length > 1 ? 's' : ''} en rupture de stock</strong> : {out.slice(0, 3).map((p) => p.name).join(', ')}{out.length > 3 ? '…' : ''}.
+              <span className="underline ml-1">Remettre en stock</span>
+            </span>
+          </Link>
+        );
+      })()}
+
       {(data?.length ?? 0) > 5 && (
         <Input className="mt-6 max-w-sm" placeholder="Rechercher un produit" value={search} onChange={(e) => setSearch(e.target.value)} />
       )}
@@ -66,8 +80,8 @@ export function AdminProducts() {
             <div className="flex-1 min-w-0">
               <Link to={`/admin/produits/${p.id}`} className="font-medium text-encre hover:text-garance block truncate">{p.name}</Link>
               <p className="text-sm text-stone-500">{categoryLabel(p.category)} · {formatPrice(p.price_cents)}</p>
-              <p className={`text-sm mt-0.5 ${p.stock === 0 ? 'text-garance font-medium' : 'text-stone-600'}`}>
-                {p.stock === 0 ? 'Vendu / épuisé' : `${p.stock} en stock`}
+              <p className={`text-sm mt-0.5 ${p.stock <= 2 ? 'text-garance font-medium' : 'text-stone-600'}`}>
+                {p.stock === 0 ? 'Rupture de stock' : p.stock <= 2 ? `Stock bas : ${p.stock}` : `${p.stock} en stock`}
               </p>
             </div>
             <label className="flex flex-col items-center gap-1 text-xs text-stone-600 cursor-pointer">

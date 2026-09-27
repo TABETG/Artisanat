@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Lock, Minus, Plus, Trash2, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/format';
 import { SHIPPING, shippingFor } from '../shipping';
@@ -8,7 +8,9 @@ import { startCheckout } from '../lib/api';
 import { ProductImage } from './ProductImage';
 
 export function CartDrawer() {
-  const { lines, subtotal, isOpen, close, setQuantity, remove } = useCart();
+  const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded } = useCart();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +28,12 @@ export function CartDrawer() {
 
   const shipping = shippingFor(subtotal);
   const missingForFree = SHIPPING.freeFromCents - subtotal;
+
+  /** Ferme le panier ; depuis une fiche produit, ramène à la boutique pour continuer. */
+  function continueShopping() {
+    close();
+    if (pathname.startsWith('/produit/') || pathname === '/merci' || pathname === '/commande-annulee') navigate('/boutique');
+  }
 
   async function pay() {
     setPaying(true);
@@ -47,6 +55,13 @@ export function CartDrawer() {
           <h2 className="font-display text-xl text-nuit">Votre panier</h2>
           <button onClick={close} className="p-2 rounded hover:bg-laine-fonce" aria-label="Fermer le panier"><X className="w-5 h-5" /></button>
         </div>
+
+        {lastAdded && (
+          <div className="mx-6 mt-4 flex items-center gap-2 bg-emerald-50 text-emerald-800 px-4 py-3 rounded-sm" role="status">
+            <Check className="w-5 h-5 shrink-0" />
+            <span>« {lastAdded} » a été ajouté au panier.</span>
+          </div>
+        )}
 
         {lines.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
@@ -100,6 +115,10 @@ export function CartDrawer() {
                 className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit disabled:opacity-60">
                 <Lock className="w-4 h-4" />
                 {paying ? 'Ouverture du paiement…' : 'Payer ma commande'}
+              </button>
+              <button onClick={continueShopping}
+                className="w-full py-3.5 rounded-sm border border-nuit/25 text-nuit flex items-center justify-center gap-2 hover:border-nuit">
+                <ArrowLeft className="w-4 h-4" /> Continuer mes achats
               </button>
               <p className="text-xs text-center text-henne">
                 Paiement par carte (Visa, Mastercard, CB), Apple Pay ou Google Pay, sur la page sécurisée de Stripe.

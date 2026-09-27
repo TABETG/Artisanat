@@ -80,17 +80,47 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   if (itemsError) throw itemsError;
 
   let stockProblem = false;
+  const productIds: string[] = [];
   for (const item of items) {
     if (!item.product_id) continue;
+    productIds.push(item.product_id);
     const { data: ok } = await supabase.rpc('decrement_stock', {
       p_product_id: item.product_id, p_quantity: item.quantity,
     });
     if (ok === false) stockProblem = true;
+  }
+
+  // Prévenir le propriétaire des produits qui viennent de passer en rupture
+  if (productIds.length) {
+    const { data: soldOut } = await supabase.from('products').select('name').in('id', productIds).eq('stock', 0);
+    if (soldOut?.length) await notifyOwnerSoldOut(soldOut.map((p) => p.name));
   }
   if (stockProblem) {
     await supabase.from('orders').update({
       status: 'check_stock',
       note: 'Un article a été vendu deux fois en même temps : contactez le client (échange ou remboursement depuis Stripe).',
     }).eq('id', order.id);
+  }
+}
+
+/** Email au propriétaire (facultatif : actif si RESEND_API_KEY et OWNER_EMAIL sont renseignés). */
+async function notifyOwnerSoldOut(names: string[]) {
+  const key = process.env.RESEND_API_KEY;
+  const to = process.env.OWNER_EMAIL;
+  if (!key || !to) return;
+  const site = process.env.URL ?? '';
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>',
+        to: [to],
+        subject: names.length > 1 ? `${names.length} produits en rupture de stock` : `Rupture de stock : ${names[0]}`,
+        text: `Bonjour,\n\nSuite à une vente, ces produits sont maintenant en rupture de stock :\n\n${names.map((n) => `- ${n}`).join('\n')}\n\nPour les remettre en vente : ${site}/admin/alertes\n`,
+      }),
+    });
+  } catch (e) {
+    console.error('Email de rupture non envoyé', e);
   }
 }

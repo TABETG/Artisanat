@@ -13,7 +13,10 @@ export function ProductCard({ product }: { product: Product }) {
         <ProductImage src={product.images[0]} alt={product.name}
           className={`w-full h-full transition-transform duration-500 group-hover:scale-[1.03] ${soldOut ? 'opacity-60' : ''}`} />
         {soldOut && (
-          <span className="absolute top-3 left-3 bg-encre text-laine text-sm px-2.5 py-1 rounded-sm">Vendu</span>
+          <span className="absolute top-3 left-3 bg-encre text-laine text-sm px-2.5 py-1 rounded-sm">Rupture de stock</span>
+        )}
+        {!soldOut && product.stock > 1 && product.stock <= 3 && (
+          <span className="absolute top-3 left-3 bg-garance text-laine text-sm px-2.5 py-1 rounded-sm">Plus que {product.stock}</span>
         )}
         {!soldOut && product.stock === 1 && (
           <span className="absolute top-3 left-3 bg-laine text-nuit text-sm px-2.5 py-1 rounded-sm">Pièce unique</span>

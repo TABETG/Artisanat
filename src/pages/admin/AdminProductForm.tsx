@@ -139,7 +139,7 @@ export function AdminProductForm() {
           <Field label="Prix (€)" error={errors.price}>
             <Input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="450" />
           </Field>
-          <Field label="Quantité disponible" hint="1 pour une pièce unique. 0 = affiché comme vendu.">
+          <Field label="Quantité disponible" hint="1 pour une pièce unique. À 0, le produit passe en « Rupture de stock ».">
             <Input type="number" min={0} value={form.stock} onChange={(e) => set('stock', toInt(e.target.value) ?? 0)} />
           </Field>
         </div>

@@ -15,6 +15,8 @@ interface CartValue {
   count: number;
   subtotal: number;
   isOpen: boolean;
+  /** Nom du dernier article ajouté (affiché en confirmation dans le panier) */
+  lastAdded: string | null;
   open: () => void;
   close: () => void;
   add: (p: Product, quantity?: number) => void;
@@ -38,6 +40,7 @@ function load(): CartLine[] {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(load);
   const [isOpen, setIsOpen] = useState(false);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch { /* navigation privée */ }
@@ -48,8 +51,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     count: lines.reduce((n, l) => n + l.quantity, 0),
     subtotal: lines.reduce((n, l) => n + l.price_cents * l.quantity, 0),
     isOpen,
-    open: () => setIsOpen(true),
-    close: () => setIsOpen(false),
+    lastAdded,
+    open: () => { setLastAdded(null); setIsOpen(true); },
+    close: () => { setIsOpen(false); setLastAdded(null); },
     add: (p, quantity = 1) => {
       setLines((prev) => {
         const existing = prev.find((l) => l.id === p.id);
@@ -61,13 +65,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           image: p.images[0] ?? null, stock: p.stock, quantity: Math.min(p.stock, quantity),
         }];
       });
+      setLastAdded(p.name);
       setIsOpen(true);
     },
     setQuantity: (id, quantity) =>
       setLines((prev) => prev.map((l) => l.id === id ? { ...l, quantity: Math.max(1, Math.min(l.stock, quantity)) } : l)),
     remove: (id) => setLines((prev) => prev.filter((l) => l.id !== id)),
     clear: () => setLines([]),
-  }), [lines, isOpen]);
+  }), [lines, isOpen, lastAdded]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
