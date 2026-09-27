@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-laine: #F2ECE2;     /* laine écrue */
+  --color-laine-fonce: #E4DACB;
+  --color-nuit: #1B2440;      /* indigo nuit */
+  --color-garance: #A3302A;   /* rouge garance */
+  --color-safran: #D4A03A;    /* jaune safran */
+  --color-henne: #5A3A24;     /* brun henné */
+  --color-encre: #231C17;     /* texte */
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html { background: var(--color-laine); color: var(--color-encre); }
+body { margin: 0; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+:focus-visible { outline: 2px solid var(--color-garance); outline-offset: 2px; }
+
+/* Bande de losanges, comme la lisière d'un tapis */
+.motif {
+  height: 18px;
+  background-color: var(--color-nuit);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='18' viewBox='0 0 36 18'%3E%3Cpath d='M18 1 27 9 18 17 9 9Z' fill='none' stroke='%23D4A03A' stroke-width='2'/%3E%3Cpath d='M18 6 21 9 18 12 15 9Z' fill='%23A3302A'/%3E%3Cpath d='M0 9 4 5 4 13Z M36 9 32 5 32 13Z' fill='%23F2ECE2'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
+/* Visuel de remplacement quand un produit n'a pas encore de photo */
+.tissage {
+  background-color: var(--color-laine-fonce);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 6 74 40 40 74 6 40Z' fill='none' stroke='%23A3302A' stroke-width='3'/%3E%3Cpath d='M40 22 58 40 40 58 22 40Z' fill='none' stroke='%231B2440' stroke-width='3'/%3E%3Cpath d='M40 34 46 40 40 46 34 40Z' fill='%23D4A03A'/%3E%3C/svg%3E");
+  background-size: 80px 80px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
