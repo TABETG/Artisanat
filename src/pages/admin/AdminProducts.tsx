@@ -1,17 +1,19 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Copy, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Copy, Download, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
-  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, setProductActive, setProductStock,
+  adminListProducts, adminListStockAlerts, deleteProduct, discountPatch, duplicateProduct, removeDiscountPatch,
+  setProductActive, setProductStock, updateProductFields, downloadFile, productsToCsv,
 } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatPrice } from '../../lib/format';
-import { CATEGORIES, categoryLabel } from '../../config';
+import { useCategories } from '../../context/SettingsContext';
 import { ProductImage } from '../../components/ProductImage';
 import { Input, Select, Stepper, Toast } from './ui';
 import { Product } from '../../types';
 import { RestockModal, restockMessage } from './RestockModal';
+import { MANUAL_BADGES } from '../../badges';
 
 type Filter = 'tous' | 'en-ligne' | 'masques' | 'rupture' | 'stock-bas' | 'promo';
 type Sort = 'recent' | 'nom' | 'prix' | 'stock';
@@ -22,6 +24,7 @@ export function AdminProducts() {
   const { data, loading, error, setData } = useAsync(adminListProducts, []);
   const alerts = useAsync(adminListStockAlerts, []);
   const location = useLocation();
+  const { categories, label: categoryLabel } = useCategories();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('tous');
@@ -29,6 +32,11 @@ export function AdminProducts() {
   const [sort, setSort] = useState<Sort>('recent');
   const [toast, setToast] = useState<string | null>(null);
   const [restock, setRestock] = useState<{ product: Product; waiting: number } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [percent, setPercent] = useState(20);
+  const [promoEnd, setPromoEnd] = useState('');
+  const [badgeId, setBadgeId] = useState(MANUAL_BADGES[0].id);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   function flash(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000); }
 
@@ -91,6 +99,41 @@ export function AdminProducts() {
     flash('Produit supprimé');
   }
 
+  // ---------- Actions groupées ----------
+  const toggleSelect = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allVisibleSelected = products.length > 0 && products.every((p) => selected.has(p.id));
+  const selectAllVisible = () => setSelected(allVisibleSelected ? new Set() : new Set(products.map((p) => p.id)));
+  const chosen = all.filter((p) => selected.has(p.id));
+
+  async function bulk(label: string, patchFor: (p: Product) => Partial<Product> | null, confirmText?: string) {
+    if (confirmText && !confirm(confirmText)) return;
+    setBulkBusy(true);
+    try {
+      const updates: Record<string, Partial<Product>> = {};
+      for (const p of chosen) {
+        const patch = patchFor(p);
+        if (!patch) continue;
+        await updateProductFields(p.id, patch);
+        updates[p.id] = patch;
+      }
+      setData((l) => l?.map((x) => (updates[x.id] ? { ...x, ...updates[x.id] } : x)) ?? null);
+      flash(`${Object.keys(updates).length} produit${Object.keys(updates).length > 1 ? 's' : ''} : ${label}`);
+      setSelected(new Set());
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`Supprimer définitivement ${chosen.length} produit${chosen.length > 1 ? 's' : ''} ?`)) return;
+    setBulkBusy(true);
+    for (const p of chosen) await deleteProduct(p);
+    setData((l) => l?.filter((x) => !selected.has(x.id)) ?? null);
+    flash(`${chosen.length} produit${chosen.length > 1 ? 's supprimés' : ' supprimé'}`);
+    setSelected(new Set());
+    setBulkBusy(false);
+  }
+
   const out = all.filter((p) => p.active && p.stock === 0);
   const filters: { id: Filter; label: string }[] = [
     { id: 'tous', label: 'Tous' }, { id: 'en-ligne', label: 'En ligne' }, { id: 'masques', label: 'Masqués' },
@@ -101,9 +144,15 @@ export function AdminProducts() {
     <div>
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <h1 className="font-display text-3xl text-nuit">Produits <span className="text-stone-400 text-xl">({all.length})</span></h1>
-        <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-garance text-laine px-6 py-3.5 rounded-md text-lg hover:bg-nuit">
-          <Plus className="w-5 h-5" /> Ajouter un produit
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => downloadFile(`produits-${new Date().toISOString().slice(0, 10)}.csv`, productsToCsv(products))} disabled={!products.length}
+            className="flex items-center gap-2 px-4 py-3.5 rounded-md border border-stone-300 bg-white disabled:opacity-50" title="Inventaire au format Excel">
+            <Download className="w-4 h-4" /> Inventaire
+          </button>
+          <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-garance text-laine px-6 py-3.5 rounded-md text-lg hover:bg-nuit">
+            <Plus className="w-5 h-5" /> Ajouter un produit
+          </Link>
+        </div>
       </div>
 
       {out.length > 0 && (
@@ -129,7 +178,7 @@ export function AdminProducts() {
         </label>
         <Select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Catégorie">
           <option value="tout">Toutes les catégories</option>
-          {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </Select>
         <Select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Trier">
           <option value="recent">Plus récents</option>
@@ -152,12 +201,21 @@ export function AdminProducts() {
         <p className="mt-8 bg-white rounded-lg p-6 text-stone-500">Aucun produit ne correspond à ces filtres.</p>
       )}
 
-      <ul className="mt-5 space-y-3">
+      {products.length > 0 && (
+        <label className="mt-5 inline-flex items-center gap-3 text-sm cursor-pointer">
+          <input type="checkbox" checked={allVisibleSelected} onChange={selectAllVisible} className="w-5 h-5 accent-nuit" />
+          Tout sélectionner ({products.length}) — pour mettre en ligne, masquer ou lancer une promotion en une fois
+        </label>
+      )}
+
+      <ul className="mt-3 space-y-3">
         {products.map((p) => {
           const promo = p.compare_at_price_cents && p.compare_at_price_cents > p.price_cents;
           const waiting = waitingFor(p.id);
           return (
-            <li key={p.id} className={`bg-white rounded-lg border border-stone-200 p-3 sm:p-4 grid grid-cols-[64px_1fr] sm:grid-cols-[72px_1fr_auto_auto] gap-x-4 gap-y-3 items-center ${p.active ? '' : 'bg-stone-50'}`}>
+            <li key={p.id} className={`rounded-lg border p-3 sm:p-4 grid grid-cols-[auto_64px_1fr] sm:grid-cols-[auto_72px_1fr_auto_auto] gap-x-4 gap-y-3 items-center ${selected.has(p.id) ? 'border-nuit ring-1 ring-nuit bg-white' : p.active ? 'border-stone-200 bg-white' : 'border-stone-200 bg-stone-50'}`}>
+              <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label={`Sélectionner ${p.name}`}
+                className="w-5 h-5 accent-nuit row-span-2 sm:row-span-1" />
               <Link to={`/admin/produits/${p.id}`} className="row-span-2 sm:row-span-1">
                 <ProductImage src={p.images[0]} alt={p.name} className={`w-16 sm:w-[72px] h-20 sm:h-24 rounded ${p.active ? '' : 'opacity-50'}`} />
               </Link>
@@ -170,17 +228,21 @@ export function AdminProducts() {
                   <span className="font-medium">{formatPrice(p.price_cents)}</span>
                   {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!)}</span>}
                   {!p.active && <Tag tone="stone">Masqué</Tag>}
+                  {p.active && p.publish_at && new Date(p.publish_at) > new Date() && <Tag tone="blue">En ligne le {new Date(p.publish_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Tag>}
                   {p.stock === 0 && <Tag tone="red">Rupture</Tag>}
                   {isLowStock(p) && <Tag tone="amber">Stock bas</Tag>}
                   {p.featured && <Tag tone="blue">Mis en avant</Tag>}
+                  {(p.badges ?? []).map((id) => { const b = MANUAL_BADGES.find((x) => x.id === id); return b && <Tag key={id} tone="amber">{b.label}</Tag>; })}
+                  {promo && p.promo_ends_at && <Tag tone="red">Promo jusqu’au {new Date(p.promo_ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Tag>}
+                  <span className="text-xs text-stone-500">{p.views_count ?? 0} vues · {p.cart_adds_count ?? 0} paniers · {p.sales_count ?? 0} vendu{(p.sales_count ?? 0) > 1 ? 's' : ''}</span>
                   {waiting > 0 && <Tag tone="red">{waiting} client{waiting > 1 ? 's attendent' : ' attend'}</Tag>}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 col-start-3 sm:col-start-auto">
                 <span className="text-sm text-stone-500 sm:hidden">Stock</span>
                 <Stepper label={`Stock de ${p.name}`} value={p.stock} onChange={(v) => changeStock(p, v)} />
               </div>
-              <div className="flex items-center gap-1 col-span-2 sm:col-span-1 justify-end border-t sm:border-0 pt-2 sm:pt-0">
+              <div className="flex items-center gap-1 col-span-3 sm:col-span-1 justify-end border-t sm:border-0 pt-2 sm:pt-0">
                 <IconButton onClick={() => toggle(p)} label={p.active ? 'Masquer de la boutique' : 'Mettre en ligne'}>
                   {p.active ? <Eye className="w-5 h-5 text-emerald-700" /> : <EyeOff className="w-5 h-5" />}
                 </IconButton>
@@ -192,6 +254,40 @@ export function AdminProducts() {
           );
         })}
       </ul>
+
+      {selected.size > 0 && (
+        <div className="sticky bottom-0 z-30 mt-6 -mx-4 px-4 py-3 bg-nuit text-laine flex flex-wrap items-center gap-2 shadow-lg" role="region" aria-label="Actions groupées">
+          <span className="font-medium mr-2">{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span>
+          <button disabled={bulkBusy} onClick={() => bulk('mis en ligne', () => ({ active: true }))} className="px-3 py-2 rounded-md bg-laine/10 hover:bg-laine/20">Mettre en ligne</button>
+          <button disabled={bulkBusy} onClick={() => bulk('masqués', () => ({ active: false }))} className="px-3 py-2 rounded-md bg-laine/10 hover:bg-laine/20">Masquer</button>
+          <span className="inline-flex items-center gap-1 rounded-md bg-laine/10 pl-2">
+            Promotion
+            <select value={percent} onChange={(e) => setPercent(Number(e.target.value))} className="bg-transparent py-2 px-1" aria-label="Pourcentage de réduction">
+              {[5, 10, 15, 20, 25, 30, 40, 50].map((v) => <option key={v} value={v} className="text-encre">−{v} %</option>)}
+            </select>
+            <button disabled={bulkBusy} onClick={() => bulk(`promotion −${percent} %`, (p) => discountPatch(p, percent, promoEnd ? new Date(`${promoEnd}T23:59:59`).toISOString() : null),
+              `Appliquer −${percent} % sur ${chosen.length} produit${chosen.length > 1 ? 's' : ''} ?\n\nL’ancien prix sera affiché barré.`)}
+              className="px-3 py-2 rounded-md bg-safran text-encre hover:bg-laine">Appliquer</button>
+            <label className="inline-flex items-center gap-1 text-sm pl-2 pr-1">jusqu’au
+              <input type="date" value={promoEnd} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setPromoEnd(e.target.value)}
+                className="bg-transparent py-1.5 [color-scheme:dark]" aria-label="Fin de la promotion (facultatif)" />
+            </label>
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-laine/10 pl-2">
+            Badge
+            <select value={badgeId} onChange={(e) => setBadgeId(e.target.value)} className="bg-transparent py-2 px-1" aria-label="Badge">
+              {MANUAL_BADGES.map((b) => <option key={b.id} value={b.id} className="text-encre">{b.label}</option>)}
+            </select>
+            <button disabled={bulkBusy} onClick={() => bulk('badge ajouté', (p) => (p.badges?.includes(badgeId) ? null : { badges: [...(p.badges ?? []), badgeId] }))}
+              className="px-3 py-2 rounded-md hover:bg-laine/20">Ajouter</button>
+            <button disabled={bulkBusy} onClick={() => bulk('badge retiré', (p) => (p.badges?.includes(badgeId) ? { badges: p.badges.filter((b) => b !== badgeId) } : null))}
+              className="px-3 py-2 rounded-md hover:bg-laine/20">Retirer</button>
+          </span>
+          <button disabled={bulkBusy} onClick={() => bulk('promotion retirée', (p) => (p.compare_at_price_cents ? removeDiscountPatch(p) : null))} className="px-3 py-2 rounded-md bg-laine/10 hover:bg-laine/20">Retirer la promotion</button>
+          <button disabled={bulkBusy} onClick={bulkDelete} className="px-3 py-2 rounded-md text-laine/80 hover:text-white hover:bg-garance">Supprimer</button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto px-3 py-2 text-laine/70 hover:text-laine">Annuler</button>
+        </div>
+      )}
 
       {restock && (
         <RestockModal productId={restock.product.id} productName={restock.product.name} waiting={restock.waiting}

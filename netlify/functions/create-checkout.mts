@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { SHIPPING, shippingFor } from '../../src/shipping';
 import { loadSettings } from '../shared/settings';
+import { applyPromoExpiry } from '../../src/pricing';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -30,14 +31,16 @@ export default async (req: Request) => {
     { auth: { persistSession: false } },
   );
   const { data: products, error } = await supabase
-    .from('products').select('id,name,price_cents,stock,images,active')
+    .from('products').select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,images,active')
     .in('id', [...new Set(lines.map((l) => l.id))]);
   if (error || !products) return json({ error: 'Service momentanément indisponible.' }, 500);
 
   let subtotal = 0;
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   for (const line of lines) {
-    const p = products.find((x) => x.id === line.id);
+    const found = products.find((x) => x.id === line.id);
+    // Promotion terminée : on facture le prix d'origine
+    const p = found ? applyPromoExpiry(found) : undefined;
     if (!p || !p.active) return json({ error: 'Un article de votre panier n’est plus en vente. Retirez-le pour continuer.' }, 409);
     if (p.stock < line.quantity) {
       return json({ error: p.stock === 0
@@ -74,17 +77,16 @@ export default async (req: Request) => {
       phone_number_collection: { enabled: true },
       // Codes promo créés dans Stripe → Catalogue de produits → Coupons
       allow_promotion_codes: true,
-      shipping_options: [{
-        shipping_rate_data: {
-          type: 'fixed_amount',
-          display_name: shipping === 0 ? 'Livraison suivie offerte' : 'Livraison suivie',
-          fixed_amount: { amount: shipping, currency: 'eur' },
-          delivery_estimate: {
-            minimum: { unit: 'business_day', value: settings.shipping_min_days },
-            maximum: { unit: 'business_day', value: settings.shipping_max_days },
-          },
-        },
-      }],
+      ...(settings.gift_message_enabled ? {
+        custom_fields: [{
+          key: 'message',
+          label: { type: 'custom' as const, custom: 'Message cadeau ou précisions (facultatif)' },
+          type: 'text' as const,
+          optional: true,
+          text: { maximum_length: 255 },
+        }],
+      } : {}),
+      shipping_options: shippingOptions(settings, shipping),
       // La page de paiement expire vite : limite le risque de vendre deux fois une pièce unique
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       success_url: `${origin}/merci?session_id={CHECKOUT_SESSION_ID}`,
@@ -96,3 +98,21 @@ export default async (req: Request) => {
     return json({ error: 'Le paiement n’a pas pu démarrer. Réessayez dans un instant.' }, 502);
   }
 };
+
+type Settings = Awaited<ReturnType<typeof loadSettings>>;
+
+/** Livraison suivie (toujours), express et retrait à l'atelier (si activés dans les réglages). */
+function shippingOptions(settings: Settings, standardCents: number): Stripe.Checkout.SessionCreateParams.ShippingOption[] {
+  const rate = (name: string, amount: number, min?: number, max?: number): Stripe.Checkout.SessionCreateParams.ShippingOption => ({
+    shipping_rate_data: {
+      type: 'fixed_amount',
+      display_name: name,
+      fixed_amount: { amount, currency: 'eur' },
+      ...(min && max ? { delivery_estimate: { minimum: { unit: 'business_day', value: min }, maximum: { unit: 'business_day', value: max } } } : {}),
+    },
+  });
+  const options = [rate(standardCents === 0 ? 'Livraison suivie offerte' : 'Livraison suivie', standardCents, settings.shipping_min_days, settings.shipping_max_days)];
+  if (settings.express_enabled) options.push(rate('Livraison express', settings.express_cents, settings.express_min_days, settings.express_max_days));
+  if (settings.pickup_enabled) options.push(rate('Retrait gratuit à l’atelier', 0));
+  return options;
+}

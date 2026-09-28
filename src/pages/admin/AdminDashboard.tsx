@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Bell, MessageSquare, Package, Plus, ShoppingBag } from 'lucide-react';
-import { adminListOrders, adminListProducts, adminListReviews, adminListStockAlerts } from '../../lib/api';
+import { AlertTriangle, Bell, MessageSquare, Package, Plus, Ruler, ShoppingBag } from 'lucide-react';
+import { adminListCustomRequests, adminListOrders, adminListProducts, adminListReviews, adminListStockAlerts, adminListSubscribers, downloadFile } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatDate, formatPrice } from '../../lib/format';
 import { ORDER_STATUS } from '../../types';
@@ -11,11 +11,12 @@ import { ProductImage } from '../../components/ProductImage';
 
 export function AdminDashboard() {
   const { data, loading, error } = useAsync(
-    () => Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews()]), []);
+    () => Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews(), adminListSubscribers(), adminListCustomRequests()]), []);
 
   if (loading) return <p className="text-stone-500">Chargement…</p>;
   if (error || !data) return <p className="text-garance">Impossible de charger : {error}</p>;
-  const [products, orders, alerts, reviews] = data;
+  const [products, orders, alerts, reviews, subscribers, requests] = data;
+  const newRequests = requests.filter((r) => r.status === 'new').length;
   const reviewsPending = reviews.filter((r) => !r.approved).length;
 
   const now = new Date();
@@ -60,13 +61,16 @@ export function AdminDashboard() {
         <StatCard label="Produits en ligne" value={String(products.filter((p) => p.active).length)} sub={`${products.length} au total`} />
       </div>
 
-      {(toPrepare.length > 0 || outOfStock.length > 0 || waiting > 0 || lowStock.length > 0 || reviewsPending > 0) && (
+      <SalesChart orders={paid} />
+
+      {(toPrepare.length > 0 || outOfStock.length > 0 || waiting > 0 || lowStock.length > 0 || reviewsPending > 0 || newRequests > 0) && (
         <section className="bg-white rounded-lg border border-stone-200 p-5">
           <h2 className="font-display text-xl text-nuit">À faire</h2>
           <ul className="mt-3 divide-y divide-stone-100">
             {toPrepare.length > 0 && <Todo to="/admin/commandes" icon={<ShoppingBag className="w-5 h-5" />}>{toPrepare.length} commande{toPrepare.length > 1 ? 's' : ''} à préparer et expédier</Todo>}
             {outOfStock.length > 0 && <Todo to="/admin/alertes" icon={<AlertTriangle className="w-5 h-5" />}>{outOfStock.length} produit{outOfStock.length > 1 ? 's' : ''} en rupture de stock</Todo>}
             {waiting > 0 && <Todo to="/admin/alertes" icon={<Bell className="w-5 h-5" />}>{waiting} client{waiting > 1 ? 's attendent' : ' attend'} un retour en stock</Todo>}
+            {newRequests > 0 && <Todo to="/admin/sur-mesure" icon={<Ruler className="w-5 h-5" />}>{newRequests} demande{newRequests > 1 ? 's' : ''} sur mesure à traiter</Todo>}
             {reviewsPending > 0 && <Todo to="/admin/avis" icon={<MessageSquare className="w-5 h-5" />}>{reviewsPending} avis client{reviewsPending > 1 ? 's' : ''} à valider</Todo>}
             {lowStock.length > 0 && <Todo to="/admin/produits" icon={<Package className="w-5 h-5" />}>Stock bas : {lowStock.map((p) => `${p.name} (${p.stock})`).join(', ')}</Todo>}
           </ul>
@@ -91,6 +95,30 @@ export function AdminDashboard() {
               ))}
             </ul>
           )}
+        </section>
+        <section className="bg-white rounded-lg border border-stone-200 p-5 lg:col-span-2 flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-60">
+            <h2 className="font-display text-xl text-nuit">Lettre d’information</h2>
+            <p className="text-stone-500 mt-1">{subscribers.length} inscrit{subscribers.length > 1 ? 's' : ''} pour être prévenus des nouvelles pièces.</p>
+          </div>
+          <button disabled={!subscribers.length}
+            onClick={() => downloadFile(`inscrits-${new Date().toISOString().slice(0, 10)}.csv`, '\uFEFF"Email";"Date d’inscription"\r\n' + subscribers.map((s) => `"${s.email}";"${new Date(s.created_at).toLocaleDateString('fr-FR')}"`).join('\r\n'))}
+            className="px-4 py-2.5 rounded-md border border-stone-300 disabled:opacity-50">Exporter la liste (Excel)</button>
+          <Link to="/admin/lettre" className="px-4 py-2.5 rounded-md bg-nuit text-laine hover:bg-garance">Écrire aux inscrits</Link>
+        </section>
+        <section className="bg-white rounded-lg border border-stone-200 p-5">
+          <h2 className="font-display text-xl text-nuit">Les plus regardés</h2>
+          <p className="text-sm text-stone-500">Beaucoup de vues mais peu de ventes ? Revoyez la photo, le prix ou la description.</p>
+          <ol className="mt-3 divide-y divide-stone-100">
+            {[...products].filter((p) => (p.views_count ?? 0) > 0).sort((a, b) => b.views_count - a.views_count).slice(0, 5).map((p) => (
+              <li key={p.id} className="py-3 flex items-center gap-3">
+                <ProductImage src={p.images[0]} alt="" className="w-10 h-12 rounded" />
+                <Link to={`/admin/produits/${p.id}`} className="flex-1 min-w-0 truncate hover:text-garance">{p.name}</Link>
+                <span className="text-sm text-stone-500 whitespace-nowrap">{p.views_count} vues</span>
+                <span className="text-sm whitespace-nowrap w-28 text-right">{p.cart_adds_count} au panier <span className="text-stone-400">({Math.round((p.cart_adds_count / Math.max(1, p.views_count)) * 100)} %)</span></span>
+              </li>
+            ))}
+          </ol>
         </section>
         <section className="bg-white rounded-lg border border-stone-200 p-5">
           <h2 className="font-display text-xl text-nuit">Meilleures ventes</h2>
@@ -123,5 +151,38 @@ function Todo({ to, icon, children }: { to: string; icon: ReactNode; children: R
         <span className="text-garance">{icon}</span><span className="flex-1">{children}</span><span aria-hidden>→</span>
       </Link>
     </li>
+  );
+}
+
+/** Ventes des 12 derniers mois (barres simples, sans bibliothèque). */
+function SalesChart({ orders }: { orders: { created_at: string; total_cents: number }[] }) {
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    const inMonth = orders.filter((o) => { const t = new Date(o.created_at); return t >= d && t < next; });
+    return { label: d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''), total: inMonth.reduce((n, o) => n + o.total_cents, 0), count: inMonth.length };
+  });
+  const max = Math.max(...months.map((m) => m.total), 1);
+  const year = months.reduce((n, m) => n + m.total, 0);
+  return (
+    <section className="bg-white rounded-lg border border-stone-200 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl text-nuit">Ventes sur 12 mois</h2>
+        <p className="text-stone-500">Total : <strong className="text-encre">{formatPrice(year)}</strong></p>
+      </div>
+      <div className="mt-5 grid grid-cols-12 gap-1.5 sm:gap-3 h-44" role="img" aria-label="Graphique des ventes mensuelles">
+        {months.map((m, i) => (
+          <div key={i} className="flex flex-col items-center justify-end h-full group">
+            <span className="text-[11px] text-stone-500 opacity-0 group-hover:opacity-100 whitespace-nowrap mb-1">{formatPrice(m.total)}</span>
+            <div className={`w-full rounded-t ${i === 11 ? 'bg-garance' : 'bg-nuit/70'} ${m.total ? '' : 'bg-stone-200'}`}
+              style={{ height: `${Math.max(2, (m.total / max) * 100)}%` }} title={`${m.label} : ${formatPrice(m.total)} (${m.count} commande${m.count > 1 ? 's' : ''})`} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-12 gap-1.5 sm:gap-3 text-center text-xs text-stone-500">
+        {months.map((m, i) => <span key={i}>{m.label}</span>)}
+      </div>
+    </section>
   );
 }

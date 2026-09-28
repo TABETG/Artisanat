@@ -4,10 +4,12 @@ import { Search, SlidersHorizontal } from 'lucide-react';
 import { listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { ProductCard } from '../components/ProductCard';
-import { CATEGORIES, COLORS } from '../config';
+import { COLORS } from '../config';
+import { useCategories, useSettings } from '../context/SettingsContext';
+import { isNew } from '../badges';
 import { Product } from '../types';
 
-type Sort = 'recent' | 'prix-croissant' | 'prix-decroissant' | 'promo';
+type Sort = 'recent' | 'prix-croissant' | 'prix-decroissant' | 'promo' | 'ventes';
 
 const SIZES = [
   { id: 'petit', label: 'Petit (jusqu’à 150 cm)', test: (p: Product) => !!p.length_cm && Math.max(p.length_cm, p.width_cm ?? 0) <= 150 },
@@ -19,6 +21,9 @@ export function ShopPage() {
   const { data: products, loading, error, reload } = useAsync(listProducts, []);
   const [params, setParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
+  const { categories } = useCategories();
+  const { settings } = useSettings();
+  const onlyNew = params.get('nouveautes') === '1';
   const category = params.get('categorie') ?? 'tout';
   const query = params.get('recherche') ?? '';
   const sort = (params.get('tri') as Sort) ?? 'recent';
@@ -37,7 +42,8 @@ export function ShopPage() {
   const all = products ?? [];
   const usedColors = COLORS.filter((c) => all.some((p) => p.colors?.includes(c.id)));
   const hasPromo = all.some((p) => p.compare_at_price_cents && p.compare_at_price_cents > p.price_cents);
-  const activeFilters = [onlyAvailable, onlyPromo, color, size, maxPrice].filter(Boolean).length;
+  const hasNew = all.some((p) => isNew(p, settings.new_days));
+  const activeFilters = [onlyAvailable, onlyPromo, onlyNew, color, size, maxPrice].filter(Boolean).length;
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -47,30 +53,44 @@ export function ShopPage() {
       (category === 'tout' || p.category === category) &&
       (!onlyAvailable || p.stock > 0) &&
       (!onlyPromo || (!!p.compare_at_price_cents && p.compare_at_price_cents > p.price_cents)) &&
+      (!onlyNew || isNew(p, settings.new_days)) &&
       (!color || p.colors?.includes(color)) &&
       (!sizeTest || sizeTest(p)) &&
       (!max || p.price_cents <= max) &&
       (!q || `${p.name} ${p.description} ${p.material} ${p.origin} ${p.technique}`.toLowerCase().includes(q)));
     if (sort === 'prix-croissant') list = [...list].sort((a, b) => a.price_cents - b.price_cents);
     if (sort === 'prix-decroissant') list = [...list].sort((a, b) => b.price_cents - a.price_cents);
+    if (sort === 'ventes') list = [...list].sort((a, b) => (b.sales_count ?? 0) - (a.sales_count ?? 0));
     if (sort === 'promo') list = [...list].sort((a, b) => Number(!!b.compare_at_price_cents) - Number(!!a.compare_at_price_cents));
     return [...list.filter((p) => p.stock > 0), ...list.filter((p) => p.stock === 0)];
-  }, [all, category, query, sort, onlyAvailable, onlyPromo, color, size, maxPrice]);
+  }, [all, category, query, sort, onlyAvailable, onlyPromo, onlyNew, color, size, maxPrice, settings.new_days]);
 
   const chip = (on: boolean) => `px-3.5 py-2 rounded-sm border text-sm ${on ? 'bg-nuit text-laine border-nuit' : 'border-nuit/20 text-nuit hover:border-nuit'}`;
 
   return (
-    <div className="max-w-6xl mx-auto px-5 pt-12">
-      <h1 className="font-display text-4xl md:text-5xl text-nuit">La boutique</h1>
+    <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-12">
+      <div className="lisiere-fine w-16 mb-5" aria-hidden />
+      <h1 className="font-display text-5xl md:text-7xl text-nuit">La boutique</h1>
 
       <div className="mt-8 flex flex-wrap gap-2" role="group" aria-label="Catégories">
-        {[{ id: 'tout', label: 'Tout' }, ...CATEGORIES].map((c) => (
+        {[{ id: 'tout', label: 'Tout' }, ...categories.filter((c) => all.some((p) => p.category === c.id))].map((c) => (
           <button key={c.id} onClick={() => update('categorie', c.id === 'tout' ? null : c.id)} aria-pressed={category === c.id}
             className={`px-4 py-2 rounded-sm border ${category === c.id ? 'bg-nuit text-laine border-nuit' : 'border-nuit/20 text-nuit hover:border-nuit'}`}>
             {c.label}
           </button>
         ))}
       </div>
+
+      {(hasPromo || hasNew) && (
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Sélections">
+          {hasPromo && <button onClick={() => update('promotion', onlyPromo ? null : '1')} aria-pressed={onlyPromo}
+            className={`px-3.5 py-1.5 rounded-sm text-sm font-medium ${onlyPromo ? 'bg-garance text-laine' : 'bg-garance/10 text-garance hover:bg-garance/20'}`}>Promotions</button>}
+          {hasNew && <button onClick={() => update('nouveautes', onlyNew ? null : '1')} aria-pressed={onlyNew}
+            className={`px-3.5 py-1.5 rounded-sm text-sm font-medium ${onlyNew ? 'bg-emerald-700 text-white' : 'bg-emerald-700/10 text-emerald-800 hover:bg-emerald-700/20'}`}>Nouveautés</button>}
+          <button onClick={() => update('tri', sort === 'ventes' ? null : 'ventes')} aria-pressed={sort === 'ventes'}
+            className={`px-3.5 py-1.5 rounded-sm text-sm font-medium ${sort === 'ventes' ? 'bg-safran text-encre' : 'bg-safran/20 text-henne hover:bg-safran/30'}`}>Meilleures ventes</button>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <label className="relative flex-1 min-w-56 max-w-sm">
@@ -90,6 +110,7 @@ export function ShopPage() {
             <option value="recent">Nouveautés</option>
             <option value="prix-croissant">Prix croissant</option>
             <option value="prix-decroissant">Prix décroissant</option>
+            <option value="ventes">Meilleures ventes</option>
             {hasPromo && <option value="promo">Promotions d’abord</option>}
           </select>
         </label>
@@ -128,6 +149,12 @@ export function ShopPage() {
               <input type="checkbox" checked={onlyAvailable} onChange={(e) => update('disponibles', e.target.checked ? '1' : null)} className="w-4 h-4 accent-garance" />
               Disponibles uniquement
             </label>
+            {hasNew && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={onlyNew} onChange={(e) => update('nouveautes', e.target.checked ? '1' : null)} className="w-4 h-4 accent-garance" />
+                Nouveautés
+              </label>
+            )}
             {hasPromo && (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={onlyPromo} onChange={(e) => update('promotion', e.target.checked ? '1' : null)} className="w-4 h-4 accent-garance" />

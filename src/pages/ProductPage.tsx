@@ -10,9 +10,14 @@ import { ProductCard } from '../components/ProductCard';
 import { StockAlertForm } from '../components/StockAlertForm';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { discountPercent, Price } from '../components/Price';
-import { categoryLabel, colorInfo, SHOP } from '../config';
+import { BadgePill, BadgeStack } from '../components/ProductBadges';
+import { useBadges } from '../context/BadgesContext';
+import { SizeGuide } from '../components/SizeGuide';
+import { recentlyViewed, rememberViewed } from '../lib/recentlyViewed';
+import { trackProduct } from '../lib/api';
+import { colorInfo, SHOP } from '../config';
 import { formatDimensions, formatPrice } from '../lib/format';
-import { useSettings } from '../context/SettingsContext';
+import { useCategories, useSettings } from '../context/SettingsContext';
 import { useReviews } from '../context/ReviewsContext';
 import { ProductReviews } from '../components/ProductReviews';
 import { Stars } from '../components/Stars';
@@ -26,6 +31,8 @@ export function ProductPage() {
   const { add, lines } = useCart();
   const { settings } = useSettings();
   const { summary } = useReviews();
+  const { label: categoryLabel } = useCategories();
+  const { badgesFor } = useBadges();
   const [photo, setPhoto] = useState(0);
   const [zoom, setZoom] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -34,6 +41,8 @@ export function ProductPage() {
   useEffect(() => {
     setPhoto(0); setQuantity(1);
     if (!product) return;
+    rememberViewed(product.id);
+    trackProduct(product.id, 'view');
     document.title = `${product.name} — ${SHOP.name}`;
     // Données structurées : aident Google à afficher prix et disponibilité
     const ld = document.createElement('script');
@@ -50,10 +59,10 @@ export function ProductPage() {
     return () => { ld.remove(); document.title = `${SHOP.name} — Tapis berbères tissés à la main depuis ${SHOP.since}`; };
   }, [product, summary]);
 
-  if (loading) return <p className="max-w-6xl mx-auto px-5 pt-16 text-henne">Chargement…</p>;
+  if (loading) return <p className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 text-henne">Chargement…</p>;
   if (error || !product) {
     return (
-      <div className="max-w-6xl mx-auto px-5 pt-16">
+      <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-16">
         <h1 className="font-display text-3xl text-nuit">Cette création n’existe plus</h1>
         <p className="mt-2 text-henne">Elle a peut-être été retirée de la boutique.</p>
         <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-sm">Voir la boutique</Link>
@@ -68,8 +77,8 @@ export function ProductPage() {
   const images = product.images.length ? product.images : [null];
   const off = discountPercent(product.price_cents, product.compare_at_price_cents);
   const low = !soldOut && product.stock > 1 && product.stock <= (product.low_stock_threshold || 2);
+  const viewed = recentlyViewed(product.id).map((vid) => (all ?? []).find((p) => p.id === vid)).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 4);
   const similar = (all ?? []).filter((p) => p.id !== product.id && p.stock > 0 && p.category === product.category).slice(0, 4);
-  const customMsg = encodeURIComponent(`Bonjour, je suis intéressé(e) par un modèle sur mesure inspiré de « ${product.name} » (${window.location.href}). Dimensions souhaitées : `);
 
   async function share() {
     const data = { title: product!.name, url: window.location.href };
@@ -90,7 +99,7 @@ export function ProductPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-5 pt-8">
+    <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-8">
       <nav className="text-sm text-henne mb-6" aria-label="Fil d’Ariane">
         <Link to="/boutique" className="hover:text-garance">Boutique</Link>
         <span className="mx-2">/</span>
@@ -101,9 +110,9 @@ export function ProductPage() {
         <div>
           <div className="relative">
             <button onClick={() => images[photo] && setZoom(true)} className="block w-full cursor-zoom-in" aria-label="Agrandir la photo">
-              <ProductImage src={images[photo]} alt={product.name} className="w-full aspect-[4/5] rounded-sm" />
+              <ProductImage src={images[photo]} alt={product.name} className="w-full aspect-[4/5]" />
             </button>
-            {off && !soldOut && <span className="absolute top-4 left-4 bg-garance text-laine font-medium px-3 py-1.5 rounded-sm">−{off} %</span>}
+            <div className="absolute top-4 left-4"><BadgeStack badges={badgesFor(product).filter((b) => ['promo', 'meilleure-vente', 'nouveau', 'rupture'].includes(b.id))} max={2} /></div>
             <FavoriteButton id={product.id} name={product.name} className="absolute top-3 right-3" />
           </div>
           {images.length > 1 && (
@@ -119,14 +128,26 @@ export function ProductPage() {
         </div>
 
         <div className="md:pt-4">
-          <h1 className="font-display text-4xl md:text-5xl text-nuit leading-tight">{product.name}</h1>
+          <h1 className="font-display text-5xl md:text-6xl text-nuit">{product.name}</h1>
           {(() => { const r = summary(product.id); return r && (
             <a href="#avis" className="mt-2 inline-flex items-center gap-2 text-sm text-henne hover:text-garance">
               <Stars value={r.average} /> {r.count} avis
             </a>
           ); })()}
           <p className="mt-4"><Price cents={product.price_cents} compareAt={product.compare_at_price_cents} size="lg" /></p>
-          {off && <p className="text-sm text-garance mt-1">Vous économisez {formatPrice(product.compare_at_price_cents! - product.price_cents)}</p>}
+          {off && (
+            <p className="text-sm text-garance mt-1">
+              Vous économisez {formatPrice(product.compare_at_price_cents! - product.price_cents)}
+              {product.promo_ends_at && <> · offre valable jusqu’au {new Date(product.promo_ends_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</>}
+            </p>
+          )}
+          {settings.installments_enabled && !soldOut && product.price_cents >= settings.installments_min_cents && (
+            <p className="text-sm mt-2">ou <strong>3 × {formatPrice(Math.ceil(product.price_cents / 3))}</strong> sans frais avec Klarna</p>
+          )}
+          {(() => {
+            const shown = badgesFor(product).filter((b) => !['promo', 'rupture', 'unique', 'stock-bas'].includes(b.id));
+            return shown.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{shown.map((b) => <BadgePill key={b.id} badge={b} size="sm" />)}</div>;
+          })()}
 
           {product.colors.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-2" aria-label="Couleurs">
@@ -141,7 +162,9 @@ export function ProductPage() {
             </div>
           )}
 
-          <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[15px]">
+          {product.category === 'tapis' && dims && <SizeGuide width={product.width_cm} length={product.length_cm} />}
+
+          <dl className="mt-7 grid grid-cols-[auto_1fr] gap-x-8 text-[15px] border-t border-laine-fonce [&>dt]:py-2 [&>dd]:py-2 [&>dt]:border-b [&>dd]:border-b [&>dt]:border-laine-fonce [&>dd]:border-laine-fonce">
             {specs.filter(([, v]) => v).map(([k, v]) => (<Fragment key={k}><dt className="text-henne">{k}</dt><dd>{v}</dd></Fragment>))}
             <dt className="text-henne">Disponibilité</dt>
             <dd className={soldOut || low ? 'text-garance font-medium' : 'text-emerald-800'}>
@@ -176,10 +199,10 @@ export function ProductPage() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             {product.made_to_order && (
-              <a href={`https://wa.me/${settings.whatsapp}?text=${customMsg}`} target="_blank" rel="noreferrer"
+              <Link to={`/sur-mesure?produit=${product.id}`}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm border border-nuit/25 text-nuit hover:border-nuit">
                 <Ruler className="w-4 h-4" /> Demander un modèle sur mesure
-              </a>
+              </Link>
             )}
             <button onClick={share} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm border border-nuit/25 text-nuit hover:border-nuit">
               <Share2 className="w-4 h-4" /> {copied ? 'Lien copié' : 'Partager'}
@@ -189,13 +212,14 @@ export function ProductPage() {
           <ul className="mt-7 grid gap-3 text-sm border-y border-laine-fonce py-5">
             <li className="flex gap-3"><Truck className="w-5 h-5 text-garance shrink-0" />Livraison suivie en {settings.shipping_min_days} à {settings.shipping_max_days} jours ouvrés{settings.free_shipping_from_cents > 0 ? `, offerte dès ${formatPrice(settings.free_shipping_from_cents)}` : ''}</li>
             <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />14 jours pour changer d’avis</li>
-            <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</li>
+            <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay{settings.installments_enabled ? ', Klarna' : ''}</li>
+            {settings.pickup_enabled && <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Retrait gratuit possible à l’atelier</li>}
             <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Fait à la main : chaque pièce est unique</li>
           </ul>
 
           {product.description && (
             <Details title="Description" open>
-              <p className="leading-relaxed whitespace-pre-line text-encre/85">{product.description}</p>
+              <p className="lecture whitespace-pre-line text-encre/85">{product.description}</p>
             </Details>
           )}
           <Details title="Entretien"><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.care || DEFAULT_CARE}</p></Details>
@@ -215,6 +239,29 @@ export function ProductPage() {
           </div>
         </section>
       )}
+
+      {viewed.length > 0 && (
+        <section className="mt-20">
+          <h2 className="font-display text-3xl text-nuit mb-8">Récemment consultés</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
+            {viewed.map((p) => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </section>
+      )}
+
+      {!soldOut && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-laine/95 backdrop-blur border-t border-laine-fonce px-4 py-3 flex items-center gap-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm truncate">{product.name}</p>
+            <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} />
+          </div>
+          <button onClick={() => add(product, quantity)} disabled={!canAdd} className="bg-garance text-laine px-5 py-3 rounded-sm font-medium disabled:opacity-50">
+            {canAdd ? 'Ajouter au panier' : 'Dans le panier'}
+          </button>
+        </div>
+      )}
+      <div className="h-20 md:hidden" aria-hidden />
 
       {zoom && images[photo] && (
         <div className="fixed inset-0 z-50 bg-encre/95 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Photo agrandie" onClick={() => setZoom(false)}>

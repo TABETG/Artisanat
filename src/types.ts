@@ -23,11 +23,19 @@ export interface Product {
   care: string;
   made_to_order: boolean;                  // « sur mesure possible »
   low_stock_threshold: number;
+  // version 6
+  badges: string[];                        // badges choisis par le vendeur
+  promo_ends_at: string | null;            // fin de la promotion (le prix d'origine revient automatiquement)
+  sales_count: number;                     // nombre d'exemplaires vendus (mis à jour après chaque paiement)
+  // version 10
+  publish_at: string | null;               // mise en ligne programmée
+  views_count: number;
+  cart_adds_count: number;
 }
 
 export type ProductInput = Omit<Product, 'id' | 'created_at'>;
 
-export type OrderStatus = 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 
 export interface OrderItem {
   id: number;
@@ -62,6 +70,12 @@ export interface Order {
   tracking_number: string | null;
   tracking_carrier: string | null;
   shipped_email_sent_at: string | null;
+  customer_message?: string | null;
+  shipping_method?: string | null;
+  discount_cents?: number;
+  promo_code?: string | null;
+  refunded_cents?: number;
+  invoice_number?: number | null;
   note: string | null;
   created_at: string;
   order_items?: OrderItem[];
@@ -73,6 +87,7 @@ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: string }> 
   shipped: { label: 'Expédiée', tone: 'bg-nuit/10 text-nuit' },
   delivered: { label: 'Livrée', tone: 'bg-emerald-100 text-emerald-800' },
   cancelled: { label: 'Annulée', tone: 'bg-stone-200 text-stone-600' },
+  refunded: { label: 'Remboursée', tone: 'bg-violet-100 text-violet-800' },
 };
 
 export interface StockAlert {
@@ -83,7 +98,94 @@ export interface StockAlert {
   created_at: string;
 }
 
+export interface Subscriber { id: number; email: string; created_at: string }
+
+export type CustomStatus = 'new' | 'quoted' | 'accepted' | 'done' | 'declined';
+
+export const CUSTOM_STATUS: Record<CustomStatus, { label: string; tone: string }> = {
+  new: { label: 'Nouvelle', tone: 'bg-garance/10 text-garance' },
+  quoted: { label: 'Devis envoyé', tone: 'bg-safran/25 text-henne' },
+  accepted: { label: 'Acceptée — en fabrication', tone: 'bg-nuit/10 text-nuit' },
+  done: { label: 'Terminée', tone: 'bg-emerald-100 text-emerald-800' },
+  declined: { label: 'Refusée', tone: 'bg-stone-200 text-stone-600' },
+};
+
+export interface CustomRequest {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  product_id: string | null;
+  room: string | null;
+  width_cm: number | null;
+  length_cm: number | null;
+  colors: string | null;
+  budget: string | null;
+  message: string;
+  status: CustomStatus;
+  note: string | null;
+  created_at: string;
+}
+
+export type CustomRequestInput = Omit<CustomRequest, 'id' | 'status' | 'note' | 'created_at'>;
+
+export interface GiftCard {
+  id: string;
+  code: string;
+  amount_cents: number;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  message: string | null;
+  expires_at: string | null;
+  created_at: string;
+  used?: boolean;
+}
+
+export interface GiftCardOrder {
+  amount_cents: number;
+  buyer_name: string;
+  recipient_name: string;
+  recipient_email: string;
+  message: string;
+}
+
+export type ReturnStatus = 'new' | 'accepted' | 'received' | 'refunded' | 'declined';
+
+export const RETURN_STATUS: Record<ReturnStatus, { label: string; tone: string }> = {
+  new: { label: 'Nouvelle demande', tone: 'bg-garance/10 text-garance' },
+  accepted: { label: 'Acceptée — en attente du colis', tone: 'bg-safran/25 text-henne' },
+  received: { label: 'Colis reçu', tone: 'bg-nuit/10 text-nuit' },
+  refunded: { label: 'Remboursé', tone: 'bg-emerald-100 text-emerald-800' },
+  declined: { label: 'Refusée', tone: 'bg-stone-200 text-stone-600' },
+};
+
+export const RETURN_REASONS = [
+  'Ne me convient pas (couleurs, taille…)',
+  'Article différent de la photo',
+  'Article abîmé à la réception',
+  'Erreur dans la commande',
+  'Autre raison',
+];
+
+export interface ReturnRequest {
+  id: number;
+  order_id: string;
+  email: string;
+  items: { name: string; quantity: number }[];
+  reason: string;
+  comment: string;
+  status: ReturnStatus;
+  note: string | null;
+  created_at: string;
+}
+
+export interface Campaign { id: number; subject: string; sent_count: number; created_at: string }
+
 export interface AdminCounts {
+  returnsNew: number;
+  customRequestsNew: number;
   reviewsPending: number;
   outOfStock: number;
   alertsPending: number;
@@ -110,6 +212,45 @@ export interface ShopSettings {
   address: string;
   instagram: string;
   facebook: string;
+  // version 5 : contenus et catégories modifiables
+  categories: { id: string; label: string }[];
+  hero_title: string;
+  hero_subtitle: string;
+  story: string;                    // page « Notre histoire » (paragraphes séparés par une ligne vide)
+  gift_message_enabled: boolean;    // champ « message / précisions » au paiement
+  new_days: number;                 // durée du badge « Nouveauté »
+  // version 7 : modes de livraison et paiement en plusieurs fois
+  express_enabled: boolean;
+  express_cents: number;
+  express_min_days: number;
+  express_max_days: number;
+  pickup_enabled: boolean;          // retrait gratuit à l'atelier
+  pickup_details: string;           // adresse / horaires du retrait
+  installments_enabled: boolean;    // affichage « payez en 3 fois » (Klarna activé dans Stripe)
+  installments_min_cents: number;
+  announcement_ends_at: string | null;  // compte à rebours dans le bandeau (vente flash)
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  percent_off: number | null;
+  amount_off_cents: number | null;
+  active: boolean;
+  times_redeemed: number;
+  max_redemptions: number | null;
+  expires_at: string | null;          // ISO
+  minimum_amount_cents: number | null;
+  created_at: string;
+}
+
+export interface PromoCodeInput {
+  code: string;
+  kind: 'percent' | 'amount';
+  value: number;                      // pourcentage ou centimes
+  expires_at: string | null;
+  max_redemptions: number | null;
+  minimum_amount_cents: number | null;
 }
 
 export interface Review {
@@ -125,6 +266,8 @@ export interface Review {
 }
 
 export interface TrackedOrder {
+  id?: string;
+  returnable?: boolean;
   number: string;
   created_at: string;
   status: OrderStatus;

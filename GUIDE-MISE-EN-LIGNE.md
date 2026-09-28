@@ -84,7 +84,10 @@ Avec cette étape, les emails partent tout seuls :
 | « Votre commande est en route » + lien de suivi | client | vous passez une commande en « Expédiée » |
 | « … est de nouveau disponible » + photo | clients inscrits | vous remettez en stock un produit en rupture |
 | « Commande n° … confirmée » | client | juste après le paiement |
+| « Nouvelle commande » | vous | à chaque paiement |
 | « Rupture de stock » | vous | une vente fait tomber un stock à 0 |
+| « Demande sur mesure » | vous | un client envoie une demande |
+| Code de la carte cadeau | acheteur et destinataire | après l’achat d’une carte |
 
 1. Créer un compte sur https://resend.com.
 2. **Domains → Add domain** : votre nom de domaine, puis ajouter chez votre registraire les lignes DNS indiquées (10 minutes).
@@ -97,10 +100,9 @@ Avec cette étape, les emails partent tout seuls :
    | `EMAIL_FROM` | `Artisanat <boutique@votre-domaine.fr>` |
    | `OWNER_EMAIL` | votre email personnel |
 
-## 4 ter. Codes promo (facultatif)
+## 4 ter. Paiement en 3 fois avec Klarna (facultatif)
 
-Stripe → **Catalogue de produits → Coupons → Créer** (ex. 10 %), puis **Ajouter un code promotionnel** (ex. `BIENVENUE10`).
-Le champ « Ajouter un code promotionnel » apparaît automatiquement sur la page de paiement.
+Stripe → **Paramètres → Moyens de paiement → Klarna → Activer**. Puis dans l’espace vendeur, **Réglages → Paiement en plusieurs fois** pour afficher « ou 3 × … sans frais » sur les fiches produit. Vous êtes payé en une seule fois, Klarna prend le risque.
 
 ## 5. Tester avant d’ouvrir
 
@@ -134,7 +136,39 @@ Chaque `git push` met le site à jour automatiquement.
 - Stock modifiable directement dans la liste avec − / +. Filtres : en ligne, masqués, rupture, stock bas, promotion.
 - L’œil masque un produit sans le supprimer.
 
-**Réglages** : bandeau d’annonce (promotion, congés…), frais et délais de livraison, seuil de livraison offerte, email, téléphone, WhatsApp, adresse. Les changements s’appliquent tout de suite, paiement compris.
+**Réglages** : bandeau d’annonce, titre et phrase de la page d’accueil, texte « Notre histoire », catégories (ajouter, renommer, réordonner), message cadeau au paiement, frais et délais de livraison, coordonnées. Les changements s’appliquent tout de suite, paiement compris.
+
+**Promotion en quelques clics** : dans *Produits*, cochez les articles (ou *Tout sélectionner*), choisissez −10 %, −20 %… puis *Appliquer*. L’ancien prix s’affiche barré. *Retirer la promotion* remet le prix d’origine.
+
+**Badges** : automatiques (« −X % », « Fin dans X jours », « Meilleure vente », « Nouveauté », « Pièce unique », « Plus que X », « Rupture de stock », « Livraison offerte ») ou choisis dans la fiche produit (« Coup de cœur », « Meilleur prix », « Édition limitée », « Exclusivité », « Pièce ancienne », « Teintures végétales », « Prix choc », « Dernière chance »). Une promotion peut avoir une date de fin : le prix d’origine revient tout seul le lendemain.
+
+**Codes promo** : onglet *Codes promo* → code, réduction en % ou en €, date de fin, nombre d’utilisations, montant minimum. Le client le saisit sur la page de paiement ; la remise et le code apparaissent dans la commande.
+
+**Modes de livraison** : dans *Réglages*, activez la livraison express et/ou le retrait gratuit à l’atelier. Le client choisit sur la page de paiement.
+
+**Clients** : tous vos acheteurs, avec leurs commandes, le total dépensé, les clients fidèles, l’inscription à la lettre et l’export Excel.
+
+**Inventaire** : bouton *Inventaire* dans *Produits* pour exporter tous les produits (prix, stock, ventes) dans Excel.
+
+**Sécurité du compte** (fortement conseillé) : *Réglages → Sécurité du compte → Activer*. Scannez le QR code avec Google Authenticator ou Microsoft Authenticator ; un code à 6 chiffres vous sera demandé à chaque connexion. Même avec votre mot de passe, personne ne peut modifier la boutique sans votre téléphone.
+
+**Demandes sur mesure** : les clients décrivent le tapis souhaité (dimensions, couleurs, budget) sur la page *Sur mesure* ou depuis une fiche produit. Vous suivez chaque demande (nouvelle → devis envoyé → en fabrication → terminée) et envoyez le devis en un clic.
+
+**Cartes cadeaux** : vendues sur la page *Carte cadeau* (20 à 2 000 €). Après le paiement, un code à usage unique valable 1 an est créé et envoyé à l’acheteur (et au destinataire si son email est indiqué). L’onglet *Cartes cadeaux* montre celles qui ont été utilisées.
+
+**Sur téléphone** : ouvrez `/admin` dans Chrome ou Safari, puis *Ajouter à l’écran d’accueil* : l’espace vendeur s’ouvre comme une application.
+
+**Lettre d’information** : les visiteurs s’inscrivent en bas du site. Onglet *Lettre d’information* : écrivez l’objet et le message, choisissez jusqu’à 6 produits (photo + lien), envoyez-vous un test puis envoyez à tous. Chaque email contient un lien de désinscription (obligatoire). Nécessite l’étape 4 bis (Resend).
+
+**Retours** : le client demande un retour depuis *Suivre ma commande* (articles, motif). Onglet *Retours* : *Accepter et envoyer l’adresse*, puis à réception *Colis reçu : rembourser* (remboursement Stripe + remise en stock en un clic).
+
+**Vente flash** : dans *Réglages → Bandeau d’annonce*, ajoutez une date de fin : le bandeau affiche un compte à rebours puis disparaît tout seul.
+
+**Mise en ligne programmée** : dans la fiche produit, *Mise en ligne programmée* : le produit reste invisible jusqu’à la date choisie (idéal pour une nouvelle collection).
+
+**Statistiques** : vues, ajouts au panier et ventes par produit (anonymes, sans cookie) dans la liste des produits, la fiche produit et le tableau de bord (*Les plus regardés*).
+
+**Nos réalisations** : les pièces vendues sont présentées automatiquement sur `/nos-realisations`, avec un lien « Le même pour moi » vers le sur mesure.
 
 **Avis clients** : les clients notent les produits (1 à 5 étoiles). Rien n’est publié sans votre accord ; « Achat vérifié » est ajouté si l’email correspond à une commande.
 
@@ -144,7 +178,8 @@ Chaque `git push` met le site à jour automatiquement.
 - *À préparer* → imprimer le *bon de livraison* à glisser dans le colis.
 - Choisir le transporteur, saisir le numéro de suivi, passer en *Expédiée* : le client reçoit son email avec le lien de suivi.
 - *Exporter pour la comptabilité* : fichier Excel de toutes les commandes affichées.
-- *Rembourser* : lien vers le paiement Stripe dans chaque commande.
+- *Rembourser* : directement depuis la commande, en totalité ou en partie, avec remise en stock des articles retournés. Le client reçoit un email de Stripe.
+- *Facture* : facture numérotée à imprimer ou enregistrer en PDF (numérotation continue).
 - Les clients suivent eux-mêmes leur colis sur `/suivi-commande` (email + code postal).
 
-**Référencement** : `/sitemap.xml` et `/robots.txt` sont générés automatiquement. À déclarer dans Google Search Console une fois le nom de domaine en place.
+**Référencement et partage** : `/sitemap.xml` et `/robots.txt` sont générés automatiquement. Un lien produit partagé sur WhatsApp ou Facebook affiche sa photo, son nom et son prix. À déclarer dans Google Search Console une fois le nom de domaine en place.

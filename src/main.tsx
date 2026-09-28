@@ -6,6 +6,11 @@ import { CartProvider } from './context/CartContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { ReviewsProvider } from './context/ReviewsContext';
+import { BadgesProvider } from './context/BadgesContext';
+// Polices hébergées avec le site : rien n'est chargé depuis Google (plus rapide, et conforme au RGPD)
+import '@fontsource-variable/bricolage-grotesque/standard.css';
+import '@fontsource-variable/newsreader/standard.css';
+import '@fontsource-variable/newsreader/standard-italic.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -15,7 +20,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <CartProvider>
           <FavoritesProvider>
             <ReviewsProvider>
-              <App />
+              <BadgesProvider>
+                <App />
+              </BadgesProvider>
             </ReviewsProvider>
           </FavoritesProvider>
         </CartProvider>

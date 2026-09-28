@@ -22,6 +22,12 @@ export function ShippingPage() {
         Les frais sont de {formatPrice(SHOP.settings.shipping_cents)}{SHOP.settings.free_shipping_from_cents > 0 && <> et offerts dès {formatPrice(SHOP.settings.free_shipping_from_cents)} d’achat</>}.
         Vous recevez le numéro de suivi par email au moment de l’expédition.
       </p>
+      {SHOP.settings.express_enabled && (
+        <p><strong>Livraison express</strong> : {formatPrice(SHOP.settings.express_cents)}, en {SHOP.settings.express_min_days} à {SHOP.settings.express_max_days} jours ouvrés.</p>
+      )}
+      {SHOP.settings.pickup_enabled && (
+        <p><strong>Retrait gratuit à l’atelier</strong> : {SHOP.settings.pickup_details}</p>
+      )}
       <p>Nous livrons en France, Belgique, Luxembourg, Suisse, Monaco, Allemagne, Pays-Bas, Espagne, Italie et Portugal.</p>
       <h2>Retours sous 14 jours</h2>
       <p>

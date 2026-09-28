@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronDown, Download, ExternalLink, Mail, Printer, Search, Truck } from 'lucide-react';
-import { adminListOrders, downloadFile, notifyShipped, ordersToCsv, updateOrder } from '../../lib/api';
+import { ChevronDown, Download, ExternalLink, FileText, Mail, Printer, RotateCcw, Search, Truck } from 'lucide-react';
+import { adminListOrders, downloadFile, notifyShipped, ordersToCsv, refundOrder, updateOrder } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatDate, formatPrice } from '../../lib/format';
 import { Order, ORDER_STATUS, OrderStatus } from '../../types';
 import { CARRIERS, SHOP, trackingUrl } from '../../config';
-import { Field, Input, Select, Textarea, Toast } from './ui';
+import { Field, Input, Modal, Select, Textarea, Toast, UnitInput } from './ui';
+import { centsToInput, parsePriceToCents } from '../../lib/format';
 import { useSettings } from '../../context/SettingsContext';
 
 type Filter = 'todo' | 'all' | OrderStatus;
@@ -47,7 +48,7 @@ export function AdminOrders() {
         </button>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        {([['todo', 'À préparer'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
+        {([['todo', 'À préparer'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['refunded', 'Remboursées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
           <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
             className={`px-3.5 py-2 rounded-md text-sm ${filter === f ? 'bg-nuit text-laine' : 'bg-white border border-stone-200 hover:border-stone-400'}`}>
             {label} <span className="opacity-60">{count(f)}</span>
@@ -75,6 +76,9 @@ export function AdminOrders() {
               <span className="text-sm text-stone-400 font-mono">#{orderNumber(o)}</span>
               <span className="font-medium">{o.shipping_name ?? o.customer_name ?? o.email}</span>
               <span className={`text-sm px-2.5 py-0.5 rounded ${ORDER_STATUS[o.status].tone}`}>{ORDER_STATUS[o.status].label}</span>
+              {o.customer_message && <span className="text-xs px-2 py-0.5 rounded bg-safran/25 text-henne">Message</span>}
+              {o.shipping_method?.startsWith('Retrait') && <span className="text-xs px-2 py-0.5 rounded bg-nuit/10 text-nuit">Retrait atelier</span>}
+              {o.shipping_method === 'Livraison express' && <span className="text-xs px-2 py-0.5 rounded bg-garance/10 text-garance">Express</span>}
               <span className="ml-auto font-medium">{formatPrice(o.total_cents)}</span>
               <ChevronDown className={`w-5 h-5 transition-transform ${openId === o.id ? 'rotate-180' : ''}`} />
               <span className="w-full text-sm text-stone-500">
@@ -97,6 +101,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   const [note, setNote] = useState(order.note ?? '');
   const [sendEmail, setSendEmail] = useState(!order.shipped_email_sent_at);
   const [saving, setSaving] = useState(false);
+  const [refunding, setRefunding] = useState(false);
   const { settings } = useSettings();
   const a = order.shipping_address;
   const link = trackingUrl(carrier, tracking.trim() || null);
@@ -129,11 +134,19 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
 
   return (
     <div className="border-t border-stone-200 p-4 sm:p-5 grid gap-6 md:grid-cols-2">
+      {refunding && <RefundModal order={order} onClose={() => setRefunding(false)} onError={onError}
+        onDone={(o, m) => { setRefunding(false); setStatus(o.status); setNote(o.note ?? ''); onSaved(o, m); }} />}
       <div className="space-y-5 text-[15px]">
         <Info title="Livraison">
           <p className="font-medium">{order.shipping_name}</p>
           {a && <p className="whitespace-pre-line">{[a.line1, a.line2, `${a.postal_code ?? ''} ${a.city ?? ''}`, a.country].filter(Boolean).join('\n')}</p>}
         </Info>
+        {order.customer_message && (
+          <div className="bg-safran/15 border border-safran/40 rounded-md p-3">
+            <p className="text-sm font-medium text-henne">Message du client</p>
+            <p className="mt-1 whitespace-pre-line">{order.customer_message}</p>
+          </div>
+        )}
         <Info title="Contact">
           {order.email && <a className="block text-garance underline break-all" href={`mailto:${order.email}`}>{order.email}</a>}
           {order.phone && <a className="block text-garance underline" href={`tel:${order.phone}`}>{order.phone}</a>}
@@ -143,14 +156,26 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
             {order.order_items?.map((it) => (
               <li key={it.id} className="flex justify-between gap-3"><span>{it.quantity} × {it.name}</span><span className="whitespace-nowrap">{formatPrice(it.unit_price_cents * it.quantity)}</span></li>
             ))}
-            <li className="flex justify-between text-stone-500"><span>Livraison</span><span>{order.shipping_cents ? formatPrice(order.shipping_cents) : 'Offerte'}</span></li>
+            {!!order.discount_cents && (
+              <li className="flex justify-between text-garance"><span>Remise{order.promo_code ? ` (code ${order.promo_code})` : ''}</span><span>−{formatPrice(order.discount_cents)}</span></li>
+            )}
+            <li className="flex justify-between text-stone-500"><span>{order.shipping_method ?? 'Livraison'}</span><span>{order.shipping_cents ? formatPrice(order.shipping_cents) : 'Offerte'}</span></li>
             <li className="flex justify-between font-medium border-t mt-1 pt-1"><span>Total payé</span><span>{formatPrice(order.total_cents)}</span></li>
+            {!!order.refunded_cents && <li className="flex justify-between text-violet-800"><span>Déjà remboursé</span><span>−{formatPrice(order.refunded_cents)}</span></li>}
           </ul>
         </Info>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => printSlip(order, settings.email, settings.phone)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
-            <Printer className="w-4 h-4" /> Imprimer le bon de livraison
+            <Printer className="w-4 h-4" /> Bon de livraison
           </button>
+          <button onClick={() => printInvoice(order)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
+            <FileText className="w-4 h-4" /> Facture
+          </button>
+          {(order.refunded_cents ?? 0) < order.total_cents && (order.stripe_payment_id || order.id.startsWith('demo')) && (
+            <button onClick={() => setRefunding(true)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-violet-300 text-violet-800 hover:bg-violet-50">
+              <RotateCcw className="w-4 h-4" /> Rembourser
+            </button>
+          )}
           {order.stripe_payment_id && (
             <a href={`https://dashboard.stripe.com/payments/${order.stripe_payment_id}`} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
@@ -209,6 +234,54 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   );
 }
 
+function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClose: () => void; onDone: (o: Order, m: string) => void; onError: (m: string) => void }) {
+  const remaining = order.total_cents - (order.refunded_cents ?? 0);
+  const [amount, setAmount] = useState(centsToInput(remaining));
+  const [restock, setRestock] = useState(true);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const cents = parsePriceToCents(amount);
+  const valid = cents !== null && cents > 0 && cents <= remaining;
+
+  async function go() {
+    if (!valid) return;
+    setBusy(true);
+    try {
+      const r = await refundOrder(order.id, cents!, restock, reason.trim());
+      onDone({ ...order, refunded_cents: r.refunded_cents, status: r.full ? 'refunded' : order.status, note: [order.note, r.note].filter(Boolean).join('\n') },
+        `${formatPrice(cents!)} remboursés${restock ? ', articles remis en stock' : ''}. Le client reçoit un email de Stripe.`);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Remboursement impossible');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Rembourser la commande" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-stone-500">L’argent est reversé sur la carte du client sous 5 à 10 jours. Cette action ne peut pas être annulée.</p>
+        <Field label="Montant à rembourser" hint={`Maximum : ${formatPrice(remaining)}. Mettez moins pour un remboursement partiel (geste commercial, frais de port…).`}
+          error={amount && !valid ? 'Montant invalide.' : undefined}>
+          <UnitInput unit="€" inputMode="decimal" value={amount} invalid={!!amount && !valid} onChange={(e) => setAmount(e.target.value)} />
+        </Field>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
+          <span><span className="font-medium">Remettre les articles en stock</span><span className="block text-sm text-stone-500">Si la pièce vous a été retournée et peut être revendue.</span></span>
+        </label>
+        <Field label="Motif" optional>
+          <Input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Retour sous 14 jours, colis abîmé…" />
+        </Field>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+          <button onClick={onClose} className="px-5 py-3 rounded-md border border-stone-300">Annuler</button>
+          <button onClick={go} disabled={!valid || busy} className="flex-1 bg-violet-700 text-white px-5 py-3 rounded-md hover:bg-violet-800 disabled:opacity-50">
+            {busy ? 'Remboursement…' : `Rembourser ${valid ? formatPrice(cents!) : ''}`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function Info({ title, children }: { title: string; children: ReactNode }) {
   return <div><p className="text-sm text-stone-500 mb-0.5">{title}</p>{children}</div>;
 }
@@ -229,14 +302,49 @@ function printSlip(o: Order, email: string, phone: string) {
   w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Bon de livraison #${orderNumber(o)}</title>
   <style>body{font-family:Arial,sans-serif;color:#222;margin:40px;font-size:14px}h1{font-family:Georgia,serif;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}
   th,td{border-bottom:1px solid #ddd;padding:10px;text-align:left}.grid{display:flex;justify-content:space-between;gap:40px;margin-top:32px}.box{border:1px solid #ccc;padding:16px;min-width:260px}
-  .muted{color:#777}@media print{button{display:none}}</style></head><body>
-  <button onclick="print()" style="float:right;padding:10px 16px">Imprimer</button>
+  .muted{color:#777}</style></head><body>
   <h1>${esc(SHOP.name)}</h1><p class="muted">Tissé à la main depuis ${SHOP.since} · ${esc(email)} · ${esc(phone)}</p>
   <div class="grid"><div><h2 style="margin:0">Bon de livraison</h2><p>Commande <strong>#${orderNumber(o)}</strong><br>du ${new Date(o.created_at).toLocaleDateString('fr-FR')}</p></div>
   <div class="box"><strong>Livrer à</strong><br>${esc(o.shipping_name)}<br>${esc(a.line1)}${a.line2 ? `<br>${esc(a.line2)}` : ''}<br>${esc(a.postal_code)} ${esc(a.city)}<br>${esc(a.country)}${o.phone ? `<br>${esc(o.phone)}` : ''}</div></div>
   <table><thead><tr><th>Article</th><th style="text-align:center;width:100px">Quantité</th></tr></thead><tbody>${rows}</tbody></table>
+  ${o.customer_message ? `<p style="margin-top:24px;border:1px dashed #bbb;padding:12px"><strong>Message :</strong> ${esc(o.customer_message)}</p>` : ''}
   <p style="margin-top:40px">Merci pour votre commande. Chaque pièce est unique et faite à la main : prenez-en soin, elle vous accompagnera longtemps.</p>
   <p class="muted">Retour possible sous 14 jours après réception : écrivez-nous à ${esc(email)}.</p>
   </body></html>`);
   w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+/** Facture numérotée (numérotation continue attribuée par la base de données). */
+function printInvoice(o: Order) {
+  const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
+  const euro = (c: number) => formatPrice(c);
+  const a = o.shipping_address ?? {};
+  const year = new Date(o.created_at).getFullYear();
+  const number = o.invoice_number ? `${year}-${String(o.invoice_number).padStart(5, '0')}` : orderNumber(o);
+  const rows = (o.order_items ?? []).map((i) => `<tr><td>${esc(i.name)}</td><td class="r">${i.quantity}</td><td class="r">${euro(i.unit_price_cents)}</td><td class="r">${euro(i.unit_price_cents * i.quantity)}</td></tr>`).join('');
+  const w = window.open('', '_blank', 'width=820,height=1000');
+  if (!w) return;
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Facture ${number}</title>
+  <style>body{font-family:Arial,sans-serif;color:#222;margin:40px;font-size:13px}h1{font-family:Georgia,serif;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:24px}
+  th,td{border-bottom:1px solid #ddd;padding:9px;text-align:left}.r{text-align:right}.grid{display:flex;justify-content:space-between;gap:40px;margin-top:28px}
+  .tot td{border:none;padding:5px 9px}.muted{color:#666}.big{font-size:15px;font-weight:bold}</style></head><body>
+  <div class="grid" style="margin-top:0"><div><h1>${esc(SHOP.name)}</h1><p class="muted">${esc(SHOP.legalName)} — ${esc(SHOP.legalForm)}<br>${esc(SHOP.address)}<br>SIRET ${esc(SHOP.siret)}</p></div>
+  <div style="text-align:right"><h2 style="margin:0">FACTURE</h2><p>N° <strong>${number}</strong><br>Date : ${new Date(o.created_at).toLocaleDateString('fr-FR')}<br>Commande #${orderNumber(o)}</p></div></div>
+  <div class="grid"><div><strong>Client</strong><br>${esc(o.customer_name ?? o.shipping_name)}<br>${esc(o.email)}</div>
+  <div><strong>Livraison</strong><br>${esc(o.shipping_name)}<br>${esc(a.line1)}${a.line2 ? `<br>${esc(a.line2)}` : ''}<br>${esc(a.postal_code)} ${esc(a.city)} ${esc(a.country)}</div></div>
+  <table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">Prix unitaire TTC</th><th class="r">Total TTC</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="tot" style="width:320px;margin-left:auto;margin-top:12px">
+  <tr><td>Sous-total</td><td class="r">${euro(o.subtotal_cents)}</td></tr>
+  ${o.discount_cents ? `<tr><td>Remise${o.promo_code ? ` (${esc(o.promo_code)})` : ''}</td><td class="r">−${euro(o.discount_cents)}</td></tr>` : ''}
+  <tr><td>${esc(o.shipping_method ?? 'Livraison')}</td><td class="r">${euro(o.shipping_cents)}</td></tr>
+  <tr class="big"><td>Total TTC payé</td><td class="r">${euro(o.total_cents)}</td></tr>
+  ${o.refunded_cents ? `<tr><td>Remboursé</td><td class="r">−${euro(o.refunded_cents)}</td></tr>` : ''}</table>
+  <p style="margin-top:28px">Payée par carte le ${new Date(o.created_at).toLocaleDateString('fr-FR')} (Stripe).</p>
+  <p class="muted">${esc(SHOP.vat)}</p>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
 }

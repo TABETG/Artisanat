@@ -8,7 +8,7 @@ export function Price({ cents, compareAt, size = 'md' }: { cents: number; compar
   const off = discountPercent(cents, compareAt);
   return (
     <span className={`inline-flex flex-wrap items-baseline gap-x-2 ${size === 'lg' ? 'text-2xl' : ''}`}>
-      <span className={off ? 'text-garance font-medium' : 'font-medium'}>{formatPrice(cents)}</span>
+      <span className={`font-semibold tabular-nums ${off ? 'text-garance' : 'text-nuit'}`}>{formatPrice(cents)}</span>
       {off && <span className={`line-through text-henne/70 ${size === 'lg' ? 'text-lg' : 'text-sm'}`}>{formatPrice(compareAt!)}</span>}
     </span>
   );

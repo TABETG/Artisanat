@@ -1,118 +1,154 @@
-import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Hand, Lock, RotateCcw, Truck } from 'lucide-react';
 import { listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { ProductCard } from '../components/ProductCard';
 import { ProductImage } from '../components/ProductImage';
-import { CATEGORIES, SHOP } from '../config';
-import { useSettings } from '../context/SettingsContext';
+import { SectionHeading } from '../components/SectionHeading';
+import { SHOP } from '../config';
+import { useCategories, useSettings } from '../context/SettingsContext';
+import { useBadges } from '../context/BadgesContext';
+import { discountOf } from '../badges';
 import { formatPrice } from '../lib/format';
+import { Product } from '../types';
 
 export function HomePage() {
   const { data: products, loading, error } = useAsync(listProducts, []);
   const { settings } = useSettings();
-  const available = (products ?? []).filter((p) => p.stock > 0);
-  const featured = [...available.filter((p) => p.featured), ...available.filter((p) => !p.featured)].slice(0, 8);
-  const heroProduct = featured.find((p) => p.images.length > 0) ?? featured[0];
+  const { categories } = useCategories();
+  const { bestSellerIds } = useBadges();
+  const all = products ?? [];
+  const available = all.filter((p) => p.stock > 0);
+  const usedCategories = categories.filter((c) => all.some((p) => p.category === c.id));
+  const promos = available.filter((p) => discountOf(p)).sort((a, b) => (discountOf(b) ?? 0) - (discountOf(a) ?? 0)).slice(0, 4);
+  const best = available.filter((p) => bestSellerIds.has(p.id)).sort((a, b) => b.sales_count - a.sales_count).slice(0, 4);
+  const featured = [...available.filter((p) => p.featured), ...available.filter((p) => !p.featured)];
+  const withPhotos = featured.filter((p) => p.images.length > 0);
+  const hero = withPhotos[0] ?? featured[0];
+  const second = withPhotos[1];
   const years = new Date().getFullYear() - SHOP.since;
+  const categoryCover = (id: string) => all.find((p) => p.category === id && p.images.length)?.images[0];
 
   return (
     <>
-      <section className="bg-nuit text-laine">
-        <div className="max-w-6xl mx-auto px-5 py-16 md:py-24 grid gap-12 md:grid-cols-[1.15fr_1fr] items-center">
-          <div>
-            <h1 className="font-display font-extrabold text-[2.6rem] leading-[1.05] sm:text-6xl md:text-[4.3rem] tracking-tight">
-              Des tapis tissés à la main, nœud après nœud.
-            </h1>
-            <p className="mt-6 text-lg text-laine/80 max-w-md leading-relaxed">
-              Tapis berbères, coussins et plaids en pure laine. Des pièces faites à la main depuis {SHOP.since}, livrées chez vous.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link to="/boutique" className="bg-safran text-encre px-7 py-3.5 rounded-sm font-medium hover:bg-laine">
-                Voir les créations
-              </Link>
-              <Link to="/notre-histoire" className="px-7 py-3.5 rounded-sm border border-laine/30 hover:border-laine">
-                Notre histoire
-              </Link>
-            </div>
+      {/* ---------- Ouverture : le titre tissé et le tapis posé ---------- */}
+      <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-10 md:pt-16 pb-20 grid gap-12 lg:grid-cols-12 items-start">
+        <div className="lg:col-span-7 lg:pt-10">
+          <h1 className="apparition-tissee font-display text-nuit text-[3.4rem] leading-[0.92] sm:text-[5rem] lg:text-[6.6rem]">
+            {settings.hero_title}
+          </h1>
+          <p className="lecture mt-8 text-[1.25rem] text-encre/80 max-w-xl">{settings.hero_subtitle}</p>
+          <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
+            <Link to="/boutique" className="bg-nuit text-laine px-8 py-4 text-lg font-medium hover:bg-garance">Voir les créations</Link>
+            <Link to="/sur-mesure" className="lien-tisse text-nuit text-lg font-medium pb-0.5">Faire tisser à mes dimensions</Link>
           </div>
-          {heroProduct ? (
-            <Link to={`/produit/${heroProduct.id}`} className="block">
-              <ProductImage src={heroProduct.images[0]} alt={heroProduct.name} className="w-full aspect-[4/5] rounded-sm" />
-              <p className="mt-3 text-sm text-laine/70">{heroProduct.name} — {formatPrice(heroProduct.price_cents)}</p>
+        </div>
+
+        <div className="lg:col-span-5 relative">
+          {hero ? (
+            <Link to={`/produit/${hero.id}`} className="group block">
+              <div className="franges mx-4 lg:mx-0 lg:-rotate-2 transition-transform duration-500 group-hover:rotate-0">
+                <ProductImage src={hero.images[0]} alt={hero.name} className="w-full aspect-[3/4] shadow-[0_30px_60px_-25px_rgba(31,36,82,.45)]" />
+              </div>
+              <p className="mt-8 flex items-baseline justify-between gap-4 px-4 lg:px-0">
+                <span className="font-display text-xl text-nuit group-hover:text-garance">{hero.name}</span>
+                <span className="text-henne whitespace-nowrap">{formatPrice(hero.price_cents)}</span>
+              </p>
             </Link>
           ) : (
-            <div className="tissage w-full aspect-[4/5] rounded-sm" aria-hidden />
+            <div className="tissage franges w-full aspect-[3/4]" aria-hidden />
+          )}
+          {second && (
+            <Link to={`/produit/${second.id}`} className="hidden xl:block absolute -left-24 bottom-24 w-40 rotate-3 shadow-xl border-4 border-laine" aria-label={second.name}>
+              <ProductImage src={second.images[0]} alt="" className="w-full aspect-square" />
+            </Link>
           )}
         </div>
-        <div className="motif" aria-hidden />
       </section>
 
-      <section className="max-w-6xl mx-auto px-5 pt-20">
-        <div className="flex items-end justify-between gap-4 mb-8">
-          <h2 className="font-display text-3xl md:text-4xl text-nuit">Disponibles en ce moment</h2>
-          <Link to="/boutique" className="text-garance hover:underline whitespace-nowrap">Tout voir</Link>
-        </div>
+      <div className="lisiere" aria-hidden />
+
+      {/* ---------- Catégories : de grandes étiquettes photographiques ---------- */}
+      {usedCategories.length > 1 && (
+        <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-20">
+          <SectionHeading title="Par type de pièce" />
+          <div className={`grid grid-cols-2 gap-4 ${usedCategories.length >= 4 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+            {usedCategories.slice(0, 4).map((c) => (
+              <Link key={c.id} to={`/boutique?categorie=${c.id}`} className="group relative block overflow-hidden aspect-[4/5] bg-laine-fonce">
+                <ProductImage src={categoryCover(c.id)} alt="" className="w-full h-full transition-transform duration-700 group-hover:scale-105" />
+                <span className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-nuit/85 to-transparent">
+                  <span className="font-display text-2xl sm:text-3xl text-laine">{c.label}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ---------- Pièces disponibles ---------- */}
+      <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-24">
+        <SectionHeading title="Prêts à partir" intro="Des pièces tissées, lavées et photographiées à l’atelier. Ce que vous voyez est ce que vous recevrez."
+          link={{ to: '/boutique', label: 'Toute la boutique' }} />
         {loading && <p className="text-henne">Chargement des créations…</p>}
         {error && <p className="text-garance">Les créations n’ont pas pu être chargées. Rechargez la page.</p>}
-        {!loading && !error && featured.length === 0 && (
-          <p className="text-henne">De nouvelles pièces arrivent bientôt.</p>
-        )}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
-          {featured.map((p) => <ProductCard key={p.id} product={p} />)}
+        {!loading && !error && featured.length === 0 && <p className="text-henne">De nouvelles pièces arrivent bientôt.</p>}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-12">
+          {featured.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-5 pt-20">
-        <h2 className="sr-only">Catégories</h2>
-        <div className="flex flex-wrap gap-3">
-          {CATEGORIES.map((c) => (
-            <Link key={c.id} to={`/boutique?categorie=${c.id}`}
-              className="px-5 py-2.5 rounded-sm border border-nuit/20 text-nuit hover:bg-nuit hover:text-laine">
-              {c.label}
-            </Link>
-          ))}
-        </div>
-      </section>
+      {promos.length > 0 && (
+        <section className="mt-24 bg-nuit text-laine">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-16">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+              <div>
+                <div className="lisiere-fine w-16 mb-5" aria-hidden />
+                <p className="font-display text-[2.4rem] sm:text-5xl">En promotion</p>
+                <p className="lecture mt-2 text-laine/80">Quelques pièces à prix doux, pour quelques jours.</p>
+              </div>
+              <Link to="/boutique?promotion=1" className="lien-tisse font-medium pb-0.5">Toutes les promotions</Link>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-12 [&_h3]:text-laine [&_.text-henne]:text-laine/70 [&_.line-through]:text-laine/55 [&_.text-garance]:text-safran [&_.text-nuit]:text-laine">
+              {promos.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          </div>
+        </section>
+      )}
 
-      <section className="max-w-6xl mx-auto px-5 pt-24 grid gap-10 md:grid-cols-[auto_1fr] items-center">
-        <p className="font-display font-extrabold text-[7rem] md:text-[11rem] leading-none text-garance" aria-hidden>
-          {SHOP.since}
-        </p>
-        <div className="max-w-xl">
-          <h2 className="font-display text-3xl md:text-4xl text-nuit">
-            {years} ans de laine, de métiers à tisser et de patience
-          </h2>
-          <p className="mt-4 text-lg leading-relaxed text-encre/80">
+      <Shelf title="Les plus choisis" intro="Les pièces que nos clients commandent le plus." link="/boutique?tri=ventes" products={best} />
+
+      {/* ---------- L'atelier ---------- */}
+      <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-28 grid gap-12 lg:grid-cols-12 items-center">
+        <div className="lg:col-span-5 order-2 lg:order-1">
+          <div className="lisiere-fine w-16 mb-5" aria-hidden />
+          <h2 className="font-display text-nuit text-[2.6rem] sm:text-6xl">{years} ans de laine et de patience</h2>
+          <p className="lecture mt-6 text-encre/80">
             La laine est lavée, cardée et filée à la main, puis teinte avec des couleurs naturelles.
-            Chaque tapis demande des semaines de travail : aucun n’est identique à un autre.
+            Un tapis demande des semaines de travail : aucun n’est identique à un autre.
           </p>
-          <Link to="/notre-histoire" className="inline-block mt-5 text-garance hover:underline">Lire notre histoire</Link>
+          <Link to="/notre-histoire" className="inline-block mt-8 lien-tisse text-nuit text-lg font-medium pb-0.5">Découvrir l’atelier</Link>
         </div>
-      </section>
-
-      <section className="max-w-6xl mx-auto px-5 pt-24">
-        <h2 className="sr-only">Nos engagements</h2>
-        <ul className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 border-t border-laine-fonce pt-10">
-          <Engagement icon={<Hand className="w-6 h-6" />} title="Fait main">Tissé à la main, en laine naturelle.</Engagement>
-          <Engagement icon={<Lock className="w-6 h-6" />} title="Paiement sécurisé">Carte Visa, Mastercard, CB, Apple Pay et Google Pay via Stripe.</Engagement>
-          <Engagement icon={<Truck className="w-6 h-6" />} title="Livraison suivie">
-            {settings.free_shipping_from_cents > 0 ? `Offerte dès ${formatPrice(settings.free_shipping_from_cents)}, avec numéro de suivi.` : 'Avec numéro de suivi, colis soigné.'}
-          </Engagement>
-          <Engagement icon={<RotateCcw className="w-6 h-6" />} title="14 jours pour changer d’avis">Retour accepté si la pièce ne vous convient pas.</Engagement>
-        </ul>
+        <div className="lg:col-span-6 lg:col-start-7 order-1 lg:order-2">
+          <p className="font-display text-[7rem] sm:text-[11rem] lg:text-[13rem] leading-[0.8] text-laine-fonce select-none" aria-hidden>{SHOP.since}</p>
+          <ul className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 max-w-xl lecture text-base border-t border-laine-fonce pt-6">
+            <li><strong className="block font-sans text-nuit">Livraison suivie</strong>{settings.free_shipping_from_cents > 0 ? `offerte dès ${formatPrice(settings.free_shipping_from_cents)}` : 'avec numéro de suivi'}</li>
+            <li><strong className="block font-sans text-nuit">14 jours</strong>pour changer d’avis</li>
+            <li><strong className="block font-sans text-nuit">Paiement sécurisé</strong>carte, Apple Pay, Google Pay</li>
+            <li><strong className="block font-sans text-nuit">Sur mesure</strong>vos dimensions, vos couleurs</li>
+          </ul>
+        </div>
       </section>
     </>
   );
 }
 
-function Engagement({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+function Shelf({ title, intro, link, products }: { title: string; intro: string; link: string; products: Product[] }) {
+  if (!products.length) return null;
   return (
-    <li>
-      <span className="text-garance">{icon}</span>
-      <p className="font-display text-lg text-nuit mt-3">{title}</p>
-      <p className="text-encre/75 mt-1 leading-relaxed">{children}</p>
-    </li>
+    <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-24">
+      <SectionHeading title={title} intro={intro} link={{ to: link, label: 'Tout voir' }} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-12">
+        {products.map((p) => <ProductCard key={p.id} product={p} />)}
+      </div>
+    </section>
   );
 }

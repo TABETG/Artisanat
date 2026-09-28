@@ -27,7 +27,12 @@ export default async (req: Request) => {
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.payment_status === 'paid') {
       try {
-        await recordOrder(session);
+        if (session.metadata?.type === 'giftcard') {
+          await recordGiftCard(session);
+        } else {
+          const full = await stripe.checkout.sessions.retrieve(session.id, { expand: ['shipping_cost.shipping_rate', 'total_details.breakdown'] });
+          await recordOrder(full);
+        }
       } catch (e) {
         console.error('Enregistrement de commande impossible', e);
         return new Response('Erreur', { status: 500 }); // Stripe réessaiera automatiquement
@@ -44,7 +49,20 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   };
   const shippingDetails = s.collected_information?.shipping_details ?? s.shipping_details ?? null;
 
+  const rate = session.shipping_cost?.shipping_rate;
+  const discount = session.total_details?.breakdown?.discounts?.[0]?.discount;
+  let promoCode: string | null = null;
+  if (discount?.promotion_code) {
+    try {
+      const pc = typeof discount.promotion_code === 'string' ? await stripe.promotionCodes.retrieve(discount.promotion_code) : discount.promotion_code;
+      promoCode = pc.code;
+    } catch { /* sans importance */ }
+  }
+
   const { data: order, error } = await supabase.from('orders').insert({
+    shipping_method: rate && typeof rate !== 'string' ? rate.display_name ?? null : null,
+    discount_cents: session.total_details?.amount_discount ?? 0,
+    promo_code: promoCode,
     stripe_session_id: session.id,
     stripe_payment_id: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id ?? null,
     email: session.customer_details?.email ?? null,
@@ -56,6 +74,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     shipping_cents: session.shipping_cost?.amount_total ?? 0,
     total_cents: session.amount_total ?? 0,
     status: 'paid',
+    customer_message: session.custom_fields?.find((f) => f.key === 'message')?.text?.value ?? null,
   }).select('id').single();
 
   if (error) {
@@ -97,6 +116,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     if (soldOut?.length) await notifyOwnerSoldOut(soldOut.map((p) => p.name));
   }
   await sendOrderConfirmation(order.id, session, items);
+  await notifyOwnerNewOrder(session, items);
 
   if (stockProblem) {
     await supabase.from('orders').update({
@@ -146,4 +166,63 @@ async function sendOrderConfirmation(orderId: string, session: Stripe.Checkout.S
   } catch (e) {
     console.error('Email de confirmation non envoyé', e);
   }
+}
+
+const euro = (c: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(c / 100);
+
+/** Email « Nouvelle commande » au propriétaire (si OWNER_EMAIL et Resend sont configurés). */
+async function notifyOwnerNewOrder(session: Stripe.Checkout.Session, items: { name: string; quantity: number }[]) {
+  const to = process.env.OWNER_EMAIL;
+  if (!to || !process.env.RESEND_API_KEY) return;
+  const lines = [
+    `${session.customer_details?.name ?? 'Un client'} vient de payer ${euro(session.amount_total ?? 0)}.`,
+    ...items.map((i) => `• ${i.quantity} × ${i.name}`),
+  ];
+  try {
+    await sendEmails([{ to, subject: `Nouvelle commande : ${euro(session.amount_total ?? 0)}`, text: lines.join('\n'),
+      html: layout('Nouvelle commande', lines, { label: 'Préparer la commande', url: absoluteUrl('/admin/commandes') }) }],
+    process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>');
+  } catch (e) { console.error('Email nouvelle commande', e); }
+}
+
+/** Carte cadeau payée : code promo à usage unique, valable 1 an, envoyé par email. */
+async function recordGiftCard(session: Stripe.Checkout.Session) {
+  const { data: existing } = await supabase.from('gift_cards').select('id').eq('stripe_session_id', session.id).maybeSingle();
+  if (existing) return; // déjà traitée
+
+  const amount = session.amount_total ?? 0;
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const code = `CADEAU-${part()}-${part()}`;
+  const expires = new Date(Date.now() + 365 * 86400000);
+
+  const coupon = await stripe.coupons.create({ duration: 'once', amount_off: amount, currency: 'eur', name: `Carte cadeau ${euro(amount)}` });
+  const promo = await stripe.promotionCodes.create({ coupon: coupon.id, code, max_redemptions: 1, expires_at: Math.floor(expires.getTime() / 1000) });
+
+  const m = session.metadata ?? {};
+  const { error } = await supabase.from('gift_cards').insert({
+    code, amount_cents: amount, stripe_session_id: session.id, promotion_code_id: promo.id, expires_at: expires.toISOString(),
+    buyer_name: m.buyer_name || session.customer_details?.name || null, buyer_email: session.customer_details?.email ?? null,
+    recipient_name: m.recipient_name || null, recipient_email: m.recipient_email || null, message: m.message || null,
+  });
+  if (error && error.code !== '23505') throw error;
+
+  if (!canEmailCustomers()) return;
+  const until = expires.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const shopUrl = absoluteUrl('/boutique');
+  const emails = [];
+  if (session.customer_details?.email) {
+    emails.push({ to: session.customer_details.email, subject: `Votre carte cadeau de ${euro(amount)}`,
+      text: `Merci ! Voici le code de la carte cadeau : ${code} (${euro(amount)}, valable jusqu’au ${until}).${m.recipient_email ? `\nNous l’avons aussi envoyé à ${m.recipient_email}.` : ''}`,
+      html: layout(`Carte cadeau de ${euro(amount)}`, ['Merci pour votre achat. Voici le code, à saisir sur la page de paiement :', code, `Valable jusqu’au ${until}, en une seule fois.`,
+        ...(m.recipient_email ? [`Nous l’avons aussi envoyé à ${m.recipient_email}.`] : ['Vous pouvez le transmettre à la personne de votre choix.'])], { label: 'Découvrir la boutique', url: shopUrl }) });
+  }
+  if (m.recipient_email) {
+    const from = m.buyer_name || session.customer_details?.name || 'Quelqu’un';
+    emails.push({ to: m.recipient_email, subject: `${from} vous offre une carte cadeau`,
+      text: `${m.recipient_name ? `Bonjour ${m.recipient_name},\n\n` : ''}${from} vous offre ${euro(amount)} à dépenser sur notre boutique.${m.message ? `\n\n« ${m.message} »` : ''}\n\nVotre code : ${code} (valable jusqu’au ${until})\n${shopUrl}`,
+      html: layout(`Une carte cadeau de ${euro(amount)} pour vous`, [...(m.recipient_name ? [`Bonjour ${m.recipient_name},`] : []), `${from} vous offre ${euro(amount)} à dépenser sur notre boutique de tapis et créations en laine tissés à la main.`,
+        ...(m.message ? [`« ${m.message} »`] : []), `Votre code : ${code}`, `À saisir sur la page de paiement, valable jusqu’au ${until}.`], { label: 'Choisir ma pièce', url: shopUrl }) });
+  }
+  try { await sendEmails(emails); } catch (e) { console.error('Email carte cadeau', e); }
 }

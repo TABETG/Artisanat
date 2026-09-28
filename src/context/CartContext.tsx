@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Product } from '../types';
+import { trackProduct } from '../lib/api';
 
 export interface CartLine {
   id: string;
@@ -55,6 +56,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     open: () => { setLastAdded(null); setIsOpen(true); },
     close: () => { setIsOpen(false); setLastAdded(null); },
     add: (p, quantity = 1) => {
+      trackProduct(p.id, 'cart');
       setLines((prev) => {
         const existing = prev.find((l) => l.id === p.id);
         if (existing) {

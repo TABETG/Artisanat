@@ -4,34 +4,44 @@ import { db, DEMO_MODE } from './supabase';
 import { demoAuth, demoDB, demoSave, wait } from './demoStore';
 import { DEMO_ADMIN } from './demo';
 import { imageToDataUrl, resizeImage } from './image';
-import { AdminCounts, NotifyResult, Order, OrderStatus, Product, ProductInput, Review, ShopSettings, StockAlert, TrackedOrder } from '../types';
+import { AdminCounts, Campaign, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
 import { withDefaults } from '../settings';
+import { applyPromoExpiry } from '../pricing';
 import { CARRIERS, trackingUrl } from '../config';
 import { shippingFor } from '../shipping';
 
 const PRODUCT_FIELDS =
   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
-  'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold';
+  'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold,' +
+  'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count';
 
 const byNewest = <T extends { created_at: string }>(a: T, b: T) => b.created_at.localeCompare(a.created_at);
 
 // =============== Boutique (public) ===============
 
 export async function listProducts(): Promise<Product[]> {
-  if (DEMO_MODE) { await wait(150); return demoDB().products.filter((p) => p.active).sort(byNewest); }
+  if (DEMO_MODE) { await wait(150); return demoDB().products.filter((p) => p.active && isPublished(p)).map(normalize).sort(byNewest); }
   const { data, error } = await db()
     .from('products').select(PRODUCT_FIELDS).eq('active', true)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data as unknown as Product[];
+  return (data as unknown as Product[]).map(normalize);
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  if (DEMO_MODE) { await wait(100); return demoDB().products.find((p) => p.id === id && p.active) ?? null; }
+  if (DEMO_MODE) { await wait(100); const p = demoDB().products.find((x) => x.id === id && x.active && isPublished(x)); return p ? normalize(p) : null; }
   const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).maybeSingle();
   if (error) throw error;
-  return data as unknown as Product | null;
+  return data ? normalize(data as unknown as Product) : null;
 }
+
+/** Valeurs par défaut des champs récents + fin de promotion appliquée (côté boutique). */
+function normalize(p: Product): Product {
+  return applyPromoExpiry({ ...p, badges: p.badges ?? [], promo_ends_at: p.promo_ends_at ?? null, sales_count: p.sales_count ?? 0,
+    publish_at: p.publish_at ?? null, views_count: p.views_count ?? 0, cart_adds_count: p.cart_adds_count ?? 0 });
+}
+
+export const isPublished = (p: Pick<Product, 'publish_at'>) => !p.publish_at || new Date(p.publish_at).getTime() <= Date.now();
 
 export async function startCheckout(items: { id: string; quantity: number }[]): Promise<string> {
   if (DEMO_MODE) return demoCheckout(items);
@@ -57,6 +67,7 @@ async function demoCheckout(items: { id: string; quantity: number }[]): Promise<
   const lines = items.map((it, i) => {
     const p = data.products.find((x) => x.id === it.id)!;
     p.stock -= it.quantity;
+    p.sales_count = (p.sales_count ?? 0) + it.quantity;
     return { id: Date.now() + i, product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: it.quantity };
   });
   const subtotal = lines.reduce((n, l) => n + l.unit_price_cents * l.quantity, 0);
@@ -69,6 +80,8 @@ async function demoCheckout(items: { id: string; quantity: number }[]): Promise<
     shipping_address: { line1: '1 place de la République', postal_code: '75003', city: 'Paris', country: 'FR' },
     subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping,
     status: 'paid', tracking_number: null, tracking_carrier: null, shipped_email_sent_at: null, note: null, created_at: new Date().toISOString(), order_items: lines,
+    shipping_method: shipping === 0 ? 'Livraison suivie offerte' : 'Livraison suivie',
+    invoice_number: Math.max(0, ...data.orders.map((o) => o.invoice_number ?? 0)) + 1,
   });
   demoSave();
   return `/merci?session_id=${id}`;
@@ -93,12 +106,14 @@ export async function createStockAlert(productId: string, email: string): Promis
 
 // =============== Connexion vendeur ===============
 
-export type AdminStatus = 'anonymous' | 'forbidden' | 'ok';
+export type AdminStatus = 'anonymous' | 'forbidden' | 'mfa' | 'ok';
 
 export async function getAdminStatus(): Promise<AdminStatus> {
   if (DEMO_MODE) return demoAuth.isLoggedIn() ? 'ok' : 'anonymous';
   const { data: session } = await db().auth.getSession();
   if (!session.session) return 'anonymous';
+  const { data: aal } = await db().auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') return 'mfa';
   const { data } = await db().from('admins').select('user_id').eq('user_id', session.session.user.id).maybeSingle();
   return data ? 'ok' : 'forbidden';
 }
@@ -269,8 +284,10 @@ export async function deleteStockAlert(id: number): Promise<void> {
 
 /** Chiffres des pastilles de notification du menu vendeur. */
 export async function adminCounts(): Promise<AdminCounts> {
-  const [products, orders, alerts, reviews] = await Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews()]);
+  const [products, orders, alerts, reviews, requests, returns] = await Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews(), adminListCustomRequests(), adminListReturns()]);
   return {
+    returnsNew: returns.filter((r) => r.status === 'new').length,
+    customRequestsNew: requests.filter((r) => r.status === 'new').length,
     reviewsPending: reviews.filter((r) => !r.approved).length,
     outOfStock: products.filter((p) => p.active && p.stock === 0).length,
     alertsPending: alerts.filter((a) => !a.notified).length,
@@ -284,21 +301,21 @@ export async function adminCounts(): Promise<AdminCounts> {
 export async function duplicateProduct(p: Product): Promise<Product> {
   const { id: _id, created_at: _c, ...rest } = p;
   void _id; void _c;
-  return saveProduct({ ...rest, name: `${p.name} (copie)`, reference: p.reference ? `${p.reference}-COPIE` : '', active: false, featured: false });
+  return saveProduct({ ...rest, name: `${p.name} (copie)`, reference: p.reference ? `${p.reference}-COPIE` : '', active: false, featured: false, sales_count: 0, views_count: 0, cart_adds_count: 0, publish_at: null });
 }
 
-async function callAdminFunction(body: Record<string, unknown>): Promise<NotifyResult> {
+async function callAdminFunction<T = NotifyResult>(body: Record<string, unknown>, fn = 'admin-notify'): Promise<T> {
   const { data } = await db().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Session expirée : reconnectez-vous.');
-  const res = await fetch('/.netlify/functions/admin-notify', {
+  const res = await fetch(`/.netlify/functions/${fn}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? 'Envoi impossible.');
-  return json as NotifyResult;
+  return json as T;
 }
 
 /**
@@ -420,6 +437,7 @@ export async function trackOrders(email: string, postalCode: string): Promise<Tr
       .filter((o) => o.email?.toLowerCase() === e && (o.shipping_address?.postal_code ?? '').replace(/\s/g, '').toUpperCase() === pc)
       .sort(byNewest)
       .map((o) => ({
+        id: o.id, returnable: isReturnable(o.status, o.created_at),
         number: o.id.replace(/^demo-/, '').slice(0, 8).toUpperCase(), created_at: o.created_at, status: o.status, total_cents: o.total_cents,
         items: (o.order_items ?? []).map((i) => ({ name: i.name, quantity: i.quantity })),
         tracking_number: o.tracking_number, tracking_url: trackingUrl(o.tracking_carrier, o.tracking_number),
@@ -432,4 +450,313 @@ export async function trackOrders(email: string, postalCode: string): Promise<Tr
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? 'Recherche impossible pour le moment.');
   return body.orders as TrackedOrder[];
+}
+
+// =============== Actions groupées sur les produits ===============
+
+export async function updateProductFields(id: string, patch: Partial<ProductInput>): Promise<void> {
+  if (DEMO_MODE) { const p = demoDB().products.find((x) => x.id === id); if (p) Object.assign(p, patch); demoSave(); return; }
+  const { error } = await db().from('products').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+/** Promotion en pourcentage : l'ancien prix est conservé et affiché barré. */
+export function discountPatch(p: Product, percent: number, endsAt: string | null = null): Partial<ProductInput> {
+  const reference = p.compare_at_price_cents && p.compare_at_price_cents > p.price_cents ? p.compare_at_price_cents : p.price_cents;
+  const price = Math.round((reference * (100 - percent)) / 100 / 10) * 10; // arrondi aux 10 centimes
+  return { compare_at_price_cents: reference, price_cents: price, promo_ends_at: endsAt };
+}
+
+export function removeDiscountPatch(p: Product): Partial<ProductInput> {
+  return p.compare_at_price_cents && p.compare_at_price_cents > p.price_cents
+    ? { price_cents: p.compare_at_price_cents, compare_at_price_cents: null, promo_ends_at: null }
+    : { compare_at_price_cents: null, promo_ends_at: null };
+}
+
+// =============== Lettre d'information ===============
+
+export async function subscribeNewsletter(email: string): Promise<void> {
+  const clean = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean)) throw new Error('Adresse email invalide.');
+  if (DEMO_MODE) {
+    await wait();
+    const d = demoDB();
+    if (!d.subscribers.some((s) => s.email === clean)) d.subscribers.push({ id: Date.now(), email: clean, created_at: new Date().toISOString() });
+    demoSave();
+    return;
+  }
+  const { error } = await db().from('newsletter').insert({ email: clean });
+  if (error && error.code !== '23505') throw new Error('Inscription impossible pour le moment.');
+}
+
+export async function adminListSubscribers(): Promise<Subscriber[]> {
+  if (DEMO_MODE) return [...demoDB().subscribers].sort(byNewest);
+  const { data, error } = await db().from('newsletter').select('*').order('created_at', { ascending: false }).limit(10000);
+  if (error) throw error;
+  return data as Subscriber[];
+}
+
+// =============== Codes promo (Stripe) ===============
+
+export async function adminListPromoCodes(): Promise<PromoCode[]> {
+  if (DEMO_MODE) { await wait(200); return [...demoDB().promoCodes].sort(byNewest); }
+  return (await callAdminFunction<{ codes: PromoCode[] }>({ action: 'list' }, 'admin-promo')).codes;
+}
+
+export async function createPromoCode(input: PromoCodeInput): Promise<PromoCode> {
+  const code = input.code.trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,30}$/.test(code)) throw new Error('Le code doit faire 3 à 30 caractères : lettres, chiffres ou tirets.');
+  if (DEMO_MODE) {
+    await wait();
+    const d = demoDB();
+    if (d.promoCodes.some((p) => p.code === code)) throw new Error('Ce code existe déjà.');
+    const promo: PromoCode = {
+      id: `promo_${Date.now()}`, code, active: true, times_redeemed: 0, created_at: new Date().toISOString(),
+      percent_off: input.kind === 'percent' ? input.value : null, amount_off_cents: input.kind === 'amount' ? input.value : null,
+      max_redemptions: input.max_redemptions, expires_at: input.expires_at, minimum_amount_cents: input.minimum_amount_cents,
+    };
+    d.promoCodes.push(promo); demoSave();
+    return promo;
+  }
+  return (await callAdminFunction<{ code: PromoCode }>({ action: 'create', input: { ...input, code } }, 'admin-promo')).code;
+}
+
+export async function deactivatePromoCode(id: string): Promise<void> {
+  if (DEMO_MODE) { const p = demoDB().promoCodes.find((x) => x.id === id); if (p) p.active = false; demoSave(); return; }
+  await callAdminFunction({ action: 'deactivate', id }, 'admin-promo');
+}
+
+// =============== Remboursements ===============
+
+export async function refundOrder(orderId: string, amountCents: number, restock: boolean, reason: string): Promise<{ refunded_cents: number; full: boolean; note: string }> {
+  if (DEMO_MODE) {
+    await wait(600);
+    const d = demoDB();
+    const o = d.orders.find((x) => x.id === orderId);
+    if (!o) throw new Error('Commande introuvable');
+    const remaining = o.total_cents - (o.refunded_cents ?? 0);
+    if (!(amountCents > 0) || amountCents > remaining) throw new Error(`Montant invalide (maximum ${(remaining / 100).toFixed(2).replace('.', ',')} €).`);
+    o.refunded_cents = (o.refunded_cents ?? 0) + amountCents;
+    const full = o.refunded_cents >= o.total_cents;
+    if (full) o.status = 'refunded';
+    const note = `Remboursé ${(amountCents / 100).toFixed(2).replace('.', ',')} € le ${new Date().toLocaleDateString('fr-FR')}${reason ? ` : ${reason}` : ''}`;
+    o.note = [o.note, note].filter(Boolean).join('\n');
+    if (restock) o.order_items?.forEach((i) => { const p = d.products.find((x) => x.id === i.product_id); if (p) p.stock += i.quantity; });
+    demoSave();
+    return { refunded_cents: o.refunded_cents, full, note };
+  }
+  return callAdminFunction({ orderId, amountCents, restock, reason }, 'admin-refund');
+}
+
+// =============== Double authentification (application d'authentification) ===============
+
+export interface MfaState { enabled: boolean; factorId: string | null }
+
+export async function getMfaState(): Promise<MfaState> {
+  if (DEMO_MODE) return { enabled: false, factorId: null };
+  const { data } = await db().auth.mfa.listFactors();
+  const f = data?.totp?.find((x) => x.status === 'verified');
+  return { enabled: !!f, factorId: f?.id ?? null };
+}
+
+/** Étape 1 : QR code à scanner avec Google Authenticator, Microsoft Authenticator… */
+export async function startMfaEnrollment(): Promise<{ factorId: string; qr: string; secret: string }> {
+  if (DEMO_MODE) throw new Error('Indisponible en démonstration.');
+  // nettoie une tentative précédente non terminée
+  const { data: existing } = await db().auth.mfa.listFactors();
+  for (const f of existing?.all ?? []) if (f.status !== 'verified') await db().auth.mfa.unenroll({ factorId: f.id });
+  const { data, error } = await db().auth.mfa.enroll({ factorType: 'totp', friendlyName: `Artisanat ${new Date().toLocaleDateString('fr-FR')}` });
+  if (error || !data) throw new Error('Activation impossible pour le moment.');
+  return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+
+/** Étape 2 (activation) ou connexion : vérifie le code à 6 chiffres. */
+export async function verifyMfaCode(code: string, factorId?: string): Promise<void> {
+  const id = factorId ?? (await getMfaState()).factorId;
+  if (!id) throw new Error('Aucune double authentification active.');
+  const { error } = await db().auth.mfa.challengeAndVerify({ factorId: id, code: code.replace(/\s/g, '') });
+  if (error) throw new Error('Code incorrect ou expiré. Réessayez avec le code affiché maintenant.');
+}
+
+export async function disableMfa(factorId: string): Promise<void> {
+  const { error } = await db().auth.mfa.unenroll({ factorId });
+  if (error) throw new Error('Désactivation impossible : reconnectez-vous avec votre code puis réessayez.');
+}
+
+// =============== Exports ===============
+
+export function productsToCsv(products: Product[]): string {
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const euros = (c: number | null) => (c == null ? '' : (c / 100).toFixed(2).replace('.', ','));
+  const head = ['Référence', 'Nom', 'Catégorie', 'Prix', 'Ancien prix', 'Stock', 'Vendus', 'Largeur (cm)', 'Longueur (cm)', 'Matière', 'Technique', 'Origine', 'En ligne', 'Lien'];
+  const rows = products.map((p) => [p.reference, p.name, p.category, euros(p.price_cents), euros(p.compare_at_price_cents), p.stock, p.sales_count ?? 0,
+    p.width_cm, p.length_cm, p.material, p.technique, p.origin, p.active ? 'oui' : 'non', `${window.location.origin}/produit/${p.id}`].map(esc).join(';'));
+  return '\uFEFF' + [head.map(esc).join(';'), ...rows].join('\r\n');
+}
+
+// =============== Demandes sur mesure ===============
+
+export async function createCustomRequest(input: CustomRequestInput): Promise<void> {
+  const clean = { ...input, name: input.name.trim(), email: input.email.trim().toLowerCase(), message: input.message.trim() };
+  if (!clean.name) throw new Error('Indiquez votre nom.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean.email)) throw new Error('Adresse email invalide.');
+  if (!clean.message && !clean.width_cm) throw new Error('Décrivez votre projet ou indiquez les dimensions souhaitées.');
+  if (DEMO_MODE) {
+    await wait(400);
+    demoDB().customRequests.unshift({ ...clean, id: Date.now(), status: 'new', note: null, created_at: new Date().toISOString() });
+    demoSave();
+    return;
+  }
+  const { error } = await db().from('custom_requests').insert(clean);
+  if (error) throw new Error('Votre demande n’a pas pu être envoyée. Réessayez ou écrivez-nous.');
+  // Prévient le vendeur par email si l'envoi automatique est configuré (sans bloquer le client)
+  fetch('/.netlify/functions/notify-owner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'custom_request' }) }).catch(() => {});
+}
+
+export async function adminListCustomRequests(): Promise<CustomRequest[]> {
+  if (DEMO_MODE) return [...demoDB().customRequests].sort(byNewest);
+  const { data, error } = await db().from('custom_requests').select('*').order('created_at', { ascending: false }).limit(1000);
+  if (error) throw error;
+  return data as CustomRequest[];
+}
+
+export async function updateCustomRequest(id: number, patch: { status?: CustomStatus; note?: string | null }): Promise<void> {
+  if (DEMO_MODE) { const r = demoDB().customRequests.find((x) => x.id === id); if (r) Object.assign(r, patch); demoSave(); return; }
+  const { error } = await db().from('custom_requests').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+// =============== Cartes cadeaux ===============
+
+export const GIFT_AMOUNTS = [5000, 10000, 15000, 20000, 30000, 50000];
+
+function randomGiftCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `CADEAU-${part()}-${part()}`;
+}
+
+export async function startGiftCardCheckout(order: GiftCardOrder): Promise<string> {
+  if (!(order.amount_cents >= 2000 && order.amount_cents <= 200000)) throw new Error('Montant entre 20 € et 2 000 €.');
+  if (order.recipient_email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(order.recipient_email.trim())) throw new Error('Email du destinataire invalide.');
+  if (DEMO_MODE) {
+    await wait(600);
+    const d = demoDB();
+    const code = randomGiftCode();
+    const session = `demo-gift-${Date.now()}`;
+    d.giftCards.unshift({ id: session, code, amount_cents: order.amount_cents, buyer_name: order.buyer_name || 'Client de démonstration', buyer_email: 'client.demo@exemple.fr',
+      recipient_name: order.recipient_name || null, recipient_email: order.recipient_email || null, message: order.message || null,
+      expires_at: new Date(Date.now() + 365 * 86400000).toISOString(), created_at: new Date().toISOString(), used: false });
+    d.promoCodes.unshift({ id: `promo_${session}`, code, percent_off: null, amount_off_cents: order.amount_cents, active: true, times_redeemed: 0, max_redemptions: 1,
+      expires_at: new Date(Date.now() + 365 * 86400000).toISOString(), minimum_amount_cents: null, created_at: new Date().toISOString() });
+    demoSave();
+    return `/merci?carte_cadeau=${session}`;
+  }
+  const res = await fetch('/.netlify/functions/create-giftcard-checkout', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.url) throw new Error(body.error ?? 'Le paiement n’a pas pu démarrer.');
+  return body.url as string;
+}
+
+/** Page de remerciement : récupère le code de la carte (quelques secondes après le paiement). */
+export async function getGiftCardBySession(sessionId: string): Promise<GiftCard | null> {
+  if (DEMO_MODE) return demoDB().giftCards.find((g) => g.id === sessionId) ?? null;
+  const res = await fetch(`/.netlify/functions/giftcard-status?session_id=${encodeURIComponent(sessionId)}`);
+  if (!res.ok) return null;
+  return ((await res.json()) as { card: GiftCard | null }).card;
+}
+
+export async function adminListGiftCards(): Promise<GiftCard[]> {
+  if (DEMO_MODE) {
+    const d = demoDB();
+    return d.giftCards.map((g) => ({ ...g, used: (d.promoCodes.find((p) => p.code === g.code)?.times_redeemed ?? 0) > 0 }));
+  }
+  const [{ data, error }, codes] = await Promise.all([
+    db().from('gift_cards').select('*').order('created_at', { ascending: false }).limit(1000),
+    adminListPromoCodes().catch(() => [] as { code: string; times_redeemed: number }[]),
+  ]);
+  if (error) throw error;
+  return (data as GiftCard[]).map((g) => ({ ...g, used: (codes.find((c) => c.code === g.code)?.times_redeemed ?? 0) > 0 }));
+}
+
+// =============== Statistiques anonymes ===============
+
+/** Compte une vue ou un ajout au panier (une seule fois par produit et par visite). */
+export function trackProduct(productId: string, kind: 'view' | 'cart'): void {
+  const key = `artisanat-stat-${kind}-${productId}`;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* ignoré */ }
+  if (DEMO_MODE) {
+    const p = demoDB().products.find((x) => x.id === productId);
+    if (p) { if (kind === 'view') p.views_count = (p.views_count ?? 0) + 1; else p.cart_adds_count = (p.cart_adds_count ?? 0) + 1; try { demoSave(); } catch { /* ignoré */ } }
+    return;
+  }
+  db().rpc('track_product', { p_product_id: productId, p_kind: kind }).then(() => {}, () => {});
+}
+
+// =============== Retours ===============
+
+/** Retour possible pour une commande expédiée ou livrée depuis moins de 30 jours (14 jours après réception). */
+export function isReturnable(status: OrderStatus, createdAt: string): boolean {
+  return (status === 'shipped' || status === 'delivered') && Date.now() - new Date(createdAt).getTime() < 30 * 86400000;
+}
+
+export async function requestReturn(input: { email: string; postalCode: string; orderId: string; items: { name: string; quantity: number }[]; reason: string; comment: string }): Promise<void> {
+  if (!input.items.length) throw new Error('Choisissez au moins un article à retourner.');
+  if (!input.reason) throw new Error('Indiquez le motif du retour.');
+  if (DEMO_MODE) {
+    await wait(500);
+    const d = demoDB();
+    if (d.returns.some((r) => r.order_id === input.orderId && r.status !== 'declined')) throw new Error('Une demande de retour existe déjà pour cette commande.');
+    d.returns.unshift({ id: Date.now(), order_id: input.orderId, email: input.email.trim().toLowerCase(), items: input.items, reason: input.reason, comment: input.comment.trim(),
+      status: 'new', note: null, created_at: new Date().toISOString() });
+    demoSave();
+    return;
+  }
+  const res = await fetch('/.netlify/functions/request-return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? 'La demande n’a pas pu être envoyée.');
+}
+
+export async function adminListReturns(): Promise<ReturnRequest[]> {
+  if (DEMO_MODE) return [...demoDB().returns].sort(byNewest);
+  const { data, error } = await db().from('returns').select('*').order('created_at', { ascending: false }).limit(1000);
+  if (error) throw error;
+  return data as ReturnRequest[];
+}
+
+export async function updateReturn(id: number, patch: { status?: ReturnStatus; note?: string | null }): Promise<void> {
+  if (DEMO_MODE) { const r = demoDB().returns.find((x) => x.id === id); if (r) Object.assign(r, patch); demoSave(); return; }
+  const { error } = await db().from('returns').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+// =============== Lettre d'information : envois ===============
+
+export async function sendCampaign(input: { subject: string; message: string; productIds: string[]; test: boolean }): Promise<{ sent: number }> {
+  if (!input.subject.trim()) throw new Error('Indiquez un objet.');
+  if (!input.message.trim()) throw new Error('Écrivez un message.');
+  if (DEMO_MODE) {
+    await wait(800);
+    const d = demoDB();
+    const sent = input.test ? 1 : d.subscribers.length;
+    if (!input.test) d.campaigns.unshift({ id: Date.now(), subject: input.subject.trim(), sent_count: sent, created_at: new Date().toISOString() });
+    demoSave();
+    return { sent };
+  }
+  return callAdminFunction<{ sent: number }>(input, 'send-newsletter');
+}
+
+export async function adminListCampaigns(): Promise<Campaign[]> {
+  if (DEMO_MODE) return [...demoDB().campaigns].sort(byNewest);
+  const { data, error } = await db().from('campaigns').select('*').order('created_at', { ascending: false }).limit(200);
+  if (error) throw error;
+  return data as Campaign[];
+}
+
+export async function unsubscribeNewsletter(email: string, token: string): Promise<void> {
+  if (DEMO_MODE) { const d = demoDB(); d.subscribers = d.subscribers.filter((s) => s.email !== email.toLowerCase()); demoSave(); return; }
+  const res = await fetch('/.netlify/functions/newsletter-unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, token }) });
+  if (!res.ok) throw new Error('Lien invalide ou expiré. Écrivez-nous pour être désinscrit.');
 }

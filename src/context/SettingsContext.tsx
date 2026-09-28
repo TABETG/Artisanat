@@ -15,3 +15,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 }
 
 export const useSettings = () => useContext(SettingsContext);
+
+/** Catégories définies par le propriétaire. */
+export function useCategories() {
+  const { settings } = useContext(SettingsContext);
+  const categories = settings.categories.length ? settings.categories : [];
+  return {
+    categories,
+    label: (id: string) => categories.find((c) => c.id === id)?.label ?? id,
+  };
+}

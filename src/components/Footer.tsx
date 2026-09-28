@@ -1,47 +1,56 @@
 import { Link } from 'react-router-dom';
 import { SHOP } from '../config';
 import { useSettings } from '../context/SettingsContext';
+import { NewsletterForm } from './NewsletterForm';
+import { Mark } from './Header';
 
 export function Footer() {
   const { settings } = useSettings();
+  const col = 'space-y-2.5 text-laine/80';
+  const a = 'hover:text-safran';
   return (
-    <footer className="mt-24 bg-nuit text-laine">
-      <div className="motif" aria-hidden />
-      <div className="max-w-6xl mx-auto px-5 py-14 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
-        <div>
-          <p className="font-display text-3xl font-extrabold">{SHOP.name}</p>
-          <p className="mt-3 max-w-sm text-laine/75 leading-relaxed">
-            Tapis berbères et créations en laine, tissés à la main depuis {SHOP.since}.
-          </p>
-          <p className="mt-6 text-sm text-laine/60">
-            Paiement sécurisé par Stripe : Visa, Mastercard, Carte Bancaire, Apple Pay, Google Pay.
-          </p>
+    <footer className="mt-28 bg-nuit text-laine">
+      <div className="lisiere" aria-hidden />
+      <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 pb-10">
+        <div className="grid gap-12 lg:grid-cols-[1.3fr_1fr]">
+          <div>
+            <p className="font-display text-[3.5rem] sm:text-[5.5rem] leading-[0.9]">Chaque tapis<br />a une histoire.</p>
+            <p className="lecture mt-5 text-laine/75 max-w-md">Recevez un mot quand de nouvelles pièces sortent de l’atelier, une fois par mois au plus.</p>
+            <div className="mt-6 max-w-md"><NewsletterForm /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-8 content-start">
+            <div>
+              <p className="font-display text-xl mb-4">Boutique</p>
+              <ul className={col}>
+                <li><Link className={a} to="/boutique">Toutes les créations</Link></li>
+                <li><Link className={a} to="/sur-mesure">Tapis sur mesure</Link></li>
+                <li><Link className={a} to="/carte-cadeau">Carte cadeau</Link></li>
+                <li><Link className={a} to="/nos-realisations">Nos réalisations</Link></li>
+                <li><Link className={a} to="/notre-histoire">L’atelier</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-display text-xl mb-4">Aide</p>
+              <ul className={col}>
+                <li><Link className={a} to="/suivi-commande">Suivre ma commande</Link></li>
+                <li><Link className={a} to="/livraison-et-retours">Livraison et retours</Link></li>
+                <li><Link className={a} to="/questions-frequentes">Questions fréquentes</Link></li>
+                <li><Link className={a} to="/contact">Contact</Link></li>
+                <li><a className={`${a} break-all`} href={`mailto:${settings.email}`}>{settings.email}</a></li>
+              </ul>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="font-display text-lg mb-3">La boutique</p>
-          <ul className="space-y-2 text-laine/80">
-            <li><Link className="hover:text-safran" to="/boutique">Toutes les créations</Link></li>
-            <li><Link className="hover:text-safran" to="/notre-histoire">Notre histoire</Link></li>
-            <li><Link className="hover:text-safran" to="/livraison-et-retours">Livraison et retours</Link></li>
-            <li><Link className="hover:text-safran" to="/suivi-commande">Suivre ma commande</Link></li>
-            <li><Link className="hover:text-safran" to="/questions-frequentes">Questions fréquentes</Link></li>
-            <li><Link className="hover:text-safran" to="/contact">Nous contacter</Link></li>
-          </ul>
-        </div>
-        <div>
-          <p className="font-display text-lg mb-3">Informations</p>
-          <ul className="space-y-2 text-laine/80">
-            <li><Link className="hover:text-safran" to="/conditions-generales-de-vente">Conditions générales de vente</Link></li>
-            <li><Link className="hover:text-safran" to="/mentions-legales">Mentions légales</Link></li>
-            <li><Link className="hover:text-safran" to="/confidentialite">Confidentialité</Link></li>
-            <li><a className="hover:text-safran" href={`mailto:${settings.email}`}>{settings.email}</a></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-laine/10">
-        <div className="max-w-6xl mx-auto px-5 py-5 flex flex-wrap justify-between gap-3 text-sm text-laine/50">
-          <span>© {new Date().getFullYear()} {SHOP.name}</span>
-          <Link to="/admin" className="hover:text-laine">Espace vendeur</Link>
+
+        <div className="mt-14 pt-6 border-t border-laine/15 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-laine/55">
+          <span className="flex items-center gap-2"><Mark className="w-6 h-6" /> © {new Date().getFullYear()} {SHOP.name}</span>
+          <span>Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</span>
+          <span className="flex gap-4 lg:ml-auto">
+            <Link className="hover:text-laine" to="/conditions-generales-de-vente">Conditions de vente</Link>
+            <Link className="hover:text-laine" to="/mentions-legales">Mentions légales</Link>
+            <Link className="hover:text-laine" to="/confidentialite">Confidentialité</Link>
+            <Link className="hover:text-laine" to="/admin">Espace vendeur</Link>
+          </span>
         </div>
       </div>
     </footer>

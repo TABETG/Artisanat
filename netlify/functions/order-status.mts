@@ -37,9 +37,11 @@ export default async (req: Request) => {
   const orders = (data ?? [])
     .filter((o) => String((o.shipping_address as { postal_code?: string } | null)?.postal_code ?? '').replace(/\s/g, '').toUpperCase() === postal)
     .map((o) => ({
+      id: o.id,
+      returnable: ['shipped', 'delivered'].includes(o.status) && Date.now() - new Date(o.created_at).getTime() < 30 * 86400000,
       number: o.id.slice(0, 8).toUpperCase(),
       created_at: o.created_at,
-      status: o.status === 'check_stock' ? 'paid' : o.status,
+      status: o.status === 'check_stock' ? 'paid' : o.status === 'refunded' ? 'cancelled' : o.status,
       total_cents: o.total_cents,
       items: o.order_items ?? [],
       tracking_number: o.tracking_number,

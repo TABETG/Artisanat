@@ -10,8 +10,9 @@ export function FavoritesPage() {
   const products = ids.map((id) => (data ?? []).find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
 
   return (
-    <div className="max-w-6xl mx-auto px-5 pt-12">
-      <h1 className="font-display text-4xl md:text-5xl text-nuit">Mes favoris</h1>
+    <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-12">
+      <div className="lisiere-fine w-16 mb-5" aria-hidden />
+      <h1 className="font-display text-5xl md:text-7xl text-nuit">Mes favoris</h1>
       <p className="mt-3 text-henne">Enregistrés sur cet appareil, pour les retrouver plus tard.</p>
       {loading && <p className="mt-8 text-henne">Chargement…</p>}
       {!loading && products.length === 0 && (

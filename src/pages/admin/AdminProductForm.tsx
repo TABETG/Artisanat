@@ -5,11 +5,15 @@ import {
   adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, saveProduct, uploadProductImage,
 } from '../../lib/api';
 import { centsToInput, formatPrice, parsePriceToCents } from '../../lib/format';
-import { CATEGORIES, COLORS, TECHNIQUES } from '../../config';
+import { COLORS, TECHNIQUES } from '../../config';
+import { useCategories } from '../../context/SettingsContext';
 import { Product, ProductInput } from '../../types';
 import { Field, Input, Section, Select, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
 import { ProductCard } from '../../components/ProductCard';
 import { RestockModal, restockMessage } from './RestockModal';
+import { MANUAL_BADGES } from '../../badges';
+import { useBadges } from '../../context/BadgesContext';
+import { BadgePill } from '../../components/ProductBadges';
 
 const EMPTY: ProductInput = {
   name: '', description: '', category: 'tapis', price_cents: 0, stock: 1,
@@ -17,6 +21,8 @@ const EMPTY: ProductInput = {
   images: [], featured: false, active: true,
   reference: '', compare_at_price_cents: null, technique: 'Noué main', colors: [],
   pile_height_mm: null, weight_kg: null, care: '', made_to_order: false, low_stock_threshold: 2,
+  badges: [], promo_ends_at: null, sales_count: 0,
+  publish_at: null, views_count: 0, cart_adds_count: 0,
 };
 
 const NAME_MAX = 120;
@@ -27,6 +33,8 @@ export function AdminProductForm() {
   const isNew = !id;
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
+  const { categories } = useCategories();
+  const { badgesFor } = useBadges();
 
   const [form, setForm] = useState<ProductInput>(EMPTY);
   const snapshot = (f: ProductInput, p: string, o: string, w: string) => JSON.stringify([f, p, o, w]);
@@ -159,6 +167,7 @@ export function AdminProductForm() {
         reference: form.reference.trim(),
         price_cents: priceCents!,
         compare_at_price_cents: oldPriceCents,
+        promo_ends_at: oldPriceCents ? form.promo_ends_at : null,
         weight_kg: weight.trim() ? parseFloat(weight.replace(',', '.')) : null,
       }, id);
 
@@ -285,7 +294,8 @@ export function AdminProductForm() {
             <div className="grid sm:grid-cols-2 gap-5">
               <Field label="Catégorie" required>
                 <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
-                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {!categories.some((c) => c.id === form.category) && <option value={form.category}>{form.category} (catégorie supprimée)</option>}
                 </Select>
               </Field>
               <Field label="Référence" optional hint="Pour retrouver la pièce dans votre atelier.">
@@ -313,12 +323,23 @@ export function AdminProductForm() {
                     onChange={(e) => { setPrice(e.target.value); setErrors((x) => ({ ...x, price: '' })); }} placeholder="450" />
                 </Field>
               </div>
-              <div id="champ-oldPrice">
+              <div id="champ-oldPrice" className="space-y-4">
                 <Field label="Ancien prix (promotion)" optional error={errors.oldPrice}
                   hint={discount ? `Affiché barré, avec le badge « −${discount} % ».` : 'Laissez vide s’il n’y a pas de promotion.'}>
                   <UnitInput unit="€" inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
                     onChange={(e) => { setOldPrice(e.target.value); setErrors((x) => ({ ...x, oldPrice: '' })); }} placeholder="520" />
                 </Field>
+                {oldPrice.trim() && (
+                  <Field label="Fin de la promotion" optional
+                    hint={form.promo_ends_at ? 'Le lendemain, le prix d’origine revient tout seul. Un badge « Fin dans X jours » s’affiche la dernière semaine.' : 'Laissez vide pour une promotion sans date de fin.'}>
+                    <div className="flex gap-2">
+                      <Input type="date" min={new Date().toISOString().slice(0, 10)}
+                        value={form.promo_ends_at ? toLocalDate(form.promo_ends_at) : ''}
+                        onChange={(e) => set('promo_ends_at', e.target.value ? new Date(`${e.target.value}T23:59:59`).toISOString() : null)} />
+                      {form.promo_ends_at && <button type="button" onClick={() => set('promo_ends_at', null)} className="shrink-0 px-3 rounded-md border border-stone-300 text-sm">Effacer</button>}
+                    </div>
+                  </Field>
+                )}
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-5">
@@ -332,6 +353,34 @@ export function AdminProductForm() {
             </div>
             <Toggle checked={form.made_to_order} onChange={(v) => set('made_to_order', v)}
               title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />
+          </Section>
+
+          {/* ---------- Badges ---------- */}
+          <Section title="Badges" description="De petites étiquettes sur la photo qui attirent l’œil. Choisissez-en une ou deux au maximum pour rester lisible.">
+            <div className="grid sm:grid-cols-2 gap-2">
+              {MANUAL_BADGES.map((b) => {
+                const on = form.badges.includes(b.id);
+                return (
+                  <button key={b.id} type="button" aria-pressed={on}
+                    onClick={() => set('badges', on ? form.badges.filter((x) => x !== b.id) : [...form.badges, b.id])}
+                    className={`text-left flex items-start gap-3 p-3 rounded-md border ${on ? 'border-nuit ring-1 ring-nuit bg-nuit/5' : 'border-stone-200 hover:border-stone-400'}`}>
+                    <input type="checkbox" readOnly checked={on} tabIndex={-1} className="mt-1 w-4 h-4 accent-nuit pointer-events-none" />
+                    <span>
+                      <BadgePill badge={{ id: b.id, label: b.label, tone: b.tone, auto: false }} size="sm" />
+                      <span className="block text-sm text-stone-500 mt-1">{b.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="bg-stone-50 rounded-md p-4">
+              <p className="text-sm font-medium">Badges ajoutés automatiquement</p>
+              <p className="text-sm text-stone-500 mt-0.5">« −X % » (ancien prix), « Fin dans X jours », « Meilleure vente » (3 produits les plus vendus), « Nouveauté », « Pièce unique », « Plus que X », « Rupture de stock ».</p>
+              {(() => {
+                const auto = badgesFor(preview).filter((b) => b.auto);
+                return auto.length > 0 && <p className="mt-3 flex flex-wrap gap-2 items-center"><span className="text-sm text-stone-500">Pour ce produit :</span>{auto.map((b) => <BadgePill key={b.id} badge={b} size="sm" />)}</p>;
+              })()}
+            </div>
           </Section>
 
           {/* ---------- Caractéristiques ---------- */}
@@ -392,9 +441,26 @@ export function AdminProductForm() {
           <Section title="Visibilité">
             <Toggle checked={form.active} onChange={(v) => set('active', v)} title="En ligne"
               description={form.active ? 'Visible et achetable sur la boutique.' : 'Masqué : vous pouvez le préparer tranquillement.'} />
+            {form.active && (
+              <Field label="Mise en ligne programmée" optional
+                hint={form.publish_at && new Date(form.publish_at) > new Date() ? `Invisible pour les clients jusqu’au ${new Date(form.publish_at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}.` : 'Pour préparer une nouvelle collection à l’avance.'}>
+                <div className="flex gap-2">
+                  <Input type="datetime-local" value={form.publish_at ? toLocalDateTime(form.publish_at) : ''}
+                    onChange={(e) => set('publish_at', e.target.value ? new Date(e.target.value).toISOString() : null)} />
+                  {form.publish_at && <button type="button" onClick={() => set('publish_at', null)} className="shrink-0 px-3 rounded-md border border-stone-300 text-sm">Effacer</button>}
+                </div>
+              </Field>
+            )}
             <Toggle checked={form.featured} onChange={(v) => set('featured', v)} title="Mettre en avant"
               description="Affiché en premier sur la page d’accueil." />
           </Section>
+          {!isNew && (
+            <div className="bg-white rounded-lg border border-stone-200 p-5 grid grid-cols-3 gap-2 text-center">
+              <div><p className="font-display text-2xl text-nuit">{form.views_count}</p><p className="text-xs text-stone-500">vues</p></div>
+              <div><p className="font-display text-2xl text-nuit">{form.cart_adds_count}</p><p className="text-xs text-stone-500">ajouts au panier</p></div>
+              <div><p className="font-display text-2xl text-nuit">{form.sales_count}</p><p className="text-xs text-stone-500">vendus</p></div>
+            </div>
+          )}
           <div className="bg-white rounded-lg border border-stone-200 p-5">
             <p className="text-sm font-medium text-stone-500 mb-3">Aperçu dans la boutique</p>
             <div className="pointer-events-none"><ProductCard product={preview} /></div>
@@ -425,4 +491,15 @@ export function AdminProductForm() {
       <Toast message={toast?.msg ?? null} tone={toast?.tone} />
     </form>
   );
+}
+
+function toLocalDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${toLocalDate(iso)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Date ISO → « AAAA-MM-JJ » à l'heure locale, pour le champ date. */
+function toLocalDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

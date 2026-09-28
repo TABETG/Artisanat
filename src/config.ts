@@ -11,7 +11,7 @@ export const SHOP = {
   address: 'Adresse de l’atelier à compléter',
   legalName: 'Raison sociale à compléter',
   legalForm: 'Entreprise individuelle',
-  siret: 'SIRET à compléter',
+  siret: 'à compléter',
   vat: 'TVA non applicable, art. 293 B du CGI (à adapter)',
   host: 'Netlify, Inc. — 512 2nd Street, Suite 200, San Francisco, CA 94107, USA',
   instagram: '',

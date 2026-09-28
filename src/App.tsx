@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
@@ -9,21 +10,36 @@ import { FavoritesPage } from './pages/FavoritesPage';
 import { ContactPage } from './pages/ContactPage';
 import { ShippingPage, TermsPage, LegalPage, PrivacyPage } from './pages/LegalPages';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { AdminLogin } from './pages/admin/AdminLogin';
-import { AdminNewPassword } from './pages/admin/AdminNewPassword';
-import { AdminProducts } from './pages/admin/AdminProducts';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminReviews } from './pages/admin/AdminReviews';
-import { AdminSettings } from './pages/admin/AdminSettings';
 import { OrderTrackingPage } from './pages/OrderTrackingPage';
 import { FaqPage } from './pages/FaqPage';
-import { AdminProductForm } from './pages/admin/AdminProductForm';
-import { AdminOrders } from './pages/admin/AdminOrders';
-import { AdminStockAlerts } from './pages/admin/AdminStockAlerts';
+import { GiftCardPage } from './pages/GiftCardPage';
+import { CustomOrderPage } from './pages/CustomOrderPage';
+import { UnsubscribePage } from './pages/UnsubscribePage';
+import { RealisationsPage } from './pages/RealisationsPage';
+
+// L'espace vendeur est chargé à part : les clients ne téléchargent pas son code.
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin').then((m) => ({ default: m.AdminLogin })));
+const AdminNewPassword = lazy(() => import('./pages/admin/AdminNewPassword').then((m) => ({ default: m.AdminNewPassword })));
+const AdminProducts = lazy(() => import('./pages/admin/AdminProducts').then((m) => ({ default: m.AdminProducts })));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AdminReviews = lazy(() => import('./pages/admin/AdminReviews').then((m) => ({ default: m.AdminReviews })));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then((m) => ({ default: m.AdminSettings })));
+const AdminProductForm = lazy(() => import('./pages/admin/AdminProductForm').then((m) => ({ default: m.AdminProductForm })));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
+const AdminPromoCodes = lazy(() => import('./pages/admin/AdminPromoCodes').then((m) => ({ default: m.AdminPromoCodes })));
+const AdminCustomers = lazy(() => import('./pages/admin/AdminCustomers').then((m) => ({ default: m.AdminCustomers })));
+const AdminCustomRequests = lazy(() => import('./pages/admin/AdminCustomRequests').then((m) => ({ default: m.AdminCustomRequests })));
+const AdminGiftCards = lazy(() => import('./pages/admin/AdminGiftCards').then((m) => ({ default: m.AdminGiftCards })));
+const AdminReturns = lazy(() => import('./pages/admin/AdminReturns').then((m) => ({ default: m.AdminReturns })));
+const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter').then((m) => ({ default: m.AdminNewsletter })));
+const AdminStockAlerts = lazy(() => import('./pages/admin/AdminStockAlerts').then((m) => ({ default: m.AdminStockAlerts })));
+
+const Loading = () => <p className="p-8 text-stone-500">Chargement…</p>;
 
 export default function App() {
   return (
+    <Suspense fallback={<Loading />}>
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
@@ -35,6 +51,10 @@ export default function App() {
         <Route path="favoris" element={<FavoritesPage />} />
         <Route path="suivi-commande" element={<OrderTrackingPage />} />
         <Route path="questions-frequentes" element={<FaqPage />} />
+        <Route path="carte-cadeau" element={<GiftCardPage />} />
+        <Route path="sur-mesure" element={<CustomOrderPage />} />
+        <Route path="desinscription" element={<UnsubscribePage />} />
+        <Route path="nos-realisations" element={<RealisationsPage />} />
         <Route path="contact" element={<ContactPage />} />
         <Route path="livraison-et-retours" element={<ShippingPage />} />
         <Route path="conditions-generales-de-vente" element={<TermsPage />} />
@@ -54,7 +74,14 @@ export default function App() {
         <Route path="alertes" element={<AdminStockAlerts />} />
         <Route path="avis" element={<AdminReviews />} />
         <Route path="reglages" element={<AdminSettings />} />
+        <Route path="codes-promo" element={<AdminPromoCodes />} />
+        <Route path="clients" element={<AdminCustomers />} />
+        <Route path="sur-mesure" element={<AdminCustomRequests />} />
+        <Route path="cartes-cadeaux" element={<AdminGiftCards />} />
+        <Route path="retours" element={<AdminReturns />} />
+        <Route path="lettre" element={<AdminNewsletter />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }

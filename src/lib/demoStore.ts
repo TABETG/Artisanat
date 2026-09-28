@@ -1,19 +1,39 @@
 // Mode démonstration : une fausse base de données enregistrée dans le navigateur.
 // Permet de tester la boutique ET l'espace vendeur sans rien configurer.
-import { Order, Product, Review, ShopSettings, StockAlert } from '../types';
+import { Campaign, ReturnRequest, CustomRequest, GiftCard, Order, Product, PromoCode, Review, ShopSettings, StockAlert, Subscriber } from '../types';
 import { DEMO_ALERTS, DEMO_EXTRA_ORDERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_REVIEWS } from './demo';
 import { DEFAULT_SETTINGS } from '../settings';
 
-const KEY = 'artisanat-demo-v4';
+const KEY = 'artisanat-demo-v10';
 const AUTH_KEY = 'artisanat-demo-connecte';
 
-export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAlert[]; reviews: Review[]; settings: ShopSettings }
+export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAlert[]; reviews: Review[]; settings: ShopSettings; subscribers: Subscriber[]; promoCodes: PromoCode[]; customRequests: CustomRequest[]; giftCards: GiftCard[]; returns: ReturnRequest[]; campaigns: Campaign[] }
 
 let cache: DemoDB | null = null;
 
 function seed(): DemoDB {
   return structuredClone({ products: DEMO_PRODUCTS, orders: [...DEMO_ORDERS, ...DEMO_EXTRA_ORDERS], alerts: DEMO_ALERTS, reviews: DEMO_REVIEWS,
-    settings: { ...DEFAULT_SETTINGS, announcement: 'Livraison offerte dès 300 € — tapis tissés à la main depuis 1982', announcement_active: true } });
+    returns: [
+      { id: 1, order_id: 'demo-cmd-2', email: 'thomas.dubois@exemple.fr', items: [{ name: 'Coussin en laine tissée', quantity: 1 }],
+        reason: 'Ne me convient pas (couleurs, taille…)', comment: 'Le rouge est plus vif que je pensais pour mon salon.', status: 'new', note: null,
+        created_at: new Date(Date.now() - 2 * 3600000).toISOString() },
+    ],
+    campaigns: [{ id: 1, subject: 'Nouvelle collection de kilims', sent_count: 2, created_at: '2026-09-05T09:00:00Z' }],
+    customRequests: [
+      { id: 1, name: 'Hélène Garnier', email: 'helene.g@exemple.fr', phone: '+33 6 22 33 44 55', product_id: 'demo-2', room: 'Salon', width_cm: 250, length_cm: 350,
+        colors: 'Écru et brun, comme le Beni Ouarain', budget: '1 500 à 2 000 €', message: 'Bonjour, j’adore le Beni Ouarain mais il me faudrait plus grand pour mon salon. Quel délai ?',
+        status: 'new', note: null, created_at: new Date(Date.now() - 86400000).toISOString() },
+    ],
+    giftCards: [
+      { id: 'gc-1', code: 'CADEAU-7K2P-Q9XM', amount_cents: 10000, buyer_name: 'Julien Perrin', buyer_email: 'julien.p@exemple.fr', recipient_name: 'Camille',
+        recipient_email: 'camille@exemple.fr', message: 'Joyeux anniversaire !', expires_at: new Date(Date.now() + 330 * 86400000).toISOString(), created_at: '2026-09-10T10:00:00Z', used: false },
+    ],
+    promoCodes: [
+      { id: 'promo_demo_1', code: 'BIENVENUE10', percent_off: 10, amount_off_cents: null, active: true, times_redeemed: 4, max_redemptions: null, expires_at: null, minimum_amount_cents: null, created_at: '2026-09-01T10:00:00Z' },
+      { id: 'promo_demo_2', code: 'TAPIS50', percent_off: null, amount_off_cents: 5000, active: true, times_redeemed: 1, max_redemptions: 20, expires_at: new Date(Date.now() + 20 * 86400000).toISOString(), minimum_amount_cents: 40000, created_at: '2026-09-15T10:00:00Z' },
+    ],
+    subscribers: [{ id: 1, email: 'sophie.l@exemple.fr', created_at: '2026-09-20T10:00:00Z' }, { id: 2, email: 'marc.v@exemple.fr', created_at: '2026-09-24T10:00:00Z' }],
+    settings: { ...DEFAULT_SETTINGS, announcement_ends_at: new Date(Date.now() + 3 * 86400000 + 5 * 3600000).toISOString(), express_enabled: true, pickup_enabled: true, installments_enabled: true, announcement: 'Vente d’automne : −15 % sur les kilims', announcement_active: true } });
 }
 
 export function demoDB(): DemoDB {

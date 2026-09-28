@@ -1,27 +1,18 @@
 // Actions de l'espace vendeur qui envoient des emails.
 // Accès réservé : le jeton de connexion Supabase est vérifié, puis l'appartenance à la table admins.
-import { createClient } from '@supabase/supabase-js';
+import { requireAdmin, serviceClient } from '../shared/admin';
 import { absoluteUrl, canEmailCustomers, layout, sendEmails } from '../shared/email';
 import { SHOP, trackingUrl, CARRIERS } from '../../src/config';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } },
-);
+import { json } from '../shared/admin';
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const supabase = serviceClient();
 
 export default async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405);
 
-  const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return json({ error: 'Non connecté' }, 401);
-  const { data: auth } = await supabase.auth.getUser(token);
-  if (!auth.user) return json({ error: 'Session expirée : reconnectez-vous.' }, 401);
-  const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', auth.user.id).maybeSingle();
-  if (!admin) return json({ error: 'Accès refusé' }, 403);
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
 
   let body: { action?: string; productId?: string; orderId?: string };
   try { body = await req.json(); } catch { return json({ error: 'Requête invalide' }, 400); }
