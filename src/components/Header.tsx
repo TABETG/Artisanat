@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, ShoppingBag, X } from 'lucide-react';
+import { Heart, Menu, ShoppingBag, X } from 'lucide-react';
+import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { SHOP } from '../config';
 
@@ -13,6 +14,7 @@ const links = [
 
 export function Header() {
   const { count, open } = useCart();
+  const { ids: favorites } = useFavorites();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -33,6 +35,12 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-1">
+          <Link to="/favoris" className="relative p-2.5 rounded hover:bg-laine-fonce" aria-label={`Mes favoris (${favorites.length})`}>
+            <Heart className="w-6 h-6 text-nuit" />
+            {favorites.length > 0 && (
+              <span className="absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-nuit text-laine text-xs font-semibold flex items-center justify-center">{favorites.length}</span>
+            )}
+          </Link>
           <button onClick={open} className="relative p-2.5 rounded hover:bg-laine-fonce" aria-label={`Ouvrir le panier (${count} article${count > 1 ? 's' : ''})`}>
             <ShoppingBag className="w-6 h-6 text-nuit" />
             {count > 0 && (

@@ -6,6 +6,17 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+[[redirects]]
+  from = "/robots.txt"
+  to = "/.netlify/functions/robots"
+  status = 200
+
+# Plan du site généré à partir des produits
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
 # Toutes les pages du site passent par React (navigation sans rechargement)
 [[redirects]]
   from = "/*"

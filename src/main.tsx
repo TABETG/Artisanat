@@ -3,14 +3,23 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { CartProvider } from './context/CartContext';
+import { FavoritesProvider } from './context/FavoritesContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { ReviewsProvider } from './context/ReviewsContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <CartProvider>
-        <App />
-      </CartProvider>
+      <SettingsProvider>
+        <CartProvider>
+          <FavoritesProvider>
+            <ReviewsProvider>
+              <App />
+            </ReviewsProvider>
+          </FavoritesProvider>
+        </CartProvider>
+      </SettingsProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

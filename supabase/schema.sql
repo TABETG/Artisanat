@@ -1,5 +1,5 @@
 -- =====================================================================
--- Boutique Tamurt — base de données
+-- Boutique Artisanat — base de données
 -- À coller dans Supabase → SQL Editor → New query → Run
 -- (peut être relancé sans risque après une mise à jour)
 -- =====================================================================
@@ -22,6 +22,17 @@ create table if not exists public.products (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- ---------- Champs ajoutés (version 3) : relançables sans risque ----------
+alter table public.products add column if not exists reference              text not null default '';
+alter table public.products add column if not exists compare_at_price_cents integer check (compare_at_price_cents is null or compare_at_price_cents >= 0);
+alter table public.products add column if not exists technique              text not null default '';
+alter table public.products add column if not exists colors                 text[] not null default '{}';
+alter table public.products add column if not exists pile_height_mm         integer check (pile_height_mm is null or pile_height_mm >= 0);
+alter table public.products add column if not exists weight_kg              numeric(6,2) check (weight_kg is null or weight_kg >= 0);
+alter table public.products add column if not exists care                   text not null default '';
+alter table public.products add column if not exists made_to_order          boolean not null default false;
+alter table public.products add column if not exists low_stock_threshold    integer not null default 2 check (low_stock_threshold >= 0);
 
 -- ---------- Administrateurs (le ou les propriétaires) ----------
 create table if not exists public.admins (
@@ -61,6 +72,9 @@ create table if not exists public.order_items (
   unit_price_cents  integer not null,
   quantity          integer not null
 );
+
+alter table public.orders add column if not exists tracking_carrier text;
+alter table public.orders add column if not exists shipped_email_sent_at timestamptz;
 
 -- ---------- Décrément de stock (appelé par le serveur uniquement) ----------
 create or replace function public.decrement_stock(p_product_id uuid, p_quantity integer)
@@ -143,6 +157,55 @@ create policy "visiteur demande alerte" on public.stock_alerts
 drop policy if exists "admin gere alertes" on public.stock_alerts;
 create policy "admin gere alertes" on public.stock_alerts
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- ---------- Réglages de la boutique (version 4) : une seule ligne ----------
+create table if not exists public.settings (
+  id          integer primary key default 1 check (id = 1),
+  data        jsonb not null default '{}',
+  updated_at  timestamptz not null default now()
+);
+insert into public.settings (id) values (1) on conflict (id) do nothing;
+alter table public.settings enable row level security;
+
+drop policy if exists "reglages publics" on public.settings;
+create policy "reglages publics" on public.settings for select using (true);
+
+drop policy if exists "admin modifie reglages" on public.settings;
+create policy "admin modifie reglages" on public.settings
+  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- ---------- Avis clients (version 4) : publiés après validation ----------
+create table if not exists public.reviews (
+  id           bigint generated always as identity primary key,
+  product_id   uuid not null references public.products(id) on delete cascade,
+  author_name  text not null check (char_length(author_name) between 1 and 60),
+  email        text not null check (char_length(email) <= 200),
+  rating       integer not null check (rating between 1 and 5),
+  comment      text not null default '' check (char_length(comment) <= 1500),
+  approved     boolean not null default false,
+  verified     boolean not null default false,
+  created_at   timestamptz not null default now()
+);
+alter table public.reviews enable row level security;
+
+drop policy if exists "visiteur laisse avis" on public.reviews;
+create policy "visiteur laisse avis" on public.reviews
+  for insert to anon, authenticated with check (approved = false and verified = false);
+
+drop policy if exists "avis publies visibles" on public.reviews;
+create policy "avis publies visibles" on public.reviews
+  for select using (approved or public.is_admin());
+
+drop policy if exists "admin gere avis" on public.reviews;
+create policy "admin gere avis" on public.reviews
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- L'email de l'auteur ne doit jamais être lisible par les visiteurs
+revoke select on public.reviews from anon;
+grant select (id, product_id, author_name, rating, comment, approved, verified, created_at) on public.reviews to anon;
+grant insert (product_id, author_name, email, rating, comment) on public.reviews to anon;
+
+create index if not exists reviews_product_idx on public.reviews (product_id, approved);
 
 create index if not exists products_active_created_idx on public.products (active, created_at desc);
 create index if not exists orders_created_idx on public.orders (created_at desc);

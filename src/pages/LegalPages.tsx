@@ -1,18 +1,25 @@
 import { Link } from 'react-router-dom';
 import { Prose } from './Prose';
-import { SHOP } from '../config';
-import { SHIPPING } from '../shipping';
+import { SHOP as SHOP_CONFIG } from '../config';
+import { useSettings } from '../context/SettingsContext';
+
+/** Infos légales du fichier de configuration + coordonnées modifiables dans les réglages. */
+function useShop() {
+  const { settings } = useSettings();
+  return { ...SHOP_CONFIG, email: settings.email, phone: settings.phone, address: settings.address, settings };
+}
 import { formatPrice } from '../lib/format';
 
 // ⚠️ Modèles à relire et compléter : ils ne remplacent pas l'avis d'un juriste.
 
 export function ShippingPage() {
+  const SHOP = useShop();
   return (
     <Prose title="Livraison et retours">
       <h2>Livraison</h2>
       <p>
-        Chaque commande est expédiée en livraison suivie sous 2 jours ouvrés, puis livrée en {SHIPPING.minDays} à {SHIPPING.maxDays} jours ouvrés.
-        Les frais sont de {formatPrice(SHIPPING.priceCents)} et offerts dès {formatPrice(SHIPPING.freeFromCents)} d’achat.
+        Chaque commande est expédiée en livraison suivie sous 2 jours ouvrés, puis livrée en {SHOP.settings.shipping_min_days} à {SHOP.settings.shipping_max_days} jours ouvrés.
+        Les frais sont de {formatPrice(SHOP.settings.shipping_cents)}{SHOP.settings.free_shipping_from_cents > 0 && <> et offerts dès {formatPrice(SHOP.settings.free_shipping_from_cents)} d’achat</>}.
         Vous recevez le numéro de suivi par email au moment de l’expédition.
       </p>
       <p>Nous livrons en France, Belgique, Luxembourg, Suisse, Monaco, Allemagne, Pays-Bas, Espagne, Italie et Portugal.</p>
@@ -29,6 +36,7 @@ export function ShippingPage() {
 }
 
 export function TermsPage() {
+  const SHOP = useShop();
   return (
     <Prose title="Conditions générales de vente">
       <p><em>Modèle à adapter à votre situation.</em></p>
@@ -62,6 +70,7 @@ export function TermsPage() {
 }
 
 export function LegalPage() {
+  const SHOP = useShop();
   return (
     <Prose title="Mentions légales">
       <p><strong>Éditeur :</strong> {SHOP.legalName}, {SHOP.legalForm} — SIRET {SHOP.siret} — {SHOP.address} — {SHOP.email} — {SHOP.phone}</p>
@@ -73,6 +82,7 @@ export function LegalPage() {
 }
 
 export function PrivacyPage() {
+  const SHOP = useShop();
   return (
     <Prose title="Confidentialité">
       <p>

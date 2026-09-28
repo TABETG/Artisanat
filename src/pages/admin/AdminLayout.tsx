@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, LogOut, Package, RotateCcw, ShoppingBag, Store } from 'lucide-react';
+import { Bell, LayoutDashboard, LogOut, MessageSquare, Package, RotateCcw, Settings, ShoppingBag, Store } from 'lucide-react';
 import { DEMO_MODE } from '../../lib/supabase';
 import { adminCounts, AdminStatus, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
 import { demoReset } from '../../lib/demoStore';
@@ -50,26 +50,31 @@ export function AdminLayout() {
         </div>
       )}
       <header className="bg-nuit text-laine">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2">
           <p className="font-display text-xl mr-3">{SHOP.name} <span className="text-laine/60 text-base">· vendeur</span></p>
-          <nav className="flex gap-1 order-3 sm:order-none w-full sm:w-auto overflow-x-auto">
-            <NavLink to="/admin" end className={tab}><Package className="w-4 h-4" />Produits</NavLink>
+          <nav className="flex gap-1 order-3 xl:order-none w-full xl:w-auto overflow-x-auto whitespace-nowrap">
+            <NavLink to="/admin" end className={tab}><LayoutDashboard className="w-4 h-4" />Tableau de bord</NavLink>
+            <NavLink to="/admin/produits" className={tab}><Package className="w-4 h-4" />Produits</NavLink>
             <NavLink to="/admin/commandes" className={tab}>
               <ShoppingBag className="w-4 h-4" />Commandes<Badge value={counts?.ordersToPrepare} />
             </NavLink>
             <NavLink to="/admin/alertes" className={tab}>
               <Bell className="w-4 h-4" />Alertes stock<Badge value={alertTotal} />
             </NavLink>
+            <NavLink to="/admin/avis" className={tab}>
+              <MessageSquare className="w-4 h-4" />Avis<Badge value={counts?.reviewsPending} />
+            </NavLink>
+            <NavLink to="/admin/reglages" className={tab}><Settings className="w-4 h-4" />Réglages</NavLink>
           </nav>
           <div className="ml-auto flex gap-1">
-            <Link to="/" target="_blank" className="flex items-center gap-2 px-3 py-2 text-laine/80 hover:text-laine"><Store className="w-4 h-4" /><span className="hidden md:inline">Voir la boutique</span></Link>
+            <Link to="/" target="_blank" className="flex items-center gap-2 px-3 py-2 text-laine/80 hover:text-laine"><Store className="w-4 h-4" /><span className="hidden xl:inline">Voir la boutique</span></Link>
             <button onClick={() => signOut()} className="flex items-center gap-2 px-3 py-2 text-laine/80 hover:text-laine">
-              <LogOut className="w-4 h-4" /><span className="hidden md:inline">Se déconnecter</span>
+              <LogOut className="w-4 h-4" /><span className="hidden xl:inline">Se déconnecter</span>
             </button>
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         <Outlet />
       </main>
     </div>

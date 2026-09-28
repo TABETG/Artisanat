@@ -3,6 +3,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { SHIPPING, shippingFor } from '../../src/shipping';
+import { loadSettings } from '../shared/settings';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -58,7 +59,8 @@ export default async (req: Request) => {
     });
   }
 
-  const shipping = shippingFor(subtotal);
+  const settings = await loadSettings(supabase);
+  const shipping = shippingFor(subtotal, settings);
   const origin = process.env.URL ?? new URL(req.url).origin;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -70,14 +72,16 @@ export default async (req: Request) => {
       // Moyens de paiement gérés depuis le tableau de bord Stripe (Visa, Mastercard, CB, Apple Pay, Google Pay, PayPal…)
       shipping_address_collection: { allowed_countries: [...SHIPPING.countries] },
       phone_number_collection: { enabled: true },
+      // Codes promo créés dans Stripe → Catalogue de produits → Coupons
+      allow_promotion_codes: true,
       shipping_options: [{
         shipping_rate_data: {
           type: 'fixed_amount',
           display_name: shipping === 0 ? 'Livraison suivie offerte' : 'Livraison suivie',
           fixed_amount: { amount: shipping, currency: 'eur' },
           delivery_estimate: {
-            minimum: { unit: 'business_day', value: SHIPPING.minDays },
-            maximum: { unit: 'business_day', value: SHIPPING.maxDays },
+            minimum: { unit: 'business_day', value: settings.shipping_min_days },
+            maximum: { unit: 'business_day', value: settings.shipping_max_days },
           },
         },
       }],

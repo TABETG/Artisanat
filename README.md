@@ -1,4 +1,4 @@
-# Boutique Tamurt
+# Boutique Artisanat
 
 Boutique en ligne de tapis berbères et créations en laine, avec espace vendeur.
 
@@ -17,7 +17,8 @@ src/config.ts            infos de la boutique (nom, contact, SIRET)
 src/shipping.ts          frais et pays de livraison
 src/pages/               pages publiques
 src/pages/admin/         espace vendeur (/admin)
-netlify/functions/       create-checkout (paiement) et stripe-webhook (commande)
+netlify/functions/       create-checkout (paiement), stripe-webhook (commande), admin-notify (emails)
+netlify/shared/          gabarit et envoi des emails (Resend)
 supabase/schema.sql      tables, sécurité, stockage des photos
 ```
 

@@ -2,6 +2,7 @@
 // C'est ici (et seulement ici) que la commande est enregistrée et le stock diminué.
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { absoluteUrl, canEmailCustomers, layout, sendEmails } from '../shared/email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const supabase = createClient(
@@ -95,6 +96,8 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     const { data: soldOut } = await supabase.from('products').select('name').in('id', productIds).eq('stock', 0);
     if (soldOut?.length) await notifyOwnerSoldOut(soldOut.map((p) => p.name));
   }
+  await sendOrderConfirmation(order.id, session, items);
+
   if (stockProblem) {
     await supabase.from('orders').update({
       status: 'check_stock',
@@ -105,22 +108,42 @@ async function recordOrder(session: Stripe.Checkout.Session) {
 
 /** Email au propriétaire (facultatif : actif si RESEND_API_KEY et OWNER_EMAIL sont renseignés). */
 async function notifyOwnerSoldOut(names: string[]) {
-  const key = process.env.RESEND_API_KEY;
   const to = process.env.OWNER_EMAIL;
-  if (!key || !to) return;
-  const site = process.env.URL ?? '';
+  if (!to) return;
+  const url = `${process.env.URL ?? ''}/admin/alertes`;
+  const subject = names.length > 1 ? `${names.length} produits en rupture de stock` : `Rupture de stock : ${names[0]}`;
+  const lines = ['Suite à une vente, ces produits sont maintenant en rupture de stock :', ...names.map((n) => `• ${n}`)];
   try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>',
-        to: [to],
-        subject: names.length > 1 ? `${names.length} produits en rupture de stock` : `Rupture de stock : ${names[0]}`,
-        text: `Bonjour,\n\nSuite à une vente, ces produits sont maintenant en rupture de stock :\n\n${names.map((n) => `- ${n}`).join('\n')}\n\nPour les remettre en vente : ${site}/admin/alertes\n`,
-      }),
-    });
+    await sendEmails([{
+      to, subject,
+      text: `${lines.join('\n')}\n\nPour les remettre en vente : ${url}`,
+      html: layout(subject, lines, { label: 'Ouvrir les alertes stock', url }),
+    }], process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>');
   } catch (e) {
     console.error('Email de rupture non envoyé', e);
+  }
+}
+
+/** Email « Merci pour votre commande » avec le numéro de commande (si l'envoi automatique est configuré). */
+async function sendOrderConfirmation(orderId: string, session: Stripe.Checkout.Session, items: { name: string; quantity: number; unit_price_cents: number }[]) {
+  const to = session.customer_details?.email;
+  if (!to || !canEmailCustomers()) return;
+  const number = orderId.slice(0, 8).toUpperCase();
+  const euro = (c: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(c / 100);
+  const lines = [
+    `Bonjour ${session.customer_details?.name ?? ''},`.trim(),
+    `Nous avons bien reçu votre commande n° ${number}. Nous la préparons avec soin à l’atelier.`,
+    ...items.map((i) => `• ${i.quantity} × ${i.name} — ${euro(i.unit_price_cents * i.quantity)}`),
+    `Total payé : ${euro(session.amount_total ?? 0)}`,
+    'Vous recevrez un email avec le numéro de suivi dès l’expédition.',
+  ];
+  try {
+    await sendEmails([{
+      to, subject: `Commande n° ${number} confirmée`,
+      text: `${lines.join('\n\n')}\n\nSuivre ma commande : ${absoluteUrl('/suivi-commande')}`,
+      html: layout('Merci pour votre commande', lines, { label: 'Suivre ma commande', url: absoluteUrl('/suivi-commande') }),
+    }]);
+  } catch (e) {
+    console.error('Email de confirmation non envoyé', e);
   }
 }

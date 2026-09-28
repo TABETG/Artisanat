@@ -7,20 +7,20 @@ Durée : environ 1 heure. Aucune installation sur votre ordinateur.
 | **Netlify** | Héberge le site | Gratuit |
 | **Supabase** | Produits, photos, commandes, connexion vendeur | Gratuit |
 | **Stripe** | Paiement Visa, Mastercard, CB, Apple Pay, Google Pay | Aucun abonnement, commission par vente (≈ 1,5 % + 0,25 € par carte européenne — voir stripe.com/fr/pricing) |
-| Nom de domaine (ex. `tamurt.fr`) | Adresse du site | ≈ 10 € / an (OVH, Gandi, ou directement dans Netlify) |
+| Nom de domaine (ex. `artisanat.fr`) | Adresse du site | ≈ 10 € / an (OVH, Gandi, ou directement dans Netlify) |
 
 ---
 
 ## 0. Voir le site tout de suite (mode démonstration)
 
 ```bash
-/c/Windows/System32/tar.exe -xf boutique-tamurt.zip
-cd boutique-tamurt
+/c/Windows/System32/tar.exe -xf Artisanat.zip
+cd Artisanat
 docker compose up
 ```
 Ouvrir http://localhost:5173 — produits et photos d’exemple, paiement simulé.
 
-Espace vendeur de démonstration : http://localhost:5173/admin — identifiants préremplis `demo@tamurt.fr` / `demo`.
+Espace vendeur de démonstration : http://localhost:5173/admin — identifiants préremplis `demo@artisanat.fr` / `demo`.
 Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser la démonstration » en haut).
 
 ---
@@ -47,10 +47,10 @@ Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser l
 
 1. Mettre le projet sur GitHub (dépôt privé) :
    ```bash
-   cd boutique-tamurt
-   git init && git add . && git commit -m "Boutique Tamurt"
+   cd Artisanat
+   git init && git add . && git commit -m "Boutique Artisanat"
    git branch -M main
-   git remote add origin https://github.com/VOTRE-COMPTE/boutique-tamurt.git
+   git remote add origin https://github.com/TABETG/Artisanat.git
    git push -u origin main
    ```
 2. https://app.netlify.com → **Add new site → Import an existing project → GitHub** → choisir le dépôt. Les réglages sont lus depuis `netlify.toml`.
@@ -74,12 +74,33 @@ Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser l
 3. URL : `https://VOTRE-SITE.netlify.app/.netlify/functions/stripe-webhook`
 4. Copier le **secret de signature** (`whsec_...`) dans Netlify → `STRIPE_WEBHOOK_SECRET` → redéployer.
 
-## 4 bis. Email automatique « rupture de stock » (facultatif, gratuit)
+## 4 bis. Emails automatiques (facultatif, gratuit jusqu’à 3 000 emails / mois)
 
-Sans cette étape, les ruptures s’affichent quand même dans l’espace vendeur (onglet **Alertes stock**).
-Pour recevoir aussi un email :
-1. Créer un compte sur https://resend.com → **API Keys → Create**.
-2. Dans Netlify, ajouter `RESEND_API_KEY` (la clé) et `OWNER_EMAIL` (votre email, le même que le compte Resend) → redéployer.
+Sans cette étape, tout fonctionne : l’espace vendeur ouvre votre messagerie avec le message déjà rédigé.
+Avec cette étape, les emails partent tout seuls :
+
+| Email | Destinataire | Quand |
+|---|---|---|
+| « Votre commande est en route » + lien de suivi | client | vous passez une commande en « Expédiée » |
+| « … est de nouveau disponible » + photo | clients inscrits | vous remettez en stock un produit en rupture |
+| « Commande n° … confirmée » | client | juste après le paiement |
+| « Rupture de stock » | vous | une vente fait tomber un stock à 0 |
+
+1. Créer un compte sur https://resend.com.
+2. **Domains → Add domain** : votre nom de domaine, puis ajouter chez votre registraire les lignes DNS indiquées (10 minutes).
+3. **API Keys → Create API key**.
+4. Dans Netlify, ajouter puis redéployer :
+
+   | Nom | Valeur |
+   |---|---|
+   | `RESEND_API_KEY` | la clé Resend |
+   | `EMAIL_FROM` | `Artisanat <boutique@votre-domaine.fr>` |
+   | `OWNER_EMAIL` | votre email personnel |
+
+## 4 ter. Codes promo (facultatif)
+
+Stripe → **Catalogue de produits → Coupons → Créer** (ex. 10 %), puis **Ajouter un code promotionnel** (ex. `BIENVENUE10`).
+Le champ « Ajouter un code promotionnel » apparaît automatiquement sur la page de paiement.
 
 ## 5. Tester avant d’ouvrir
 
@@ -91,7 +112,8 @@ Pour recevoir aussi un email :
 ## 6. Personnaliser
 
 - Nom, email, téléphone, WhatsApp, SIRET, adresse : `src/config.ts`
-- Frais et pays de livraison : `src/shipping.ts`
+- Frais, délais et coordonnées : *Espace vendeur → Réglages* (sans toucher au code)
+- Pays de livraison : `src/shipping.ts`
 - Photos d’exemple : dossier `public/exemples/` (illustrations générées, à remplacer par vos vraies photos)
 - Textes « Notre histoire » et pages légales : `src/pages/StoryPage.tsx`, `src/pages/LegalPages.tsx` (à faire relire)
 - Nom de domaine : Netlify → **Domain management → Add a domain**
@@ -102,10 +124,27 @@ Chaque `git push` met le site à jour automatiquement.
 
 ## Utilisation au quotidien (propriétaire)
 
-- **Ajouter un produit** : `/admin` → *Ajouter un produit* → photos, nom, prix, quantité → *Enregistrer*. Fonctionne sur téléphone (appareil photo direct).
-- **Retirer un produit** sans le supprimer : décocher *En ligne*.
-- **Rupture de stock** : quand la quantité tombe à 0, le produit reste visible avec « Rupture de stock », une pastille rouge apparaît sur *Alertes stock* (et un email si l’étape 4 bis est faite). *Remettre en vente* en un clic.
-- **Clients qui attendent** : sur un produit en rupture, les visiteurs peuvent laisser leur email. Dans *Alertes stock*, bouton *Écrire à ces clients* dès que le produit revient.
-- **Nouvelle commande** : email de Stripe + onglet *Commandes → À préparer*. Adresse du client, articles, bouton *Prévenir le client par email*.
-- **Après expédition** : saisir le numéro de suivi, passer l’étape à *Expédiée*.
-- **Rembourser** : lien *Voir le paiement dans Stripe* dans la commande → *Rembourser*.
+**Tableau de bord** (`/admin`) : ventes du mois, commandes à préparer, ruptures, clients en attente, meilleures ventes.
+
+**Produits**
+- *Ajouter un produit* : photos (glisser-déposer ou appareil photo du téléphone), nom, prix, quantité. Les champs marqués `*` sont obligatoires, les autres améliorent la fiche. L’aperçu à droite montre le rendu dans la boutique.
+- *Enregistrer et ajouter un autre* : garde la catégorie, la matière et l’origine pour enchaîner.
+- *Ancien prix* : crée une promotion (prix barré + badge « −X % »).
+- *Dupliquer* : copie un produit pour une série proche (reste masquée tant que vous ne la mettez pas en ligne).
+- Stock modifiable directement dans la liste avec − / +. Filtres : en ligne, masqués, rupture, stock bas, promotion.
+- L’œil masque un produit sans le supprimer.
+
+**Réglages** : bandeau d’annonce (promotion, congés…), frais et délais de livraison, seuil de livraison offerte, email, téléphone, WhatsApp, adresse. Les changements s’appliquent tout de suite, paiement compris.
+
+**Avis clients** : les clients notent les produits (1 à 5 étoiles). Rien n’est publié sans votre accord ; « Achat vérifié » est ajouté si l’email correspond à une commande.
+
+**Retour en stock** : dès qu’un produit en rupture repasse à 1 ou plus, une fenêtre propose de prévenir les clients inscrits en un clic.
+
+**Commandes**
+- *À préparer* → imprimer le *bon de livraison* à glisser dans le colis.
+- Choisir le transporteur, saisir le numéro de suivi, passer en *Expédiée* : le client reçoit son email avec le lien de suivi.
+- *Exporter pour la comptabilité* : fichier Excel de toutes les commandes affichées.
+- *Rembourser* : lien vers le paiement Stripe dans chaque commande.
+- Les clients suivent eux-mêmes leur colis sur `/suivi-commande` (email + code postal).
+
+**Référencement** : `/sitemap.xml` et `/robots.txt` sont générés automatiquement. À déclarer dans Google Search Console une fois le nom de domaine en place.

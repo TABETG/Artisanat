@@ -7,12 +7,14 @@ import { formatDate } from '../../lib/format';
 import { ProductImage } from '../../components/ProductImage';
 import { Product, StockAlert } from '../../types';
 import { Toast } from './ui';
+import { RestockModal, restockMessage } from './RestockModal';
 import { SHOP } from '../../config';
 
 export function AdminStockAlerts() {
   const products = useAsync(adminListProducts, []);
   const alerts = useAsync(adminListStockAlerts, []);
   const [toast, setToast] = useState<string | null>(null);
+  const [restockTarget, setRestockTarget] = useState<{ product: Product; waiting: number } | null>(null);
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2500); };
 
   if (products.loading || alerts.loading) return <p className="text-stone-500">Chargement…</p>;
@@ -27,7 +29,9 @@ export function AdminStockAlerts() {
   async function restock(p: Product, qty: number) {
     await setProductStock(p.id, qty);
     products.setData((l) => l?.map((x) => x.id === p.id ? { ...x, stock: qty } : x) ?? null);
-    flash(`« ${p.name} » est de nouveau en vente`);
+    const waiting = byProduct.get(p.id)?.length ?? 0;
+    if (waiting > 0) setRestockTarget({ product: { ...p, stock: qty }, waiting });
+    else flash(`« ${p.name} » est de nouveau en vente`);
   }
 
   async function markDone(list: StockAlert[]) {
@@ -86,9 +90,15 @@ export function AdminStockAlerts() {
                     ))}
                   </ul>
                   <div className="mt-3 flex flex-wrap gap-2">
+                    {available && p && (
+                      <button onClick={() => setRestockTarget({ product: p, waiting: list.length })}
+                        className="inline-flex items-center gap-2 bg-emerald-700 text-white px-4 py-2.5 rounded-md hover:bg-emerald-800">
+                        <Bell className="w-4 h-4" /> Prévenir {list.length > 1 ? `les ${list.length} clients` : 'le client'}
+                      </button>
+                    )}
                     <a href={`mailto:?bcc=${list.map((a) => a.email).join(',')}&subject=${subject}&body=${body}`}
-                      className="inline-flex items-center gap-2 bg-nuit text-laine px-4 py-2.5 rounded-md hover:bg-garance">
-                      <Mail className="w-4 h-4" /> Écrire à {list.length > 1 ? `ces ${list.length} clients` : 'ce client'}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-stone-300">
+                      <Mail className="w-4 h-4" /> Écrire moi-même
                     </a>
                     <button onClick={() => markDone(list)} className="px-4 py-2.5 rounded-md border border-stone-300">Marquer comme prévenus</button>
                   </div>
@@ -98,6 +108,10 @@ export function AdminStockAlerts() {
           </ul>
         )}
       </section>
+      {restockTarget && (
+        <RestockModal productId={restockTarget.product.id} productName={restockTarget.product.name} waiting={restockTarget.waiting}
+          onClose={(r) => { setRestockTarget(null); if (r) { flash(restockMessage(r)); alerts.reload(); } }} />
+      )}
       <Toast message={toast} />
     </div>
   );

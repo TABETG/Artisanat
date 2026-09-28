@@ -26,7 +26,7 @@ interface CartValue {
 }
 
 const CartContext = createContext<CartValue | null>(null);
-const STORAGE_KEY = 'tamurt-panier';
+const STORAGE_KEY = 'artisanat-panier';
 
 function load(): CartLine[] {
   try {

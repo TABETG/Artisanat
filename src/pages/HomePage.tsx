@@ -6,11 +6,12 @@ import { useAsync } from '../lib/useAsync';
 import { ProductCard } from '../components/ProductCard';
 import { ProductImage } from '../components/ProductImage';
 import { CATEGORIES, SHOP } from '../config';
-import { SHIPPING } from '../shipping';
+import { useSettings } from '../context/SettingsContext';
 import { formatPrice } from '../lib/format';
 
 export function HomePage() {
   const { data: products, loading, error } = useAsync(listProducts, []);
+  const { settings } = useSettings();
   const available = (products ?? []).filter((p) => p.stock > 0);
   const featured = [...available.filter((p) => p.featured), ...available.filter((p) => !p.featured)].slice(0, 8);
   const heroProduct = featured.find((p) => p.images.length > 0) ?? featured[0];
@@ -97,7 +98,7 @@ export function HomePage() {
           <Engagement icon={<Hand className="w-6 h-6" />} title="Fait main">Tissé à la main, en laine naturelle.</Engagement>
           <Engagement icon={<Lock className="w-6 h-6" />} title="Paiement sécurisé">Carte Visa, Mastercard, CB, Apple Pay et Google Pay via Stripe.</Engagement>
           <Engagement icon={<Truck className="w-6 h-6" />} title="Livraison suivie">
-            Offerte dès {formatPrice(SHIPPING.freeFromCents)}, avec numéro de suivi.
+            {settings.free_shipping_from_cents > 0 ? `Offerte dès ${formatPrice(settings.free_shipping_from_cents)}, avec numéro de suivi.` : 'Avec numéro de suivi, colis soigné.'}
           </Engagement>
           <Engagement icon={<RotateCcw className="w-6 h-6" />} title="14 jours pour changer d’avis">Retour accepté si la pièce ne vous convient pas.</Engagement>
         </ul>

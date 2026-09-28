@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/format';
-import { SHIPPING, shippingFor } from '../shipping';
+import { shippingFor } from '../shipping';
+import { useSettings } from '../context/SettingsContext';
 import { startCheckout } from '../lib/api';
 import { ProductImage } from './ProductImage';
 
@@ -11,6 +12,7 @@ export function CartDrawer() {
   const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded } = useCart();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { settings } = useSettings();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,8 +28,8 @@ export function CartDrawer() {
 
   if (!isOpen) return null;
 
-  const shipping = shippingFor(subtotal);
-  const missingForFree = SHIPPING.freeFromCents - subtotal;
+  const shipping = shippingFor(subtotal, settings);
+  const missingForFree = settings.free_shipping_from_cents > 0 ? settings.free_shipping_from_cents - subtotal : 0;
 
   /** Ferme le panier ; depuis une fiche produit, ramène à la boutique pour continuer. */
   function continueShopping() {

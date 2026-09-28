@@ -1,17 +1,26 @@
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ImagePlus, X } from 'lucide-react';
-import { adminListProducts, saveProduct, uploadProductImage } from '../../lib/api';
-import { centsToInput, parsePriceToCents } from '../../lib/format';
-import { CATEGORIES } from '../../config';
-import { ProductInput } from '../../types';
-import { Field, Input, Select, Textarea, Toast } from './ui';
+import { ArrowLeft, ArrowRight, Copy, ExternalLink, ImagePlus, Star, Trash2, X } from 'lucide-react';
+import {
+  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, saveProduct, uploadProductImage,
+} from '../../lib/api';
+import { centsToInput, formatPrice, parsePriceToCents } from '../../lib/format';
+import { CATEGORIES, COLORS, TECHNIQUES } from '../../config';
+import { Product, ProductInput } from '../../types';
+import { Field, Input, Section, Select, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
+import { ProductCard } from '../../components/ProductCard';
+import { RestockModal, restockMessage } from './RestockModal';
 
 const EMPTY: ProductInput = {
   name: '', description: '', category: 'tapis', price_cents: 0, stock: 1,
   width_cm: null, length_cm: null, material: 'Laine de mouton', origin: '',
   images: [], featured: false, active: true,
+  reference: '', compare_at_price_cents: null, technique: 'Noué main', colors: [],
+  pile_height_mm: null, weight_kg: null, care: '', made_to_order: false, low_stock_threshold: 2,
 };
+
+const NAME_MAX = 120;
+const DESC_MAX = 2000;
 
 export function AdminProductForm() {
   const { id } = useParams();
@@ -20,177 +29,399 @@ export function AdminProductForm() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<ProductInput>(EMPTY);
+  const snapshot = (f: ProductInput, p: string, o: string, w: string) => JSON.stringify([f, p, o, w]);
+  const [original, setOriginal] = useState<string>(snapshot(EMPTY, '', '', ''));
+  const [originalStock, setOriginalStock] = useState(0);
   const [price, setPrice] = useState('');
+  const [oldPrice, setOldPrice] = useState('');
+  const [weight, setWeight] = useState('');
   const [loading, setLoading] = useState(!isNew);
   const [uploading, setUploading] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
+  const [restock, setRestock] = useState<{ product: Product; waiting: number } | null>(null);
 
+  const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3500); };
+
+  // Chargement du produit à modifier
   useEffect(() => {
-    if (isNew) return;
+    if (isNew) { setForm(EMPTY); setPrice(''); setOldPrice(''); setWeight(''); setOriginal(snapshot(EMPTY, '', '', '')); return; }
     adminListProducts().then((list) => {
       const p = list.find((x) => x.id === id);
-      if (!p) { navigate('/admin', { replace: true }); return; }
+      if (!p) { navigate('/admin/produits', { replace: true }); return; }
       const { id: _id, created_at: _c, ...rest } = p;
       void _id; void _c;
-      setForm(rest);
-      setPrice(centsToInput(p.price_cents));
+      const normalized = { ...EMPTY, ...rest };
+      const pr = centsToInput(p.price_cents);
+      const op = p.compare_at_price_cents ? centsToInput(p.compare_at_price_cents) : '';
+      const wg = p.weight_kg ? String(p.weight_kg).replace('.', ',') : '';
+      setForm(normalized); setPrice(pr); setOldPrice(op); setWeight(wg);
+      setOriginal(snapshot(normalized, pr, op, wg));
+      setOriginalStock(p.stock);
       setLoading(false);
     });
   }, [id, isNew, navigate]);
 
-  const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const priceCents = parsePriceToCents(price);
+  const oldPriceCents = oldPrice.trim() ? parsePriceToCents(oldPrice) : null;
+  const discount = priceCents && oldPriceCents && oldPriceCents > priceCents
+    ? Math.round((1 - priceCents / oldPriceCents) * 100) : null;
+  const surface = form.width_cm && form.length_cm ? (form.width_cm * form.length_cm) / 10000 : null;
+  const dirty = snapshot(form, price, oldPrice, weight) !== original;
+
+  // Avertit avant de quitter la page avec des modifications non enregistrées
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty, saving]);
+
+  const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setErrors((e) => { const n = { ...e }; delete n[key as string]; return n; });
+  };
   const toInt = (v: string) => (v.trim() === '' ? null : Math.max(0, parseInt(v, 10) || 0));
 
-  async function addPhotos(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith('image/'));
-    e.target.value = '';
-    if (!files.length) return;
-    setUploading((n) => n + files.length);
-    for (const file of files) {
+  // ---------- Photos ----------
+  async function addFiles(files: File[]) {
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (!images.length) return;
+    setErrors((e) => { const n = { ...e }; delete n.images; return n; });
+    setUploading((n) => n + images.length);
+    for (const file of images) {
       try {
         const url = await uploadProductImage(file);
         setForm((f) => ({ ...f, images: [...f.images, url] }));
       } catch {
-        setToast({ msg: `La photo « ${file.name} » n’a pas pu être envoyée.`, tone: 'error' });
+        flash(`La photo « ${file.name} » n’a pas pu être envoyée.`, 'error');
       } finally {
         setUploading((n) => n - 1);
       }
     }
   }
+  const onPick = (e: ChangeEvent<HTMLInputElement>) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ''; };
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); addFiles(Array.from(e.dataTransfer.files)); };
 
-  function movePhoto(index: number, delta: number) {
+  function movePhoto(index: number, target: number) {
     setForm((f) => {
+      if (target < 0 || target >= f.images.length) return f;
       const images = [...f.images];
-      const target = index + delta;
-      if (target < 0 || target >= images.length) return f;
-      [images[index], images[target]] = [images[target], images[index]];
+      const [moved] = images.splice(index, 1);
+      images.splice(target, 0, moved);
       return { ...f, images };
     });
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const cents = parsePriceToCents(price);
+  function toggleColor(colorId: string) {
+    set('colors', form.colors.includes(colorId) ? form.colors.filter((c) => c !== colorId) : [...form.colors, colorId]);
+  }
+
+  function generateReference() {
+    const cat = form.category.slice(0, 3).toUpperCase();
+    const word = form.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z ]/g, '').split(' ')
+      .filter((w) => w.length > 3)[0]?.slice(0, 3).toUpperCase() ?? 'ART';
+    set('reference', `${cat}-${word}-${String(Date.now()).slice(-4)}`);
+  }
+
+  // ---------- Validation et enregistrement ----------
+  function validate(): Record<string, string> {
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = 'Donnez un nom au produit.';
-    if (cents === null || cents <= 0) next.price = 'Indiquez un prix, par exemple 450 ou 89,90.';
+    else if (form.name.length > NAME_MAX) next.name = `${NAME_MAX} caractères maximum.`;
+    if (priceCents === null || priceCents <= 0) next.price = 'Indiquez un prix, par exemple 450 ou 89,90.';
+    if (oldPrice.trim() && (oldPriceCents === null || (priceCents !== null && oldPriceCents <= priceCents))) {
+      next.oldPrice = 'L’ancien prix doit être plus élevé que le prix de vente.';
+    }
+    if (weight.trim() && !/^\d+([.,]\d{1,2})?$/.test(weight.trim())) next.weight = 'Exemple : 8,5';
     if (form.images.length === 0) next.images = 'Ajoutez au moins une photo : c’est ce qui fait vendre.';
-    setErrors(next);
-    if (Object.keys(next).length) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (form.description.length > DESC_MAX) next.description = `${DESC_MAX} caractères maximum.`;
+    return next;
+  }
 
+  async function submit(e: FormEvent, andNew = false) {
+    e.preventDefault();
+    const next = validate();
+    setErrors(next);
+    if (Object.keys(next).length) {
+      flash('Quelques champs sont à compléter (en rouge).', 'error');
+      const first = ['images', 'name', 'price', 'oldPrice', 'weight', 'description'].find((k) => next[k]);
+      document.getElementById(`champ-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     setSaving(true);
     try {
-      await saveProduct({ ...form, name: form.name.trim(), price_cents: cents! }, id);
-      navigate('/admin', { replace: true });
+      const saved = await saveProduct({
+        ...form,
+        name: form.name.trim(),
+        reference: form.reference.trim(),
+        price_cents: priceCents!,
+        compare_at_price_cents: oldPriceCents,
+        weight_kg: weight.trim() ? parseFloat(weight.replace(',', '.')) : null,
+      }, id);
+
+      // Retour en stock avec des clients en attente → proposer de les prévenir
+      if (!isNew && originalStock === 0 && saved.stock > 0 && saved.active) {
+        const waiting = (await adminListStockAlerts()).filter((a) => a.product_id === saved.id && !a.notified).length;
+        if (waiting > 0) { setOriginal(snapshot(form, price, oldPrice, weight)); setRestock({ product: saved, waiting }); setSaving(false); return; }
+      }
+      if (andNew) {
+        setSaving(false);
+        navigate('/admin/produits/nouveau', { replace: true });
+        setForm({ ...EMPTY, category: form.category, technique: form.technique, material: form.material, origin: form.origin });
+        setPrice(''); setOldPrice(''); setWeight(''); setErrors({});
+        setOriginal(snapshot({ ...EMPTY, category: form.category, technique: form.technique, material: form.material, origin: form.origin }, '', '', ''));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        flash(`« ${saved.name} » enregistré. Vous pouvez ajouter le suivant.`);
+        return;
+      }
+      navigate('/admin/produits', { replace: true, state: { flash: isNew ? `« ${saved.name} » ajouté à la boutique` : 'Modifications enregistrées' } });
     } catch (err) {
-      setToast({ msg: `Enregistrement impossible : ${err instanceof Error ? err.message : 'erreur'}`, tone: 'error' });
+      flash(`Enregistrement impossible : ${err instanceof Error ? err.message : 'erreur'}`, 'error');
       setSaving(false);
     }
   }
 
+  async function onDuplicate() {
+    if (!id) return;
+    const list = await adminListProducts();
+    const p = list.find((x) => x.id === id);
+    if (!p) return;
+    const copy = await duplicateProduct(p);
+    navigate(`/admin/produits/${copy.id}`, { replace: true });
+    flash('Copie créée (masquée de la boutique). Modifiez-la puis mettez-la en ligne.');
+  }
+
+  async function onDelete() {
+    if (!id) return;
+    if (!confirm(`Supprimer définitivement « ${form.name} » ?\n\nPour le retirer temporairement, désactivez plutôt « En ligne ».`)) return;
+    const list = await adminListProducts();
+    const p = list.find((x) => x.id === id);
+    if (p) await deleteProduct(p);
+    navigate('/admin/produits', { replace: true, state: { flash: 'Produit supprimé' } });
+  }
+
+  function cancel() {
+    if (dirty && !confirm('Quitter sans enregistrer vos modifications ?')) return;
+    navigate('/admin/produits');
+  }
+
+  // Aperçu tel qu'il apparaîtra dans la boutique
+  const preview: Product = useMemo(() => ({
+    ...form, id: id ?? 'apercu', created_at: new Date().toISOString(),
+    name: form.name || 'Nom du produit', price_cents: priceCents ?? 0, compare_at_price_cents: oldPriceCents,
+  }), [form, id, priceCents, oldPriceCents]);
+
   if (loading) return <p className="text-stone-500">Chargement…</p>;
 
   return (
-    <form onSubmit={submit} className="max-w-2xl">
-      <Link to="/admin" className="text-stone-500 hover:text-encre text-sm">← Retour aux produits</Link>
-      <h1 className="font-display text-3xl text-nuit mt-2">{isNew ? 'Ajouter un produit' : 'Modifier le produit'}</h1>
+    <form onSubmit={(e) => submit(e)} noValidate>
+      <button type="button" onClick={cancel} className="text-stone-500 hover:text-encre text-sm">← Retour aux produits</button>
+      <div className="flex flex-wrap items-center gap-3 mt-2">
+        <h1 className="font-display text-3xl text-nuit mr-auto">{isNew ? 'Ajouter un produit' : 'Modifier le produit'}</h1>
+        {!isNew && (
+          <>
+            {form.active && <Link to={`/produit/${id}`} target="_blank" className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-stone-300 bg-white"><ExternalLink className="w-4 h-4" /> Voir sur la boutique</Link>}
+            <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-stone-300 bg-white"><Copy className="w-4 h-4" /> Dupliquer</button>
+            <button type="button" onClick={onDelete} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-garance/40 text-garance bg-white"><Trash2 className="w-4 h-4" /> Supprimer</button>
+          </>
+        )}
+      </div>
+      <p className="text-sm text-stone-500 mt-1">Les champs marqués <span className="text-garance">*</span> sont obligatoires.</p>
 
-      {/* Photos */}
-      <section className="mt-8 bg-white rounded-md p-5">
-        <h2 className="font-medium text-lg">Photos</h2>
-        <p className="text-sm text-stone-500">La première photo est celle affichée dans la boutique. Utilisez les flèches pour changer l’ordre.</p>
-        <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {form.images.map((src, i) => (
-            <div key={src} className="relative group">
-              <img src={src} alt={`Photo ${i + 1}`} className="w-full aspect-[4/5] object-cover rounded" />
-              {i === 0 && <span className="absolute top-1.5 left-1.5 bg-nuit text-laine text-xs px-2 py-0.5 rounded">Principale</span>}
-              <button type="button" onClick={() => set('images', form.images.filter((x) => x !== src))}
-                className="absolute top-1.5 right-1.5 bg-white/90 rounded-full p-1.5 hover:bg-garance hover:text-white" aria-label="Retirer cette photo">
-                <X className="w-4 h-4" />
-              </button>
-              <div className="absolute bottom-1.5 inset-x-1.5 flex justify-between">
-                <button type="button" onClick={() => movePhoto(i, -1)} disabled={i === 0} className="bg-white/90 rounded-full p-1.5 disabled:invisible" aria-label="Déplacer à gauche"><ArrowLeft className="w-4 h-4" /></button>
-                <button type="button" onClick={() => movePhoto(i, 1)} disabled={i === form.images.length - 1} className="bg-white/90 rounded-full p-1.5 disabled:invisible" aria-label="Déplacer à droite"><ArrowRight className="w-4 h-4" /></button>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px] items-start">
+        <div className="space-y-6 min-w-0">
+          {/* ---------- Photos ---------- */}
+          <Section id="champ-images" title="Photos *" description="La première photo est celle affichée dans la boutique. Conseil : lumière du jour, une photo entière, un gros plan des nœuds, le dos du tapis.">
+            <div onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}
+              className={`rounded-lg p-2 -m-2 ${dragging ? 'bg-emerald-50 ring-2 ring-emerald-600' : ''}`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {form.images.map((src, i) => (
+                  <figure key={src} className="relative rounded-md overflow-hidden border border-stone-200 bg-stone-50">
+                    <img src={src} alt={`Photo ${i + 1}`} className="w-full aspect-[4/5] object-cover" />
+                    <span className={`absolute top-2 left-2 text-xs px-2 py-1 rounded ${i === 0 ? 'bg-nuit text-laine' : 'bg-white/90 text-encre'}`}>
+                      {i === 0 ? 'Photo principale' : `Photo ${i + 1}`}
+                    </span>
+                    <button type="button" onClick={() => set('images', form.images.filter((x) => x !== src))}
+                      className="absolute top-2 right-2 bg-white/95 rounded-full p-1.5 shadow hover:bg-garance hover:text-white" aria-label={`Retirer la photo ${i + 1}`}>
+                      <X className="w-4 h-4" />
+                    </button>
+                    <figcaption className="absolute bottom-0 inset-x-0 flex items-center justify-between gap-1 p-1.5 bg-gradient-to-t from-black/50 to-transparent">
+                      <button type="button" onClick={() => movePhoto(i, i - 1)} disabled={i === 0} className="bg-white/95 rounded-full p-1.5 disabled:invisible" aria-label="Déplacer avant"><ArrowLeft className="w-4 h-4" /></button>
+                      {i > 0 && (
+                        <button type="button" onClick={() => movePhoto(i, 0)} className="bg-white/95 rounded-full px-2 py-1 text-xs inline-flex items-center gap-1" aria-label="Mettre en photo principale">
+                          <Star className="w-3.5 h-3.5" /> Principale
+                        </button>
+                      )}
+                      <button type="button" onClick={() => movePhoto(i, i + 1)} disabled={i === form.images.length - 1} className="bg-white/95 rounded-full p-1.5 disabled:invisible" aria-label="Déplacer après"><ArrowRight className="w-4 h-4" /></button>
+                    </figcaption>
+                  </figure>
+                ))}
+                {Array.from({ length: uploading }).map((_, i) => (
+                  <div key={`u${i}`} className="aspect-[4/5] rounded-md bg-stone-100 animate-pulse flex items-center justify-center text-sm text-stone-500">Envoi…</div>
+                ))}
+                <button type="button" onClick={() => fileInput.current?.click()}
+                  className={`aspect-[4/5] rounded-md border-2 border-dashed flex flex-col items-center justify-center gap-2 text-stone-600 hover:border-nuit hover:text-nuit ${errors.images ? 'border-garance' : 'border-stone-300'}`}>
+                  <ImagePlus className="w-9 h-9" />
+                  <span className="text-sm font-medium text-center px-2">Ajouter des photos</span>
+                  <span className="text-xs text-stone-400 text-center px-2 hidden sm:block">ou glissez-les ici</span>
+                </button>
               </div>
             </div>
-          ))}
-          {Array.from({ length: uploading }).map((_, i) => (
-            <div key={`u${i}`} className="aspect-[4/5] rounded bg-stone-100 animate-pulse flex items-center justify-center text-sm text-stone-500">Envoi…</div>
-          ))}
-          <button type="button" onClick={() => fileInput.current?.click()}
-            className="aspect-[4/5] rounded border-2 border-dashed border-stone-300 hover:border-nuit flex flex-col items-center justify-center gap-2 text-stone-600">
-            <ImagePlus className="w-8 h-8" />
-            <span className="text-sm text-center px-2">Ajouter des photos</span>
-          </button>
+            <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={onPick} />
+            {errors.images && <p className="text-sm text-garance font-medium" role="alert">{errors.images}</p>}
+          </Section>
+
+          {/* ---------- Informations ---------- */}
+          <Section title="Informations principales">
+            <div id="champ-name">
+              <Field label="Nom du produit" required error={errors.name} counter={{ value: form.name.length, max: NAME_MAX }}
+                hint="Soyez précis : type, motif, couleur. Ex. : Tapis Beni Ouarain écru à losanges bruns">
+                <Input value={form.name} invalid={!!errors.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex. : Tapis Azilal multicolore" />
+              </Field>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <Field label="Catégorie" required>
+                <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Référence" optional hint="Pour retrouver la pièce dans votre atelier.">
+                <div className="flex gap-2">
+                  <Input value={form.reference} onChange={(e) => set('reference', e.target.value.toUpperCase())} placeholder="TAP-BEN-012" />
+                  <button type="button" onClick={generateReference} className="shrink-0 px-3 rounded-md border border-stone-300 text-sm hover:bg-stone-50">Générer</button>
+                </div>
+              </Field>
+            </div>
+            <div id="champ-description">
+              <Field label="Description" optional error={errors.description} counter={{ value: form.description.length, max: DESC_MAX }}
+                hint="Couleurs, motifs, toucher, histoire de la pièce, pièce idéale (salon, chambre…). Un saut de ligne crée un paragraphe.">
+                <Textarea rows={7} value={form.description} invalid={!!errors.description} onChange={(e) => set('description', e.target.value)}
+                  placeholder="Tissé à la main dans notre atelier, ce tapis en pure laine…" />
+              </Field>
+            </div>
+          </Section>
+
+          {/* ---------- Prix et stock ---------- */}
+          <Section title="Prix et stock">
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div id="champ-price">
+                <Field label="Prix de vente" required error={errors.price} hint="TTC, tel que le client le paiera.">
+                  <UnitInput unit="€" inputMode="decimal" value={price} invalid={!!errors.price}
+                    onChange={(e) => { setPrice(e.target.value); setErrors((x) => ({ ...x, price: '' })); }} placeholder="450" />
+                </Field>
+              </div>
+              <div id="champ-oldPrice">
+                <Field label="Ancien prix (promotion)" optional error={errors.oldPrice}
+                  hint={discount ? `Affiché barré, avec le badge « −${discount} % ».` : 'Laissez vide s’il n’y a pas de promotion.'}>
+                  <UnitInput unit="€" inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
+                    onChange={(e) => { setOldPrice(e.target.value); setErrors((x) => ({ ...x, oldPrice: '' })); }} placeholder="520" />
+                </Field>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <Field label="Quantité disponible" required
+                hint={form.stock === 0 ? 'À 0, le produit affiche « Rupture de stock » et les clients peuvent demander à être prévenus.' : form.stock === 1 ? 'Affiché « Pièce unique ».' : undefined}>
+                <div><Stepper label="Quantité" value={form.stock} onChange={(v) => set('stock', v)} /></div>
+              </Field>
+              <Field label="Alerte stock bas à partir de" hint="Vous êtes averti quand il en reste ce nombre ou moins.">
+                <div><Stepper label="Seuil d’alerte" value={form.low_stock_threshold} onChange={(v) => set('low_stock_threshold', v)} max={50} /></div>
+              </Field>
+            </div>
+            <Toggle checked={form.made_to_order} onChange={(v) => set('made_to_order', v)}
+              title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />
+          </Section>
+
+          {/* ---------- Caractéristiques ---------- */}
+          <Section title="Caractéristiques" description="Ces informations rassurent l’acheteur et apparaissent dans la fiche produit.">
+            <div className="grid sm:grid-cols-2 gap-5">
+              <Field label="Largeur" optional>
+                <UnitInput unit="cm" type="number" min={1} value={form.width_cm ?? ''} onChange={(e) => set('width_cm', toInt(e.target.value))} placeholder="160" />
+              </Field>
+              <Field label="Longueur" optional hint={surface ? `Surface : ${surface.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} m²` : undefined}>
+                <UnitInput unit="cm" type="number" min={1} value={form.length_cm ?? ''} onChange={(e) => set('length_cm', toInt(e.target.value))} placeholder="240" />
+              </Field>
+              <Field label="Hauteur des poils" optional>
+                <UnitInput unit="mm" type="number" min={0} value={form.pile_height_mm ?? ''} onChange={(e) => set('pile_height_mm', toInt(e.target.value))} placeholder="20" />
+              </Field>
+              <div id="champ-weight">
+                <Field label="Poids" optional error={errors.weight}>
+                  <UnitInput unit="kg" inputMode="decimal" value={weight} invalid={!!errors.weight} onChange={(e) => setWeight(e.target.value)} placeholder="8,5" />
+                </Field>
+              </div>
+              <Field label="Technique">
+                <Select value={form.technique} onChange={(e) => set('technique', e.target.value)}>
+                  <option value="">Non précisée</option>
+                  {TECHNIQUES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </Select>
+              </Field>
+              <Field label="Matière">
+                <Input value={form.material} onChange={(e) => set('material', e.target.value)} placeholder="Laine de mouton" />
+              </Field>
+              <Field label="Origine" optional hint="Région, village ou atelier.">
+                <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder="Moyen Atlas" />
+              </Field>
+            </div>
+
+            <fieldset>
+              <legend className="font-medium text-[15px] mb-1.5">Couleurs <span className="font-normal text-stone-500 text-sm">(facultatif — permet aux clients de filtrer)</span></legend>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((c) => {
+                  const on = form.colors.includes(c.id);
+                  return (
+                    <button key={c.id} type="button" onClick={() => toggleColor(c.id)} aria-pressed={on}
+                      className={`inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border text-sm ${on ? 'border-nuit bg-nuit text-laine' : 'border-stone-300 bg-white hover:border-stone-500'}`}>
+                      <span className="w-5 h-5 rounded-full border border-black/10" style={{ background: c.hex }} />
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <Field label="Conseils d’entretien" optional hint="Laissez vide pour afficher les conseils généraux.">
+              <Textarea rows={3} value={form.care} onChange={(e) => set('care', e.target.value)} placeholder="Aspirateur sans brosse rotative…" />
+            </Field>
+          </Section>
         </div>
-        <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={addPhotos} />
-        {errors.images && <p className="text-sm text-garance mt-2" role="alert">{errors.images}</p>}
-      </section>
 
-      {/* Informations */}
-      <section className="mt-5 bg-white rounded-md p-5 space-y-5">
-        <Field label="Nom du produit" error={errors.name}>
-          <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex. : Tapis Beni Ouarain écru" maxLength={200} />
-        </Field>
-
-        <div className="grid sm:grid-cols-2 gap-5">
-          <Field label="Prix (€)" error={errors.price}>
-            <Input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="450" />
-          </Field>
-          <Field label="Quantité disponible" hint="1 pour une pièce unique. À 0, le produit passe en « Rupture de stock ».">
-            <Input type="number" min={0} value={form.stock} onChange={(e) => set('stock', toInt(e.target.value) ?? 0)} />
-          </Field>
-        </div>
-
-        <Field label="Catégorie">
-          <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
-            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </Select>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-5">
-          <Field label="Largeur (cm)">
-            <Input type="number" min={1} value={form.width_cm ?? ''} onChange={(e) => set('width_cm', toInt(e.target.value))} placeholder="160" />
-          </Field>
-          <Field label="Longueur (cm)">
-            <Input type="number" min={1} value={form.length_cm ?? ''} onChange={(e) => set('length_cm', toInt(e.target.value))} placeholder="240" />
-          </Field>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-5">
-          <Field label="Matière">
-            <Input value={form.material} onChange={(e) => set('material', e.target.value)} />
-          </Field>
-          <Field label="Origine" hint="Région ou atelier (facultatif)">
-            <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder="Moyen Atlas" />
-          </Field>
-        </div>
-
-        <Field label="Description" hint="Couleurs, motifs, épaisseur, histoire de la pièce…">
-          <Textarea rows={6} value={form.description} onChange={(e) => set('description', e.target.value)} />
-        </Field>
-      </section>
-
-      {/* Affichage */}
-      <section className="mt-5 bg-white rounded-md p-5 space-y-4">
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
-          <span><span className="font-medium">En ligne</span><span className="block text-sm text-stone-500">Décochez pour préparer le produit sans le montrer.</span></span>
-        </label>
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input type="checkbox" checked={form.featured} onChange={(e) => set('featured', e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
-          <span><span className="font-medium">Mettre en avant sur l’accueil</span><span className="block text-sm text-stone-500">Apparaît en premier sur la page d’accueil.</span></span>
-        </label>
-      </section>
-
-      <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-4 bg-stone-100/95 backdrop-blur flex gap-3">
-        <button disabled={saving || uploading > 0} className="flex-1 sm:flex-none bg-garance text-laine px-8 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-60">
-          {saving ? 'Enregistrement…' : uploading > 0 ? 'Photos en cours d’envoi…' : 'Enregistrer le produit'}
-        </button>
-        <Link to="/admin" className="px-6 py-3.5 rounded-md border border-stone-300 bg-white">Annuler</Link>
+        {/* ---------- Colonne de droite : visibilité + aperçu ---------- */}
+        <aside className="space-y-6 lg:sticky lg:top-6">
+          <Section title="Visibilité">
+            <Toggle checked={form.active} onChange={(v) => set('active', v)} title="En ligne"
+              description={form.active ? 'Visible et achetable sur la boutique.' : 'Masqué : vous pouvez le préparer tranquillement.'} />
+            <Toggle checked={form.featured} onChange={(v) => set('featured', v)} title="Mettre en avant"
+              description="Affiché en premier sur la page d’accueil." />
+          </Section>
+          <div className="bg-white rounded-lg border border-stone-200 p-5">
+            <p className="text-sm font-medium text-stone-500 mb-3">Aperçu dans la boutique</p>
+            <div className="pointer-events-none"><ProductCard product={preview} /></div>
+            {priceCents !== null && priceCents > 0 && (
+              <p className="text-xs text-stone-500 mt-3">Vous recevrez environ {formatPrice(Math.round(priceCents * 0.985 - 25))} après la commission Stripe (carte européenne).</p>
+            )}
+          </div>
+        </aside>
       </div>
+
+      {/* Barre d'enregistrement toujours visible */}
+      <div className="sticky bottom-0 z-30 mt-8 -mx-4 px-4 py-3 bg-stone-100/95 backdrop-blur border-t border-stone-200 flex flex-wrap items-center gap-3">
+        <button disabled={saving || uploading > 0} className="flex-1 sm:flex-none bg-garance text-laine px-8 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-60">
+          {saving ? 'Enregistrement…' : uploading > 0 ? 'Photos en cours d’envoi…' : isNew ? 'Ajouter à la boutique' : 'Enregistrer les modifications'}
+        </button>
+        {isNew && (
+          <button type="button" disabled={saving || uploading > 0} onClick={(e) => submit(e, true)}
+            className="px-5 py-3.5 rounded-md border border-stone-300 bg-white disabled:opacity-60">Enregistrer et ajouter un autre</button>
+        )}
+        <button type="button" onClick={cancel} className="px-5 py-3.5 rounded-md text-stone-600 hover:text-encre">Annuler</button>
+        {dirty && !saving && <span className="text-sm text-henne ml-auto hidden sm:inline">Modifications non enregistrées</span>}
+      </div>
+
+      {restock && (
+        <RestockModal productId={restock.product.id} productName={restock.product.name} waiting={restock.waiting}
+          onClose={(result) => navigate('/admin/produits', { replace: true, state: { flash: result ? restockMessage(result) : 'Modifications enregistrées' } })} />
+      )}
       <Toast message={toast?.msg ?? null} tone={toast?.tone} />
     </form>
   );

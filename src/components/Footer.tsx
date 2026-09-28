@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { SHOP } from '../config';
+import { useSettings } from '../context/SettingsContext';
 
 export function Footer() {
+  const { settings } = useSettings();
   return (
     <footer className="mt-24 bg-nuit text-laine">
       <div className="motif" aria-hidden />
@@ -21,6 +23,8 @@ export function Footer() {
             <li><Link className="hover:text-safran" to="/boutique">Toutes les créations</Link></li>
             <li><Link className="hover:text-safran" to="/notre-histoire">Notre histoire</Link></li>
             <li><Link className="hover:text-safran" to="/livraison-et-retours">Livraison et retours</Link></li>
+            <li><Link className="hover:text-safran" to="/suivi-commande">Suivre ma commande</Link></li>
+            <li><Link className="hover:text-safran" to="/questions-frequentes">Questions fréquentes</Link></li>
             <li><Link className="hover:text-safran" to="/contact">Nous contacter</Link></li>
           </ul>
         </div>
@@ -30,7 +34,7 @@ export function Footer() {
             <li><Link className="hover:text-safran" to="/conditions-generales-de-vente">Conditions générales de vente</Link></li>
             <li><Link className="hover:text-safran" to="/mentions-legales">Mentions légales</Link></li>
             <li><Link className="hover:text-safran" to="/confidentialite">Confidentialité</Link></li>
-            <li><a className="hover:text-safran" href={`mailto:${SHOP.email}`}>{SHOP.email}</a></li>
+            <li><a className="hover:text-safran" href={`mailto:${settings.email}`}>{settings.email}</a></li>
           </ul>
         </div>
       </div>

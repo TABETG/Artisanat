@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { Mail, MessageCircle, Phone } from 'lucide-react';
-import { SHOP } from '../config';
+import { useSettings } from '../context/SettingsContext';
 
 export function ContactPage() {
+  const { settings: SHOP } = useSettings();
   return (
     <div className="max-w-3xl mx-auto px-5 pt-14">
       <h1 className="font-display text-4xl md:text-5xl text-nuit">Nous contacter</h1>
