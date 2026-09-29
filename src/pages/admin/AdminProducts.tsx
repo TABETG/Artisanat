@@ -228,6 +228,8 @@ export function AdminProducts() {
                   <span className="font-medium">{formatPrice(p.price_cents)}</span>
                   {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!)}</span>}
                   {!p.active && <Tag tone="stone">Masqué</Tag>}
+                  {p.seller_id && <Tag tone="blue">Artisan partenaire</Tag>}
+                  {p.moderation === 'pending' && <Tag tone="amber">À valider</Tag>}
                   {p.active && p.publish_at && new Date(p.publish_at) > new Date() && <Tag tone="blue">En ligne le {new Date(p.publish_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Tag>}
                   {p.stock === 0 && <Tag tone="red">Rupture</Tag>}
                   {isLowStock(p) && <Tag tone="amber">Stock bas</Tag>}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, Gift, LayoutDashboard, LogOut, Menu, MessageSquare, Package, RotateCcw, Ruler, Send, Settings, ShoppingBag, Store, Ticket, Undo2, Users, X } from 'lucide-react';
+import { Bell, Gift, Inbox, LayoutDashboard, LogOut, Menu, MessageSquare, Package, RotateCcw, Ruler, Send, Settings, ShoppingBag, Store, Ticket, Truck, Undo2, UserCog, Users, X } from 'lucide-react';
 import { DEMO_MODE } from '../../lib/supabase';
 import { adminCounts, AdminStatus, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
 import { demoReset } from '../../lib/demoStore';
@@ -51,12 +51,14 @@ export function AdminLayout() {
     { title: 'Ventes', items: [
       { to: '/admin', label: 'Tableau de bord', icon: <LayoutDashboard className="w-4 h-4" />, end: true },
       { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: counts?.ordersToPrepare },
+      { to: '/admin/messages', label: 'Messages', icon: <Inbox className="w-4 h-4" />, badge: counts?.messagesNew },
       { to: '/admin/clients', label: 'Clients', icon: <Users className="w-4 h-4" /> },
       { to: '/admin/retours', label: 'Retours', icon: <Undo2 className="w-4 h-4" />, badge: counts?.returnsNew },
       { to: '/admin/sur-mesure', label: 'Demandes sur mesure', icon: <Ruler className="w-4 h-4" />, badge: counts?.customRequestsNew },
     ] },
     { title: 'Catalogue', items: [
       { to: '/admin/produits', label: 'Produits', icon: <Package className="w-4 h-4" /> },
+      { to: '/admin/artisans', label: 'Artisans partenaires', icon: <Store className="w-4 h-4" />, badge: (counts?.sellersPending ?? 0) + (counts?.productsToReview ?? 0) },
       { to: '/admin/alertes', label: 'Alertes stock', icon: <Bell className="w-4 h-4" />, badge: alertTotal },
       { to: '/admin/avis', label: 'Avis clients', icon: <MessageSquare className="w-4 h-4" />, badge: counts?.reviewsPending },
     ] },
@@ -66,7 +68,9 @@ export function AdminLayout() {
       { to: '/admin/lettre', label: 'Lettre d’information', icon: <Send className="w-4 h-4" /> },
     ] },
     { title: 'Boutique', items: [
+      { to: '/admin/livraison', label: 'Livraison', icon: <Truck className="w-4 h-4" /> },
       { to: '/admin/reglages', label: 'Réglages', icon: <Settings className="w-4 h-4" /> },
+      { to: '/admin/equipe', label: 'Équipe et journal', icon: <UserCog className="w-4 h-4" /> },
     ] },
   ];
 
@@ -110,7 +114,7 @@ export function AdminLayout() {
         <p className="font-display text-lg">{SHOP.name} <span className="text-laine/60 text-sm">· vendeur</span></p>
         <button onClick={() => setMenuOpen(true)} className="relative p-2" aria-label="Ouvrir le menu">
           <Menu className="w-6 h-6" />
-          {(counts?.ordersToPrepare ?? 0) + alertTotal + (counts?.reviewsPending ?? 0) + (counts?.customRequestsNew ?? 0) + (counts?.returnsNew ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-garance" />}
+          {(counts?.ordersToPrepare ?? 0) + alertTotal + (counts?.reviewsPending ?? 0) + (counts?.customRequestsNew ?? 0) + (counts?.returnsNew ?? 0) + (counts?.messagesNew ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-garance" />}
         </button>
       </header>
       {menuOpen && (

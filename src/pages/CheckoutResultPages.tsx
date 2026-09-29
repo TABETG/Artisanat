@@ -26,7 +26,7 @@ export function ThankYouPage() {
         Nous préparons votre colis avec soin et vous enverrons le numéro de suivi dès l’expédition.
       </p>
       <p className="mt-4 text-henne">Une question ? <a className="text-garance underline" href={`mailto:${settings.email}`}>{settings.email}</a></p>
-      <p className="mt-2 text-henne">Vous pourrez suivre votre colis à tout moment sur la page <Link to="/suivi-commande" className="text-garance underline">Suivre ma commande</Link>.</p>
+      <p className="mt-2 text-henne">Suivez votre colis, retrouvez votre facture et vos commandes dans <Link to="/compte" className="text-garance underline">Mon compte</Link> (connexion par simple lien email).</p>
       <Link to="/boutique" className="inline-block mt-10 bg-nuit text-laine px-7 py-3.5 rounded-sm hover:bg-garance">Continuer la visite</Link>
     </div>
   );

@@ -6,11 +6,11 @@ export function SectionHeading({ title, intro, link, tone = 'nuit', children }: 
   title: string; intro?: string; link?: { to: string; label: string }; tone?: 'nuit' | 'garance'; children?: ReactNode;
 }) {
   return (
-    <div className="mb-10">
+    <div className="mb-8 md:mb-10">
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="max-w-2xl">
-          <h2 className={`font-display text-[2.4rem] sm:text-5xl ${tone === 'garance' ? 'text-garance' : 'text-nuit'}`}>{title}</h2>
+          <h2 className={`font-display text-[2.1rem] sm:text-5xl ${tone === 'garance' ? 'text-garance' : 'text-nuit'}`}>{title}</h2>
           {intro && <p className="lecture mt-3 text-henne">{intro}</p>}
         </div>
         {link && (

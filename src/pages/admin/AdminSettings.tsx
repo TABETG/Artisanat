@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { adminListProducts, getSettings, saveSettings } from '../../lib/api';
 import { slugify } from '../../settings';
-import { centsToInput, formatPrice, parsePriceToCents } from '../../lib/format';
+import { guessKind, KIND_LABELS, ProductKind } from '../../config';
+import { parsePriceToCents } from '../../lib/format';
 import { useSettings } from '../../context/SettingsContext';
 import { ShopSettings } from '../../types';
 import { Field, Input, Section, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
@@ -11,8 +12,6 @@ import { SecuritySection } from './SecuritySection';
 export function AdminSettings() {
   const { reload } = useSettings();
   const [form, setForm] = useState<ShopSettings | null>(null);
-  const [shipping, setShipping] = useState('');
-  const [free, setFree] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [usage, setUsage] = useState<Record<string, number>>({});
@@ -27,8 +26,6 @@ export function AdminSettings() {
     });
     getSettings().then((s) => {
       setForm(s);
-      setShipping(centsToInput(s.shipping_cents));
-      setFree(s.free_shipping_from_cents ? centsToInput(s.free_shipping_from_cents) : '');
     });
   }, []);
 
@@ -40,7 +37,7 @@ export function AdminSettings() {
     if (!label) return;
     let id = slugify(label) || `categorie-${Date.now()}`;
     while (form!.categories.some((c) => c.id === id)) id = `${id}-2`;
-    set('categories', [...form!.categories, { id, label }]);
+    set('categories', [...form!.categories, { id, label, kind: guessKind(id) }]);
     setNewCategory('');
   }
   function renameCategory(i: number, label: string) {
@@ -62,14 +59,9 @@ export function AdminSettings() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const s = parsePriceToCents(shipping || '0');
-    const f = free.trim() ? parsePriceToCents(free) : 0;
     const next: Record<string, string> = {};
-    if (s === null) next.shipping = 'Exemple : 15 ou 12,90';
-    if (f === null) next.free = 'Exemple : 300';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form!.email)) next.email = 'Adresse email invalide.';
     if (form!.whatsapp && !/^\d{8,15}$/.test(form!.whatsapp)) next.whatsapp = 'Chiffres uniquement, avec l’indicatif : 33612345678';
-    if (form!.shipping_min_days > form!.shipping_max_days) next.days = 'Le délai minimum doit être inférieur au maximum.';
     if (form!.categories.length === 0) next.categories = 'Gardez au moins une catégorie.';
     if (form!.categories.some((c) => !c.label.trim())) next.categories = 'Chaque catégorie doit avoir un nom.';
     if (!form!.hero_title.trim()) next.hero_title = 'Le titre de la page d’accueil est obligatoire.';
@@ -77,7 +69,7 @@ export function AdminSettings() {
     if (Object.keys(next).length) { setToast({ msg: 'Quelques champs sont à corriger.', tone: 'error' }); setTimeout(() => setToast(null), 3000); return; }
     setSaving(true);
     try {
-      await saveSettings({ ...form!, shipping_cents: s!, free_shipping_from_cents: f! });
+      await saveSettings(form!);
       reload();
       setToast({ msg: 'Réglages enregistrés : la boutique est à jour', tone: 'ok' });
     } catch (err) {
@@ -124,11 +116,15 @@ export function AdminSettings() {
           </Field>
         </Section>
 
-        <Section title="Catégories" description="L’ordre ici est celui de la boutique. Les catégories vides n’apparaissent pas aux visiteurs.">
+        <Section title="Catégories" description="L’ordre ici est celui de la boutique. Les catégories vides n’apparaissent pas aux visiteurs. Le type (textile, bijoux, beauté…) décide des champs proposés dans la fiche produit.">
           <ul className="space-y-2">
             {form.categories.map((c, i) => (
               <li key={c.id} className="flex items-center gap-2">
                 <Input value={c.label} maxLength={40} onChange={(e) => renameCategory(i, e.target.value)} aria-label={`Nom de la catégorie ${i + 1}`} />
+                <select value={c.kind ?? guessKind(c.id)} onChange={(e) => set('categories', form.categories.map((x, j) => (j === i ? { ...x, kind: e.target.value as ProductKind } : x)))}
+                  className="shrink-0 w-40 px-2 py-3 border border-stone-300 rounded-md bg-white text-sm" aria-label={`Type de produit de ${c.label}`} title="Type de produit : décide des champs à remplir">
+                  {(Object.keys(KIND_LABELS) as ProductKind[]).map((k) => <option key={k} value={k}>{KIND_LABELS[k].split(' (')[0]}</option>)}
+                </select>
                 <span className="text-sm text-stone-500 w-24 shrink-0 text-right">{usage[c.id] ?? 0} produit{(usage[c.id] ?? 0) > 1 ? 's' : ''}</span>
                 <button type="button" onClick={() => moveCategory(i, -1)} disabled={i === 0} className="p-2.5 rounded-md hover:bg-stone-100 disabled:opacity-30" aria-label="Monter"><ArrowUp className="w-4 h-4" /></button>
                 <button type="button" onClick={() => moveCategory(i, 1)} disabled={i === form.categories.length - 1} className="p-2.5 rounded-md hover:bg-stone-100 disabled:opacity-30" aria-label="Descendre"><ArrowDown className="w-4 h-4" /></button>
@@ -150,48 +146,19 @@ export function AdminSettings() {
           </Field>
         </Section>
 
+        <Section title="Place de marché" description="D’autres artisans peuvent candidater pour vendre leurs créations sur la boutique.">
+          <Toggle checked={form.marketplace_enabled} onChange={(v) => set('marketplace_enabled', v)} title="Accepter les candidatures d’artisans" description="Page « Vendre mes créations » ouverte au public." />
+          <Field label="Commission par défaut" hint="Prélevée sur le prix des articles vendus par les artisans (hors frais d’envoi). Modifiable artisan par artisan.">
+            <div className="flex items-center gap-3"><Stepper label="Commission" value={form.marketplace_commission_percent} min={0} max={50} onChange={(v) => set('marketplace_commission_percent', v)} /><span className="text-stone-500">%</span></div>
+          </Field>
+        </Section>
+
         <Section title="Paiement">
           <Toggle checked={form.gift_message_enabled} onChange={(v) => set('gift_message_enabled', v)} title="Champ « Message ou précisions » au paiement"
             description="Le client peut écrire un message cadeau ou une précision de livraison. Vous le retrouvez dans la commande." />
         </Section>
 
-        <Section title="Livraison" description="Utilisé dans le panier, sur les fiches produit et au moment du paiement.">
-          <div className="grid sm:grid-cols-2 gap-5">
-            <Field label="Frais de livraison" required error={errors.shipping} hint="0 pour une livraison toujours gratuite.">
-              <UnitInput unit="€" inputMode="decimal" value={shipping} invalid={!!errors.shipping} onChange={(e) => setShipping(e.target.value)} />
-            </Field>
-            <Field label="Livraison offerte à partir de" optional error={errors.free}
-              hint={free.trim() && parsePriceToCents(free) ? `Offerte pour un panier de ${formatPrice(parsePriceToCents(free)!)} ou plus.` : 'Laissez vide : jamais offerte.'}>
-              <UnitInput unit="€" inputMode="decimal" value={free} invalid={!!errors.free} onChange={(e) => setFree(e.target.value)} />
-            </Field>
-            <Field label="Délai minimum" hint="En jours ouvrés." error={errors.days}>
-              <div><Stepper label="Délai minimum" value={form.shipping_min_days} min={1} max={60} onChange={(v) => set('shipping_min_days', v)} /></div>
-            </Field>
-            <Field label="Délai maximum" hint="En jours ouvrés.">
-              <div><Stepper label="Délai maximum" value={form.shipping_max_days} min={1} max={60} onChange={(v) => set('shipping_max_days', v)} /></div>
-            </Field>
-          </div>
-        </Section>
-
-        <Section title="Autres modes de livraison" description="Proposés au client sur la page de paiement, en plus de la livraison suivie.">
-          <Toggle checked={form.express_enabled} onChange={(v) => set('express_enabled', v)} title="Livraison express" description="Pour les clients pressés, à un prix plus élevé." />
-          {form.express_enabled && (
-            <div className="grid sm:grid-cols-3 gap-5 pl-0 sm:pl-15">
-              <Field label="Prix de l’express">
-                <UnitInput unit="€" inputMode="decimal" value={(form.express_cents / 100).toString().replace('.', ',')}
-                  onChange={(e) => { const c = parsePriceToCents(e.target.value || '0'); if (c !== null) set('express_cents', c); }} />
-              </Field>
-              <Field label="Délai minimum"><div><Stepper label="Express minimum" value={form.express_min_days} min={1} max={30} onChange={(v) => set('express_min_days', v)} /></div></Field>
-              <Field label="Délai maximum"><div><Stepper label="Express maximum" value={form.express_max_days} min={1} max={30} onChange={(v) => set('express_max_days', v)} /></div></Field>
-            </div>
-          )}
-          <Toggle checked={form.pickup_enabled} onChange={(v) => set('pickup_enabled', v)} title="Retrait gratuit à l’atelier" description="Le client vient chercher sa commande." />
-          {form.pickup_enabled && (
-            <Field label="Informations de retrait" hint="Adresse, horaires, prise de rendez-vous : affiché sur la page Livraison.">
-              <Textarea rows={2} value={form.pickup_details} onChange={(e) => set('pickup_details', e.target.value)} />
-            </Field>
-          )}
-        </Section>
+        <p className="bg-white border border-stone-200 rounded-lg p-5">Les zones, modes et tarifs de livraison se règlent dans l’onglet <a href="/admin/livraison" className="text-garance underline">Livraison</a>.</p>
 
         <Section title="Paiement en plusieurs fois" description="Klarna permet au client de payer en 3 fois sans frais ; vous êtes payé en une fois.">
           <Toggle checked={form.installments_enabled} onChange={(v) => set('installments_enabled', v)} title="Afficher « Payez en 3 fois » sur les fiches produit"
@@ -219,6 +186,9 @@ export function AdminSettings() {
               <Input value={form.instagram} onChange={(e) => set('instagram', e.target.value.trim())} placeholder="https://instagram.com/…" />
             </Field>
           </div>
+          <Field label="Médiateur de la consommation" hint="Nom et site du médiateur auquel vous adhérez (obligatoire pour vendre aux particuliers). Affiché dans les CGV.">
+            <Input value={form.mediator} maxLength={200} onChange={(e) => set('mediator', e.target.value)} placeholder="CM2C — 49 rue de Ponthieu, 75008 Paris — cm2c.net" />
+          </Field>
           <Field label="Adresse de l’atelier" optional>
             <Textarea rows={2} value={form.address} onChange={(e) => set('address', e.target.value)} />
           </Field>

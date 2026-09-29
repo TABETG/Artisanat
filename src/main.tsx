@@ -5,6 +5,8 @@ import App from './App';
 import { CartProvider } from './context/CartContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { CustomerProvider } from './context/CustomerContext';
+import { MarketplaceProvider } from './context/MarketplaceContext';
 import { ReviewsProvider } from './context/ReviewsContext';
 import { BadgesProvider } from './context/BadgesContext';
 // Polices hébergées avec le site : rien n'est chargé depuis Google (plus rapide, et conforme au RGPD)
@@ -17,6 +19,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <SettingsProvider>
+        <CustomerProvider>
+        <MarketplaceProvider>
         <CartProvider>
           <FavoritesProvider>
             <ReviewsProvider>
@@ -26,6 +30,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             </ReviewsProvider>
           </FavoritesProvider>
         </CartProvider>
+        </MarketplaceProvider>
+        </CustomerProvider>
       </SettingsProvider>
     </BrowserRouter>
   </React.StrictMode>,

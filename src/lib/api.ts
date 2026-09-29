@@ -4,32 +4,37 @@ import { db, DEMO_MODE } from './supabase';
 import { demoAuth, demoDB, demoSave, wait } from './demoStore';
 import { DEMO_ADMIN } from './demo';
 import { imageToDataUrl, resizeImage } from './image';
-import { AdminCounts, Campaign, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
+import { AdminCounts, ContactMessage, Campaign, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
 import { withDefaults } from '../settings';
+import { statsAllowed } from './privacy';
+import { adminListSellers } from './marketplace';
 import { applyPromoExpiry } from '../pricing';
 import { CARRIERS, trackingUrl } from '../config';
-import { shippingFor } from '../shipping';
+import { quoteShipping } from '../shipping';
+import { sellerShippingCents } from '../sellerShipping';
 
 const PRODUCT_FIELDS =
   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
   'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold,' +
-  'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count';
+  'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count,seller_id,moderation,moderation_note,' +
+  'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref';
 
 const byNewest = <T extends { created_at: string }>(a: T, b: T) => b.created_at.localeCompare(a.created_at);
 
 // =============== Boutique (public) ===============
 
 export async function listProducts(): Promise<Product[]> {
-  if (DEMO_MODE) { await wait(150); return demoDB().products.filter((p) => p.active && isPublished(p)).map(normalize).sort(byNewest); }
+  if (DEMO_MODE) { await wait(150); const d = demoDB(); return d.products.filter((p) => p.active && isPublished(p) && isSellable(p, d.sellers)).map(normalize).sort(byNewest); }
   const { data, error } = await db()
     .from('products').select(PRODUCT_FIELDS).eq('active', true)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data as unknown as Product[]).map(normalize);
+  // Un artisan connecté voit aussi ses produits en relecture : on ne garde que les produits validés
+  return (data as unknown as Product[]).filter((p) => (p.moderation ?? 'approved') === 'approved').map(normalize);
 }
 
 export async function getProduct(id: string): Promise<Product | null> {
-  if (DEMO_MODE) { await wait(100); const p = demoDB().products.find((x) => x.id === id && x.active && isPublished(x)); return p ? normalize(p) : null; }
+  if (DEMO_MODE) { await wait(100); const d = demoDB(); const p = d.products.find((x) => x.id === id && x.active && isPublished(x) && isSellable(x, d.sellers)); return p ? normalize(p) : null; }
   const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).maybeSingle();
   if (error) throw error;
   return data ? normalize(data as unknown as Product) : null;
@@ -43,12 +48,16 @@ function normalize(p: Product): Product {
 
 export const isPublished = (p: Pick<Product, 'publish_at'>) => !p.publish_at || new Date(p.publish_at).getTime() <= Date.now();
 
-export async function startCheckout(items: { id: string; quantity: number }[]): Promise<string> {
-  if (DEMO_MODE) return demoCheckout(items);
+/** Produit d'artisan : visible seulement s'il est validé et que l'artisan l'est aussi. */
+const isSellable = (p: Product, sellers: { id: string; status: string }[]) =>
+  (p.moderation ?? 'approved') === 'approved' && (!p.seller_id || sellers.some((s) => s.id === p.seller_id && s.status === 'approved'));
+
+export async function startCheckout(items: { id: string; quantity: number }[], country = 'FR', methodId: string | null = null): Promise<string> {
+  if (DEMO_MODE) return demoCheckout(items, country, methodId);
   const res = await fetch('/.netlify/functions/create-checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, country, methodId }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.url) throw new Error(body.error ?? 'Le paiement n’a pas pu démarrer. Réessayez dans un instant.');
@@ -56,7 +65,7 @@ export async function startCheckout(items: { id: string; quantity: number }[]): 
 }
 
 /** Démo : simule un paiement réussi (commande créée + stock diminué). */
-async function demoCheckout(items: { id: string; quantity: number }[]): Promise<string> {
+async function demoCheckout(items: { id: string; quantity: number }[], country: string, methodId: string | null): Promise<string> {
   await wait(600);
   const data = demoDB();
   for (const it of items) {
@@ -64,25 +73,53 @@ async function demoCheckout(items: { id: string; quantity: number }[]): Promise<
     if (!p || !p.active) throw new Error('Un article de votre panier n’est plus en vente. Retirez-le pour continuer.');
     if (p.stock < it.quantity) throw new Error(p.stock === 0 ? `« ${p.name} » vient d’être vendu. Retirez-le du panier.` : `« ${p.name} » : il n’en reste que ${p.stock}.`);
   }
+  const s = withDefaults(data.settings);
+  const prod = (id: string) => data.products.find((x) => x.id === id)!;
+  const ownItems = items.filter((it) => !prod(it.id).seller_id);
+  let quote: ReturnType<typeof quoteShipping>[number] | null = null;
+  if (ownItems.length) {
+    const quotes = quoteShipping(country, ownItems.map((it) => { const p = prod(it.id); return { quantity: it.quantity, price_cents: p.price_cents, width_cm: p.width_cm, length_cm: p.length_cm }; }), s.shipping_zones, s.shipping_methods);
+    if (!quotes.length) throw new Error('Nous ne livrons pas encore ce pays. Écrivez-nous pour une solution.');
+    quote = quotes.find((q) => q.method.id === methodId) ?? quotes[0];
+  }
+  // Pièces d'artisans : frais d'envoi de chaque artisan
+  const sellerIds = [...new Set(items.map((it) => prod(it.id).seller_id).filter((x): x is string => !!x))];
+  const sellerShip = new Map<string, number>();
+  for (const sid of sellerIds) {
+    const seller = data.sellers.find((x) => x.id === sid);
+    const total = items.filter((it) => prod(it.id).seller_id === sid).reduce((n, it) => n + prod(it.id).price_cents * it.quantity, 0);
+    const c = seller ? sellerShippingCents(seller, country, total, s.shipping_zones) : null;
+    if (c == null) throw new Error(`${seller?.shop_name ?? 'Un artisan'} ne livre pas ce pays.`);
+    sellerShip.set(sid, c);
+  }
   const lines = items.map((it, i) => {
-    const p = data.products.find((x) => x.id === it.id)!;
+    const p = prod(it.id);
     p.stock -= it.quantity;
     p.sales_count = (p.sales_count ?? 0) + it.quantity;
-    return { id: Date.now() + i, product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: it.quantity };
+    return { id: Date.now() + i, product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: it.quantity, seller_id: p.seller_id ?? null };
   });
   const subtotal = lines.reduce((n, l) => n + l.unit_price_cents * l.quantity, 0);
-  const shipping = shippingFor(subtotal, data.settings);
+  const shipping = (quote?.cents ?? 0) + [...sellerShip.values()].reduce((n, c) => n + c, 0);
   const id = `demo-${Date.now()}`;
   data.orders.unshift({
     id, stripe_session_id: id, stripe_payment_id: null,
     email: 'client.demo@exemple.fr', customer_name: 'Client de démonstration', phone: '+33 6 00 00 00 00',
     shipping_name: 'Client de démonstration',
-    shipping_address: { line1: '1 place de la République', postal_code: '75003', city: 'Paris', country: 'FR' },
+    shipping_address: { line1: '1 place de la République', postal_code: '75003', city: 'Paris', country },
     subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping,
     status: 'paid', tracking_number: null, tracking_carrier: null, shipped_email_sent_at: null, note: null, created_at: new Date().toISOString(), order_items: lines,
-    shipping_method: shipping === 0 ? 'Livraison suivie offerte' : 'Livraison suivie',
+    shipping_method: [quote?.method.name, sellerIds.length ? 'Expédié par les artisans' : null].filter(Boolean).join(' + '),
     invoice_number: Math.max(0, ...data.orders.map((o) => o.invoice_number ?? 0)) + 1,
   });
+  const commission = s.marketplace_commission_percent;
+  for (const sid of sellerIds) {
+    const seller = data.sellers.find((x) => x.id === sid)!;
+    const sales = lines.filter((l) => l.seller_id === sid).reduce((n, l) => n + l.unit_price_cents * l.quantity, 0);
+    const c = Math.round((sales * Number(seller.commission_percent ?? commission)) / 100);
+    const ship = sellerShip.get(sid) ?? 0;
+    data.shipments.push({ order_id: id, seller_id: sid, shipping_cents: ship, status: 'to_ship', carrier: null, tracking_number: null, shipped_at: null });
+    data.transfers.unshift({ id: Date.now(), order_id: id, seller_id: sid, sales_cents: sales, shipping_cents: ship, commission_cents: c, amount_cents: sales - c + ship, stripe_transfer_id: 'tr_demo', created_at: new Date().toISOString() });
+  }
   demoSave();
   return `/merci?session_id=${id}`;
 }
@@ -166,6 +203,7 @@ export async function adminListProducts(): Promise<Product[]> {
 }
 
 export async function saveProduct(input: ProductInput, id?: string): Promise<Product> {
+  logActivity(id ? `Produit modifié : ${input.name}` : `Produit ajouté : ${input.name}`);
   if (DEMO_MODE) {
     await wait();
     const data = demoDB();
@@ -203,6 +241,7 @@ export async function setProductStock(id: string, stock: number): Promise<void> 
 }
 
 export async function deleteProduct(product: Product): Promise<void> {
+  logActivity(`Produit supprimé : ${product.name}`);
   if (DEMO_MODE) {
     const data = demoDB();
     data.products = data.products.filter((p) => p.id !== product.id);
@@ -246,6 +285,7 @@ export async function adminListOrders(): Promise<Order[]> {
 export interface OrderPatch { status?: OrderStatus; tracking_number?: string | null; tracking_carrier?: string | null; note?: string | null }
 
 export async function updateOrder(id: string, patch: OrderPatch): Promise<void> {
+  logActivity(`Commande #${id.replace(/^demo-/, '').slice(0, 8).toUpperCase()} mise à jour${patch.status ? ` (${patch.status})` : ''}`);
   if (DEMO_MODE) {
     await wait();
     const o = demoDB().orders.find((x) => x.id === id);
@@ -284,8 +324,11 @@ export async function deleteStockAlert(id: number): Promise<void> {
 
 /** Chiffres des pastilles de notification du menu vendeur. */
 export async function adminCounts(): Promise<AdminCounts> {
-  const [products, orders, alerts, reviews, requests, returns] = await Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews(), adminListCustomRequests(), adminListReturns()]);
+  const [products, orders, alerts, reviews, requests, returns, messages, sellers] = await Promise.all([adminListProducts(), adminListOrders(), adminListStockAlerts(), adminListReviews(), adminListCustomRequests(), adminListReturns(), adminListMessages(), adminListSellers()]);
   return {
+    sellersPending: sellers.filter((s) => s.status === 'pending').length,
+    productsToReview: products.filter((p) => p.moderation === 'pending').length,
+    messagesNew: messages.filter((m) => !m.handled).length,
     returnsNew: returns.filter((r) => r.status === 'new').length,
     customRequestsNew: requests.filter((r) => r.status === 'new').length,
     reviewsPending: reviews.filter((r) => !r.approved).length,
@@ -375,6 +418,7 @@ export async function getSettings(): Promise<ShopSettings> {
 }
 
 export async function saveSettings(settings: ShopSettings): Promise<void> {
+  logActivity('Réglages de la boutique modifiés');
   if (DEMO_MODE) { await wait(); demoDB().settings = settings; demoSave(); return; }
   const { error } = await db().from('settings').update({ data: settings, updated_at: new Date().toISOString() }).eq('id', 1);
   if (error) throw error;
@@ -504,6 +548,7 @@ export async function adminListPromoCodes(): Promise<PromoCode[]> {
 }
 
 export async function createPromoCode(input: PromoCodeInput): Promise<PromoCode> {
+  logActivity(`Code promo créé : ${input.code.toUpperCase()}`);
   const code = input.code.trim().toUpperCase();
   if (!/^[A-Z0-9-]{3,30}$/.test(code)) throw new Error('Le code doit faire 3 à 30 caractères : lettres, chiffres ou tirets.');
   if (DEMO_MODE) {
@@ -529,6 +574,7 @@ export async function deactivatePromoCode(id: string): Promise<void> {
 // =============== Remboursements ===============
 
 export async function refundOrder(orderId: string, amountCents: number, restock: boolean, reason: string): Promise<{ refunded_cents: number; full: boolean; note: string }> {
+  logActivity(`Remboursement de ${(amountCents / 100).toFixed(2).replace('.', ',')} € (commande #${orderId.replace(/^demo-/, '').slice(0, 8).toUpperCase()})`);
   if (DEMO_MODE) {
     await wait(600);
     const d = demoDB();
@@ -685,6 +731,7 @@ export async function adminListGiftCards(): Promise<GiftCard[]> {
 
 /** Compte une vue ou un ajout au panier (une seule fois par produit et par visite). */
 export function trackProduct(productId: string, kind: 'view' | 'cart'): void {
+  if (!statsAllowed()) return;
   const key = `artisanat-stat-${kind}-${productId}`;
   try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* ignoré */ }
   if (DEMO_MODE) {
@@ -759,4 +806,76 @@ export async function unsubscribeNewsletter(email: string, token: string): Promi
   if (DEMO_MODE) { const d = demoDB(); d.subscribers = d.subscribers.filter((s) => s.email !== email.toLowerCase()); demoSave(); return; }
   const res = await fetch('/.netlify/functions/newsletter-unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, token }) });
   if (!res.ok) throw new Error('Lien invalide ou expiré. Écrivez-nous pour être désinscrit.');
+}
+
+// =============== Messages de contact ===============
+
+export async function sendContactMessage(input: { name: string; email: string; subject: string; message: string }): Promise<void> {
+  const clean = { name: input.name.trim(), email: input.email.trim().toLowerCase(), subject: input.subject.trim(), message: input.message.trim() };
+  if (!clean.name) throw new Error('Indiquez votre nom.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean.email)) throw new Error('Adresse email invalide.');
+  if (!clean.message) throw new Error('Écrivez votre message.');
+  if (DEMO_MODE) {
+    await wait(400);
+    demoDB().messages.unshift({ ...clean, id: Date.now(), handled: false, created_at: new Date().toISOString() });
+    demoSave();
+    return;
+  }
+  const { error } = await db().from('contact_messages').insert(clean);
+  if (error) throw new Error('Le message n’a pas pu être envoyé. Écrivez-nous directement par email.');
+  fetch('/.netlify/functions/notify-owner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'contact' }) }).catch(() => {});
+}
+
+export async function adminListMessages(): Promise<ContactMessage[]> {
+  if (DEMO_MODE) return [...(demoDB().messages ?? [])].sort(byNewest);
+  const { data, error } = await db().from('contact_messages').select('*').order('created_at', { ascending: false }).limit(1000);
+  if (error) throw error;
+  return data as ContactMessage[];
+}
+
+export async function setMessageHandled(id: number, handled: boolean): Promise<void> {
+  if (DEMO_MODE) { const m = demoDB().messages.find((x) => x.id === id); if (m) m.handled = handled; demoSave(); return; }
+  const { error } = await db().from('contact_messages').update({ handled }).eq('id', id);
+  if (error) throw error;
+}
+
+// =============== Équipe et journal d'activité ===============
+
+export interface TeamMember { user_id: string; email: string; last_sign_in_at: string | null; me: boolean }
+
+export async function listTeam(): Promise<TeamMember[]> {
+  if (DEMO_MODE) return [{ user_id: 'demo', email: DEMO_ADMIN.email, last_sign_in_at: new Date().toISOString(), me: true }, ...(demoDB().team ?? [])];
+  return (await callAdminFunction<{ members: TeamMember[] }>({ action: 'list' }, 'admin-team')).members;
+}
+
+export async function addTeamMember(email: string): Promise<void> {
+  if (DEMO_MODE) { await wait(); const d = demoDB(); d.team = [...(d.team ?? []), { user_id: `demo-${Date.now()}`, email: email.trim().toLowerCase(), last_sign_in_at: null, me: false }]; demoSave(); return; }
+  await callAdminFunction({ action: 'add', email }, 'admin-team');
+  logActivity(`Accès vendeur donné à ${email}`);
+}
+
+export async function removeTeamMember(userId: string): Promise<void> {
+  if (DEMO_MODE) { const d = demoDB(); d.team = (d.team ?? []).filter((m) => m.user_id !== userId); demoSave(); return; }
+  await callAdminFunction({ action: 'remove', userId }, 'admin-team');
+  logActivity('Accès vendeur retiré');
+}
+
+export interface Activity { id: number; user_email: string | null; action: string; created_at: string }
+
+/** Note une action de l'espace vendeur (qui a fait quoi, quand). Sans effet bloquant. */
+export function logActivity(action: string): void {
+  if (DEMO_MODE) {
+    const d = demoDB();
+    d.activity = [{ id: Date.now(), user_email: DEMO_ADMIN.email, action, created_at: new Date().toISOString() }, ...(d.activity ?? [])].slice(0, 300);
+    try { demoSave(); } catch { /* ignoré */ }
+    return;
+  }
+  db().auth.getUser().then(({ data }) => db().from('activity_log').insert({ user_email: data.user?.email ?? null, action: action.slice(0, 200) })).then(() => {}, () => {});
+}
+
+export async function listActivity(): Promise<Activity[]> {
+  if (DEMO_MODE) return demoDB().activity ?? [];
+  const { data, error } = await db().from('activity_log').select('*').order('created_at', { ascending: false }).limit(300);
+  if (error) throw error;
+  return data as Activity[];
 }

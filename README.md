@@ -9,7 +9,7 @@ Boutique en ligne de tapis berbères et créations en laine, avec espace vendeur
 
 Démarrage local (mode démonstration) : `docker compose up` → http://localhost:5173
 
-Mise en ligne : voir **GUIDE-MISE-EN-LIGNE.md**.
+Mise en ligne : **CHECKLIST-LANCEMENT.md** (ce qu’il reste à faire), puis **GUIDE-MISE-EN-LIGNE.md** (pas à pas).
 
 ## Structure
 ```

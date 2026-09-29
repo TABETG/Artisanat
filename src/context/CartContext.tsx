@@ -9,6 +9,9 @@ export interface CartLine {
   image: string | null;
   stock: number;
   quantity: number;
+  width_cm?: number | null;
+  length_cm?: number | null;
+  seller_id?: string | null;
 }
 
 interface CartValue {
@@ -24,6 +27,11 @@ interface CartValue {
   setQuantity: (id: string, quantity: number) => void;
   remove: (id: string) => void;
   clear: () => void;
+  /** Pays et mode de livraison choisis dans le panier */
+  country: string;
+  setCountry: (c: string) => void;
+  methodId: string | null;
+  setMethodId: (id: string | null) => void;
 }
 
 const CartContext = createContext<CartValue | null>(null);
@@ -42,6 +50,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(load);
   const [isOpen, setIsOpen] = useState(false);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [country, setCountry] = useState<string>(() => { try { return localStorage.getItem('artisanat-pays') ?? 'FR'; } catch { return 'FR'; } });
+  const [methodId, setMethodId] = useState<string | null>(null);
+  useEffect(() => { try { localStorage.setItem('artisanat-pays', country); } catch { /* ignoré */ } }, [country]);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch { /* navigation privée */ }
@@ -64,7 +75,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, {
           id: p.id, name: p.name, price_cents: p.price_cents,
-          image: p.images[0] ?? null, stock: p.stock, quantity: Math.min(p.stock, quantity),
+          image: p.images[0] ?? null, stock: p.stock, quantity: Math.min(p.stock, quantity), width_cm: p.width_cm, length_cm: p.length_cm, seller_id: p.seller_id ?? null,
         }];
       });
       setLastAdded(p.name);
@@ -74,7 +85,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setLines((prev) => prev.map((l) => l.id === id ? { ...l, quantity: Math.max(1, Math.min(l.stock, quantity)) } : l)),
     remove: (id) => setLines((prev) => prev.filter((l) => l.id !== id)),
     clear: () => setLines([]),
-  }), [lines, isOpen, lastAdded]);
+    country, setCountry, methodId, setMethodId,
+  }), [lines, isOpen, lastAdded, country, methodId]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

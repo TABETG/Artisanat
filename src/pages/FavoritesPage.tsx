@@ -12,7 +12,7 @@ export function FavoritesPage() {
   return (
     <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-12">
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
-      <h1 className="font-display text-5xl md:text-7xl text-nuit">Mes favoris</h1>
+      <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Mes favoris</h1>
       <p className="mt-3 text-henne">Enregistrés sur cet appareil, pour les retrouver plus tard.</p>
       {loading && <p className="mt-8 text-henne">Chargement…</p>}
       {!loading && products.length === 0 && (
@@ -22,7 +22,7 @@ export function FavoritesPage() {
           <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-sm hover:bg-garance">Voir la boutique</Link>
         </div>
       )}
-      <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
+      <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">
         {products.map((p) => <ProductCard key={p.id} product={p} />)}
       </div>
     </div>

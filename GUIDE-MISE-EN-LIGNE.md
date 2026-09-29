@@ -32,7 +32,8 @@ Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser l
 3. **Authentication → Users → Add user → Create new user** : email + mot de passe du propriétaire (cocher *Auto Confirm User*).
    *Facultatif* : coller aussi `supabase/produits-exemple.sql` pour avoir 6 produits avec photos d’exemple.
 4. Ouvrir `supabase/ajouter-proprietaire.sql`, remplacer l’email, le coller dans le SQL Editor → **Run**.
-5. **Authentication → Sign In / Providers** : désactiver **Allow new users to sign up** (personne d’autre ne peut créer de compte).
+5. **Authentication → Sign In / Providers** : laisser **Allow new users to sign up** activé et **Email** activé : c’est ce qui permet aux clients de créer leur compte par simple lien email. (L’espace vendeur reste protégé : seuls les comptes ajoutés dans *Équipe* y ont accès.)
+   **Authentication → Emails → SMTP Settings** : renseigner le serveur SMTP de Resend (`smtp.resend.com`, port 465, utilisateur `resend`, mot de passe = votre clé Resend) pour que les liens de connexion partent de votre adresse et sans limite.
 6. **Project Settings → API** : noter `Project URL`, la clé `anon public` et la clé `service_role` (secrète).
 
 ## 2. Stripe (paiement)
@@ -65,12 +66,12 @@ Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser l
    | `STRIPE_WEBHOOK_SECRET` | (étape 4) |
 
 4. **Deploys → Trigger deploy**. Le site est en ligne sur `https://xxx.netlify.app`.
-5. Retour dans Supabase → **Authentication → URL Configuration** : *Site URL* = l’adresse Netlify (sert au lien « mot de passe oublié »).
+5. Retour dans Supabase → **Authentication → URL Configuration** : *Site URL* = l’adresse Netlify, et dans *Redirect URLs* ajouter `https://VOTRE-SITE/compte` et `https://VOTRE-SITE/admin/nouveau-mot-de-passe`.
 
 ## 4. Relier Stripe au site (webhook)
 
 1. Stripe → **Développeurs → Webhooks → Ajouter une destination**.
-2. Événements : `checkout.session.completed` et `checkout.session.async_payment_succeeded`.
+2. Événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded` et `checkout.session.expired` (relance des paniers abandonnés).
 3. URL : `https://VOTRE-SITE.netlify.app/.netlify/functions/stripe-webhook`
 4. Copier le **secret de signature** (`whsec_...`) dans Netlify → `STRIPE_WEBHOOK_SECRET` → redéployer.
 
@@ -104,6 +105,16 @@ Avec cette étape, les emails partent tout seuls :
 
 Stripe → **Paramètres → Moyens de paiement → Klarna → Activer**. Puis dans l’espace vendeur, **Réglages → Paiement en plusieurs fois** pour afficher « ou 3 × … sans frais » sur les fiches produit. Vous êtes payé en une seule fois, Klarna prend le risque.
 
+## 4 quater. Place de marché : d’autres artisans vendent sur le site (facultatif)
+
+1. Stripe → **Connect → Commencer** : choisir « Plateforme » et le type de compte **Express**. Stripe vérifie l’identité de chaque artisan et lui verse l’argent : vous n’avez jamais à gérer les virements vous-même (et c’est obligatoire : encaisser pour le compte d’autrui sans passer par un prestataire agréé est interdit).
+2. Dans **Connect → Paramètres**, renseigner le nom de la boutique, le logo et l’adresse du site.
+3. Coût Stripe Connect Express : environ 2 € par mois et par artisan actif, plus environ 0,25 % + 0,10 € par virement (voir stripe.com/fr/connect/pricing). Votre commission (15 % par défaut) couvre largement ces frais.
+4. Dans l’espace vendeur, **Réglages → Place de marché** : ouvrir les candidatures et fixer la commission.
+5. À faire valider par un juriste avant l’ouverture : les *Conditions pour les vendeurs* (page `/conditions-vendeurs`) et la section « artisans partenaires » des CGV. Obligations principales : indiquer clairement qui vend (déjà affiché sur chaque fiche), vérifier l’identité des vendeurs (fait par Stripe), et déclarer chaque année les ventes des artisans à l’administration fiscale (directive **DAC7**, via impots.gouv.fr) dès qu’un artisan dépasse 30 ventes ou 2 000 € par an.
+
+Seuls les artisans résidant dans un pays pris en charge par Stripe Connect peuvent être payés (Union européenne, Royaume-Uni, Suisse, Norvège…).
+
 ## 5. Tester avant d’ouvrir
 
 1. Aller sur `/admin`, se connecter, **Ajouter un produit** avec une photo.
@@ -115,7 +126,7 @@ Stripe → **Paramètres → Moyens de paiement → Klarna → Activer**. Puis d
 
 - Nom, email, téléphone, WhatsApp, SIRET, adresse : `src/config.ts`
 - Frais, délais et coordonnées : *Espace vendeur → Réglages* (sans toucher au code)
-- Pays de livraison : `src/shipping.ts`
+- Liste des pays proposés : `src/shipping.ts` (zones et tarifs : onglet *Livraison*)
 - Photos d’exemple : dossier `public/exemples/` (illustrations générées, à remplacer par vos vraies photos)
 - Textes « Notre histoire » et pages légales : `src/pages/StoryPage.tsx`, `src/pages/LegalPages.tsx` (à faire relire)
 - Nom de domaine : Netlify → **Domain management → Add a domain**
@@ -144,7 +155,11 @@ Chaque `git push` met le site à jour automatiquement.
 
 **Codes promo** : onglet *Codes promo* → code, réduction en % ou en €, date de fin, nombre d’utilisations, montant minimum. Le client le saisit sur la page de paiement ; la remise et le code apparaissent dans la commande.
 
-**Modes de livraison** : dans *Réglages*, activez la livraison express et/ou le retrait gratuit à l’atelier. Le client choisit sur la page de paiement.
+**Livraison** (onglet *Livraison*) :
+- *Zones* : regroupez les pays qui ont les mêmes tarifs (France, Europe, Suisse et Royaume-Uni, reste du monde…).
+- *Modes* : point relais, Colissimo à domicile, Chronopost express, retrait à l’atelier, transporteur… Pour chacun : prix par zone (vide = non proposé), livraison offerte dès un montant, supplément grand tapis (plus de 3 m²), délais, et refus des grands tapis (utile pour les points relais).
+- *Préparation* : jours avant l’expédition, ajoutés aux délais.
+Le client choisit son pays et son mode dans le panier, voit la date de livraison estimée sur chaque fiche produit, et le prix est recalculé au paiement. Les tarifs sont publiés automatiquement sur la page *Livraison et retours*.
 
 **Clients** : tous vos acheteurs, avec leurs commandes, le total dépensé, les clients fidèles, l’inscription à la lettre et l’export Excel.
 
@@ -157,6 +172,30 @@ Chaque `git push` met le site à jour automatiquement.
 **Cartes cadeaux** : vendues sur la page *Carte cadeau* (20 à 2 000 €). Après le paiement, un code à usage unique valable 1 an est créé et envoyé à l’acheteur (et au destinataire si son email est indiqué). L’onglet *Cartes cadeaux* montre celles qui ont été utilisées.
 
 **Sur téléphone** : ouvrez `/admin` dans Chrome ou Safari, puis *Ajouter à l’écran d’accueil* : l’espace vendeur s’ouvre comme une application.
+
+**Messages** : les visiteurs vous écrivent depuis l’onglet *Contact* (sur le bord droit du site). Onglet *Messages* : *Répondre* ouvre votre messagerie avec le message cité, puis le passe en « traité ».
+
+**Confidentialité (RGPD)** : à la première visite, un bandeau explique qu’aucun cookie publicitaire n’est utilisé et permet de refuser les statistiques anonymes. Le visiteur peut à tout moment gérer ses données (effacer panier, favoris, historique) depuis *Gérer mes données* en bas de page.
+
+**Mon compte (clients)** : connexion sans mot de passe, par lien envoyé par email. Le client y retrouve ses commandes (suivi, facture, retour, « Commander à nouveau »), ses favoris sur tous ses appareils, ses cartes cadeaux, son inscription à la lettre et l’export de ses données (RGPD).
+
+**Paniers abandonnés** : si un client quitte la page de paiement sans payer et a accepté les emails, il reçoit automatiquement « Votre panier vous attend » avec un lien pour reprendre sa commande.
+
+**Équipe et journal** : onglet *Équipe et journal* pour donner l’accès vendeur à un associé (il reçoit une invitation) et voir l’historique des actions (produits, commandes, remboursements, réglages).
+
+**Types de produits** : chaque catégorie a un type (*Réglages → Catégories*) qui décide des champs de la fiche :
+- *Textile* (tapis, coussins, plaids) : dimensions, surface, hauteur des poils, guide des tailles.
+- *Bijoux* : métal, pierres et décor, taille ou longueur, mention « sans nickel ».
+- *Beauté et cosmétiques* (khôl, rouge à lèvres, aker fassi…) : contenance, ingrédients INCI, mode d’emploi, précautions, durée après ouverture et référence CPNP. **Ces champs sont obligatoires : sans eux, le produit ne peut pas être mis en ligne.**
+
+Avant de vendre un cosmétique fait maison (règlement européen 1223/2009) : désigner une personne responsable dans l’UE (vous, si vous êtes établi en France), faire réaliser l’évaluation de sécurité par un professionnel qualifié (quelques centaines d’euros par formule), tenir un dossier d’information produit, notifier le produit sur le portail CPNP (gratuit) et étiqueter l’emballage. Le khôl traditionnel à base de galène (plomb) est interdit. Pour les bijoux, respecter les limites de nickel, plomb et cadmium (règlement REACH) : demandez un certificat à votre fournisseur.
+
+**Artisans partenaires** : un artisan candidate depuis la page *Vendre mes créations* (après s’être connecté). Onglet *Artisans partenaires* :
+- *Candidatures* : valider ou refuser.
+- L’artisan validé active ses paiements (Stripe, 5 minutes), puis ajoute ses créations depuis *Mon compte → Mon atelier*.
+- *Produits à valider* : chaque création (et chaque changement de nom, prix, photo ou description) passe par vous avant d’être publiée.
+- Au paiement, le client paie tout en une fois ; chaque artisan reçoit automatiquement ses ventes moins la commission, plus ses frais d’envoi, et un email avec la commande à expédier. Il indique son numéro de suivi dans son espace.
+- *Reversements* : commission perçue et montants versés.
 
 **Lettre d’information** : les visiteurs s’inscrivent en bas du site. Onglet *Lettre d’information* : écrivez l’objet et le message, choisissez jusqu’à 6 produits (photo + lien), envoyez-vous un test puis envoyez à tous. Chaque email contient un lien de désinscription (obligatoire). Nécessite l’étape 4 bis (Resend).
 

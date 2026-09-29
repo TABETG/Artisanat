@@ -1,3 +1,5 @@
+import type { ShippingMethod, ShippingZone } from './shipping';
+
 export interface Product {
   id: string;
   name: string;
@@ -31,6 +33,21 @@ export interface Product {
   publish_at: string | null;               // mise en ligne programmée
   views_count: number;
   cart_adds_count: number;
+  // version 14 : place de marché
+  seller_id?: string | null;               // null = pièce de l'atelier
+  moderation?: 'approved' | 'pending' | 'rejected';
+  moderation_note?: string | null;
+  // version 15 : bijoux et cosmétiques
+  metal?: string;                // bijou : argent, laiton, métal doré…
+  stones?: string;               // bijou : corail, ambre, émail…
+  jewelry_size?: string;         // bijou : « Longueur 45 cm », « Taille ajustable »
+  nickel_free?: boolean;         // bijou : conforme à la limite de libération du nickel
+  net_content?: string;          // cosmétique : « 5 g », « 10 ml »
+  ingredients?: string;          // cosmétique : liste INCI (obligatoire)
+  usage?: string;                // cosmétique : mode d'emploi
+  warnings?: string;             // cosmétique : précautions d'emploi
+  pao_months?: number | null;    // cosmétique : durée d'utilisation après ouverture
+  cpnp_ref?: string;             // cosmétique : référence de notification européenne
 }
 
 export type ProductInput = Omit<Product, 'id' | 'created_at'>;
@@ -43,6 +60,7 @@ export interface OrderItem {
   name: string;
   unit_price_cents: number;
   quantity: number;
+  seller_id?: string | null;
 }
 
 export interface Address {
@@ -183,7 +201,12 @@ export interface ReturnRequest {
 
 export interface Campaign { id: number; subject: string; sent_count: number; created_at: string }
 
+export interface ContactMessage { id: number; name: string; email: string; subject: string; message: string; handled: boolean; created_at: string }
+
 export interface AdminCounts {
+  sellersPending: number;
+  productsToReview: number;
+  messagesNew: number;
   returnsNew: number;
   customRequestsNew: number;
   reviewsPending: number;
@@ -213,7 +236,7 @@ export interface ShopSettings {
   instagram: string;
   facebook: string;
   // version 5 : contenus et catégories modifiables
-  categories: { id: string; label: string }[];
+  categories: { id: string; label: string; kind?: 'textile' | 'bijou' | 'cosmetique' | 'autre' }[];
   hero_title: string;
   hero_subtitle: string;
   story: string;                    // page « Notre histoire » (paragraphes séparés par une ligne vide)
@@ -229,7 +252,67 @@ export interface ShopSettings {
   installments_enabled: boolean;    // affichage « payez en 3 fois » (Klarna activé dans Stripe)
   installments_min_cents: number;
   announcement_ends_at: string | null;  // compte à rebours dans le bandeau (vente flash)
+  // version 12 : zones et modes de livraison
+  shipping_zones: ShippingZone[];
+  shipping_methods: ShippingMethod[];
+  preparation_days: number;             // délai de préparation avant expédition
+  // version 14 : place de marché
+  marketplace_enabled: boolean;
+  marketplace_commission_percent: number;
+  mediator: string;                     // médiateur de la consommation (obligatoire en France)
 }
+
+export type SellerStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
+export interface Seller {
+  id: string;
+  user_id: string | null;
+  shop_name: string;
+  slug: string;
+  craft: string;
+  bio: string;
+  city: string;
+  country: string;
+  legal_status: 'particulier' | 'professionnel';
+  siret: string | null;
+  avatar_url: string | null;
+  status: SellerStatus;
+  commission_percent: number | null;
+  payouts_enabled: boolean;
+  shipping_france_cents: number;
+  shipping_europe_cents: number | null;
+  free_shipping_from_cents: number | null;
+  prep_days: number;
+  return_policy: string;
+  created_at: string;
+}
+
+export interface SellerPrivate { seller_id: string; email: string; phone: string | null; application_message: string | null; stripe_account_id: string | null; rejection_reason: string | null }
+
+export interface SellerOrder {
+  id: string;
+  created_at: string;
+  shipping_name: string | null;
+  shipping_address: Address | null;
+  phone: string | null;
+  customer_message: string | null;
+  order_status: OrderStatus;
+  status: 'to_ship' | 'shipped' | 'delivered';
+  carrier: string | null;
+  tracking_number: string | null;
+  shipped_at: string | null;
+  shipping_cents: number;
+  items: { name: string; quantity: number; unit_price_cents: number }[];
+}
+
+export interface SellerTransfer { id: number; order_id: string; seller_id: string; sales_cents: number; shipping_cents: number; commission_cents: number; amount_cents: number; stripe_transfer_id: string | null; created_at: string }
+
+export const SELLER_STATUS: Record<SellerStatus, { label: string; tone: string }> = {
+  pending: { label: 'Candidature à examiner', tone: 'bg-safran/25 text-henne' },
+  approved: { label: 'Validé', tone: 'bg-emerald-100 text-emerald-800' },
+  rejected: { label: 'Refusé', tone: 'bg-stone-200 text-stone-600' },
+  suspended: { label: 'Suspendu', tone: 'bg-garance/10 text-garance' },
+};
 
 export interface PromoCode {
   id: string;

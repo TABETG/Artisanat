@@ -33,7 +33,7 @@ export function OrderTrackingPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 pt-14">
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
-      <h1 className="font-display text-5xl md:text-7xl text-nuit">Suivre ma commande</h1>
+      <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Suivre ma commande</h1>
       <p className="lecture mt-5 text-[1.2rem] text-encre/80">Indiquez l’email utilisé lors du paiement et le code postal de livraison.</p>
 
       <form onSubmit={submit} className="mt-8 grid sm:grid-cols-[1fr_180px_auto] gap-3 items-end">

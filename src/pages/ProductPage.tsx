@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, Truck, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, X } from 'lucide-react';
 import { getProduct, listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { useCart } from '../context/CartContext';
@@ -13,16 +13,24 @@ import { discountPercent, Price } from '../components/Price';
 import { BadgePill, BadgeStack } from '../components/ProductBadges';
 import { useBadges } from '../context/BadgesContext';
 import { SizeGuide } from '../components/SizeGuide';
+import { DeliveryEstimate } from '../components/DeliveryEstimate';
+import { useMarketplace } from '../context/MarketplaceContext';
+import { formatPrice as fp } from '../lib/format';
 import { recentlyViewed, rememberViewed } from '../lib/recentlyViewed';
 import { trackProduct } from '../lib/api';
-import { colorInfo, SHOP } from '../config';
+import { colorInfo, ProductKind, SHOP } from '../config';
 import { formatDimensions, formatPrice } from '../lib/format';
 import { useCategories, useSettings } from '../context/SettingsContext';
 import { useReviews } from '../context/ReviewsContext';
 import { ProductReviews } from '../components/ProductReviews';
 import { Stars } from '../components/Stars';
 
-const DEFAULT_CARE = 'Passez l’aspirateur sans brosse rotative, dans le sens du poil. En cas de tache, tamponnez à l’eau froide sans frotter. Tournez le tapis une à deux fois par an.';
+const DEFAULT_CARE: Record<ProductKind, string> = {
+  textile: 'Passez l’aspirateur sans brosse rotative, dans le sens du poil. En cas de tache, tamponnez à l’eau froide sans frotter. Tournez le tapis une à deux fois par an.',
+  bijou: 'Évitez le contact avec l’eau, le parfum et les crèmes. Rangez le bijou à l’abri de l’air, dans sa pochette. L’argent se nettoie avec un chiffon doux.',
+  cosmetique: 'Refermez bien après usage et conservez à l’abri de la chaleur et de l’humidité.',
+  autre: 'Dépoussiérez avec un chiffon sec. Évitez l’exposition prolongée au soleil.',
+};
 
 export function ProductPage() {
   const { id = '' } = useParams();
@@ -31,8 +39,9 @@ export function ProductPage() {
   const { add, lines } = useCart();
   const { settings } = useSettings();
   const { summary } = useReviews();
-  const { label: categoryLabel } = useCategories();
+  const { label: categoryLabel, kindOf } = useCategories();
   const { badgesFor } = useBadges();
+  const { sellerOf } = useMarketplace();
   const [photo, setPhoto] = useState(0);
   const [zoom, setZoom] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -56,7 +65,15 @@ export function ProductPage() {
         availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', itemCondition: 'https://schema.org/NewCondition' },
     });
     document.head.appendChild(ld);
-    return () => { ld.remove(); document.title = `${SHOP.name} — Tapis berbères tissés à la main depuis ${SHOP.since}`; };
+    const crumbs = document.createElement('script');
+    crumbs.type = 'application/ld+json';
+    crumbs.text = JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Boutique', item: `${window.location.origin}/boutique` },
+      { '@type': 'ListItem', position: 2, name: categoryLabel(product.category), item: `${window.location.origin}/boutique?categorie=${product.category}` },
+      { '@type': 'ListItem', position: 3, name: product.name, item: window.location.href },
+    ] });
+    document.head.appendChild(crumbs);
+    return () => { ld.remove(); crumbs.remove(); document.title = `${SHOP.name} — Tapis berbères tissés à la main depuis ${SHOP.since}`; };
   }, [product, summary]);
 
   if (loading) return <p className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 text-henne">Chargement…</p>;
@@ -87,12 +104,18 @@ export function ProductPage() {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
 
+  const kind = kindOf(product.category);
   const specs: [string, string | null][] = [
-    ['Dimensions', dims],
-    ['Surface', product.width_cm && product.length_cm ? `${((product.width_cm * product.length_cm) / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} m²` : null],
-    ['Technique', product.technique || null],
-    ['Matière', product.material || null],
-    ['Hauteur des poils', product.pile_height_mm ? `${product.pile_height_mm} mm` : null],
+    ['Dimensions', kind === 'bijou' ? product.jewelry_size || null : kind === 'cosmetique' ? null : dims],
+    ['Contenance', kind === 'cosmetique' ? product.net_content || null : null],
+    ['Surface', kind === 'textile' && product.width_cm && product.length_cm ? `${((product.width_cm * product.length_cm) / 10000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} m²` : null],
+    ['Métal', kind === 'bijou' ? product.metal || null : null],
+    ['Pierres et décor', kind === 'bijou' ? product.stones || null : null],
+    ['Peaux sensibles', kind === 'bijou' && product.nickel_free ? 'Sans nickel' : null],
+    [kind === 'cosmetique' ? 'Fabrication' : 'Technique', product.technique || null],
+    ['Matière', kind !== 'cosmetique' ? product.material || null : null],
+    ['Hauteur des poils', kind === 'textile' && product.pile_height_mm ? `${product.pile_height_mm} mm` : null],
+    ['Après ouverture', kind === 'cosmetique' && product.pao_months ? `à utiliser dans les ${product.pao_months} mois` : null],
     ['Poids', product.weight_kg ? `${String(product.weight_kg).replace('.', ',')} kg` : null],
     ['Origine', product.origin || null],
     ['Référence', product.reference || null],
@@ -106,8 +129,8 @@ export function ProductPage() {
         <Link to={`/boutique?categorie=${product.category}`} className="hover:text-garance">{categoryLabel(product.category)}</Link>
       </nav>
 
-      <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
-        <div>
+      <div className="grid gap-8 md:gap-10 lg:gap-14 md:grid-cols-[1fr_1fr] lg:grid-cols-[1.15fr_1fr]">
+        <div className="w-full md:sticky md:top-24 md:self-start">
           <div className="relative">
             <button onClick={() => images[photo] && setZoom(true)} className="block w-full cursor-zoom-in" aria-label="Agrandir la photo">
               <ProductImage src={images[photo]} alt={product.name} className="w-full aspect-[4/5]" />
@@ -116,7 +139,7 @@ export function ProductPage() {
             <FavoriteButton id={product.id} name={product.name} className="absolute top-3 right-3" />
           </div>
           {images.length > 1 && (
-            <div className="mt-3 grid grid-cols-5 gap-2">
+            <div className="mt-3 grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-2">
               {images.map((src, i) => (
                 <button key={i} onClick={() => setPhoto(i)} aria-label={`Photo ${i + 1}`} aria-current={i === photo}
                   className={`rounded-sm overflow-hidden ring-2 ${i === photo ? 'ring-garance' : 'ring-transparent'}`}>
@@ -127,8 +150,8 @@ export function ProductPage() {
           )}
         </div>
 
-        <div className="md:pt-4">
-          <h1 className="font-display text-5xl md:text-6xl text-nuit">{product.name}</h1>
+        <div className="w-full lg:pt-4 md:max-w-2xl md:mx-auto lg:max-w-none">
+          <h1 className="font-display text-[2.6rem] sm:text-5xl xl:text-6xl text-nuit">{product.name}</h1>
           {(() => { const r = summary(product.id); return r && (
             <a href="#avis" className="mt-2 inline-flex items-center gap-2 text-sm text-henne hover:text-garance">
               <Stars value={r.average} /> {r.count} avis
@@ -209,11 +232,28 @@ export function ProductPage() {
             </button>
           </div>
 
+          {(() => {
+            const seller = sellerOf(product.seller_id);
+            if (!seller) return !soldOut && <div className="mt-6"><DeliveryEstimate product={product} /></div>;
+            return (
+              <div className="mt-6 border border-laine-fonce bg-white/60 p-4 text-[15px]">
+                <p className="text-sm text-henne">Créé et expédié par</p>
+                <Link to={`/artisans/${seller.slug}`} className="font-display text-2xl text-nuit hover:text-garance">{seller.shop_name}</Link>
+                <p className="text-sm text-henne">{seller.craft} · {seller.city}</p>
+                <p className="mt-2 text-sm">Envoi sous {seller.prep_days} jours · France {seller.shipping_france_cents ? fp(seller.shipping_france_cents) : 'offert'}{seller.free_shipping_from_cents ? `, offert dès ${fp(seller.free_shipping_from_cents)}` : ''}{seller.shipping_europe_cents == null ? ' · livre uniquement en France' : ''}</p>
+                <p className="mt-1 text-xs text-henne">
+                  {seller.legal_status === 'professionnel'
+                    ? `Vendeur professionnel${seller.siret ? ` (SIRET ${seller.siret})` : ''} : droit de rétractation de 14 jours.`
+                    : 'Vendeur particulier : le droit de rétractation légal ne s’applique pas.'}
+                  {seller.return_policy && ` ${seller.return_policy}`}
+                </p>
+              </div>
+            );
+          })()}
+
           <ul className="mt-7 grid gap-3 text-sm border-y border-laine-fonce py-5">
-            <li className="flex gap-3"><Truck className="w-5 h-5 text-garance shrink-0" />Livraison suivie en {settings.shipping_min_days} à {settings.shipping_max_days} jours ouvrés{settings.free_shipping_from_cents > 0 ? `, offerte dès ${formatPrice(settings.free_shipping_from_cents)}` : ''}</li>
-            <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />14 jours pour changer d’avis</li>
+            <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />{kind === 'cosmetique' ? '14 jours pour changer d’avis, si l’emballage n’a pas été ouvert (hygiène)' : '14 jours pour changer d’avis'}</li>
             <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay{settings.installments_enabled ? ', Klarna' : ''}</li>
-            {settings.pickup_enabled && <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Retrait gratuit possible à l’atelier</li>}
             <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Fait à la main : chaque pièce est unique</li>
           </ul>
 
@@ -222,7 +262,14 @@ export function ProductPage() {
               <p className="lecture whitespace-pre-line text-encre/85">{product.description}</p>
             </Details>
           )}
-          <Details title="Entretien"><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.care || DEFAULT_CARE}</p></Details>
+          {kind === 'cosmetique' && (
+            <>
+              {product.ingredients && <Details title="Ingrédients"><p className="text-sm leading-relaxed text-encre/85">{product.ingredients}</p></Details>}
+              {product.usage && <Details title="Mode d’emploi"><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.usage}</p></Details>}
+              {product.warnings && <Details title="Précautions d’emploi" open><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.warnings}</p></Details>}
+            </>
+          )}
+          <Details title={kind === 'cosmetique' ? 'Conservation' : 'Entretien'}><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.care || DEFAULT_CARE[kind]}</p></Details>
           <Details title="Livraison et retours">
             <p className="leading-relaxed text-encre/85">Expédié sous 2 jours ouvrés, soigneusement emballé, avec numéro de suivi. Retour possible sous 14 jours. <Link to="/livraison-et-retours" className="text-garance underline">En savoir plus</Link></p>
           </Details>
@@ -234,7 +281,7 @@ export function ProductPage() {
       {similar.length > 0 && (
         <section className="mt-20">
           <h2 className="font-display text-3xl text-nuit mb-8">Vous aimerez aussi</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">
             {similar.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>
@@ -243,7 +290,7 @@ export function ProductPage() {
       {viewed.length > 0 && (
         <section className="mt-20">
           <h2 className="font-display text-3xl text-nuit mb-8">Récemment consultés</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">
             {viewed.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
         </section>

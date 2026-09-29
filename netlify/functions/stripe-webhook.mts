@@ -23,6 +23,11 @@ export default async (req: Request) => {
     return new Response('Signature invalide', { status: 400 });
   }
 
+  if (event.type === 'checkout.session.expired') {
+    try { await remindAbandonedCart(event.data.object as Stripe.Checkout.Session); } catch (e) { console.error('Relance panier', e); }
+    return new Response('ok');
+  }
+
   if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.payment_status === 'paid') {
@@ -86,15 +91,19 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     limit: 100, expand: ['data.price.product'],
   });
 
-  const items = lineItems.data.map((li) => {
+  // Les frais d'envoi des artisans sont des lignes à part : ce ne sont pas des articles
+  const sellerShipping = new Map<string, number>();
+  const items = lineItems.data.flatMap((li) => {
     const product = li.price?.product as Stripe.Product | undefined;
-    return {
+    if (product?.metadata?.seller_shipping) { sellerShipping.set(product.metadata.seller_shipping, li.amount_total ?? 0); return []; }
+    return [{
       order_id: order.id,
       product_id: product?.metadata?.product_id ?? null,
+      seller_id: product?.metadata?.seller_id ?? null,
       name: li.description ?? product?.name ?? 'Article',
       unit_price_cents: li.price?.unit_amount ?? 0,
       quantity: li.quantity ?? 1,
-    };
+    }];
   });
   const { error: itemsError } = await supabase.from('order_items').insert(items);
   if (itemsError) throw itemsError;
@@ -116,6 +125,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     if (soldOut?.length) await notifyOwnerSoldOut(soldOut.map((p) => p.name));
   }
   await sendOrderConfirmation(order.id, session, items);
+  await paySellers(order.id, session, items, sellerShipping);
   await notifyOwnerNewOrder(session, items);
 
   if (stockProblem) {
@@ -225,4 +235,78 @@ async function recordGiftCard(session: Stripe.Checkout.Session) {
         ...(m.message ? [`« ${m.message} »`] : []), `Votre code : ${code}`, `À saisir sur la page de paiement, valable jusqu’au ${until}.`], { label: 'Choisir ma pièce', url: shopUrl }) });
   }
   try { await sendEmails(emails); } catch (e) { console.error('Email carte cadeau', e); }
+}
+
+/** Paiement commencé puis abandonné : un email de rappel avec le lien de reprise (si le client l'a accepté). */
+async function remindAbandonedCart(session: Stripe.Checkout.Session) {
+  const email = session.customer_details?.email;
+  const url = session.after_expiration?.recovery?.url;
+  if (!email || !url || session.consent?.promotions !== 'opt_in' || !canEmailCustomers()) return;
+  if (session.metadata?.type === 'giftcard') return;
+  const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+  const lines = [
+    'Bonjour,',
+    'Vous avez laissé quelques pièces dans votre panier. Nous les avons gardées de côté pour vous :',
+    ...items.data.map((li) => `• ${li.description}`),
+    'Les pièces uniques peuvent partir vite : si l’une d’elles vous plaît, n’attendez pas trop.',
+  ];
+  await sendEmails([{
+    to: email, subject: 'Votre panier vous attend',
+    text: `${lines.join('\n')}\n\nReprendre ma commande : ${url}`,
+    html: layout('Votre panier vous attend', lines, { label: 'Reprendre ma commande', url }),
+  }]);
+}
+
+/**
+ * Place de marché : chaque artisan reçoit ses ventes moins la commission, plus ses frais d'envoi.
+ * Le paiement est encaissé par la boutique puis reversé via Stripe Connect (« charges et virements séparés »).
+ */
+async function paySellers(orderId: string, session: Stripe.Checkout.Session, items: { seller_id: string | null; name: string; quantity: number; unit_price_cents: number }[], shipping: Map<string, number>) {
+  const sellerIds = [...new Set(items.map((i) => i.seller_id).filter((x): x is string => !!x))];
+  if (!sellerIds.length) return;
+  const [{ data: sellers }, { data: privs }, { data: settingsRow }] = await Promise.all([
+    supabase.from('sellers').select('id,shop_name,commission_percent').in('id', sellerIds),
+    supabase.from('seller_private').select('seller_id,email,stripe_account_id').in('seller_id', sellerIds),
+    supabase.from('settings').select('data').eq('id', 1).maybeSingle(),
+  ]);
+  const defaultCommission = Number((settingsRow?.data as { marketplace_commission_percent?: number } | null)?.marketplace_commission_percent ?? 15);
+
+  const pi = typeof session.payment_intent === 'string' ? await stripe.paymentIntents.retrieve(session.payment_intent) : session.payment_intent;
+  const chargeId = typeof pi?.latest_charge === 'string' ? pi.latest_charge : pi?.latest_charge?.id;
+
+  for (const sellerId of sellerIds) {
+    const seller = sellers?.find((s) => s.id === sellerId);
+    const priv = privs?.find((p) => p.seller_id === sellerId);
+    const mine = items.filter((i) => i.seller_id === sellerId);
+    const sales = mine.reduce((n, i) => n + i.unit_price_cents * i.quantity, 0);
+    const ship = shipping.get(sellerId) ?? 0;
+    const commission = Math.round((sales * Number(seller?.commission_percent ?? defaultCommission)) / 100);
+    const amount = Math.max(0, sales - commission + ship);
+
+    await supabase.from('seller_shipments').upsert({ order_id: orderId, seller_id: sellerId, shipping_cents: ship });
+    let transferId: string | null = null;
+    if (priv?.stripe_account_id && amount > 0) {
+      try {
+        const t = await stripe.transfers.create({
+          amount, currency: 'eur', destination: priv.stripe_account_id, transfer_group: session.id,
+          ...(chargeId ? { source_transaction: chargeId } : {}),
+          description: `Commande ${orderId.slice(0, 8).toUpperCase()} — ${seller?.shop_name ?? ''}`,
+          metadata: { order_id: orderId, seller_id: sellerId },
+        });
+        transferId = t.id;
+      } catch (e) { console.error('Virement artisan', sellerId, e); }
+    }
+    await supabase.from('seller_transfers').insert({ order_id: orderId, seller_id: sellerId, sales_cents: sales, shipping_cents: ship, commission_cents: commission, amount_cents: amount, stripe_transfer_id: transferId });
+
+    // Prévenir l'artisan qu'il a une commande à expédier
+    if (priv?.email && process.env.RESEND_API_KEY) {
+      const lines = ['Bonne nouvelle : une de vos créations vient d’être achetée.', ...mine.map((i) => `• ${i.quantity} × ${i.name}`),
+        `Vous recevrez ${(amount / 100).toFixed(2).replace('.', ',')} € (commission et frais d’envoi compris) sur votre compte Stripe.`, 'Retrouvez l’adresse de livraison dans votre espace artisan.'];
+      try {
+        await sendEmails([{ to: priv.email, subject: 'Nouvelle commande à expédier', text: lines.join('\n'),
+          html: layout('Nouvelle commande à expédier', lines, { label: 'Ouvrir mon espace artisan', url: absoluteUrl('/compte?onglet=atelier') }) }],
+        process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>');
+      } catch (e) { console.error('Email artisan', e); }
+    }
+  }
 }

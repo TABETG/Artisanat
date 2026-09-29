@@ -21,3 +21,11 @@ insert into public.products
 ('Petit tapis Boucherouite', 'TAP-BOU-006', 'tapis', 29000, null, 0, 90, 150, 20, null, 'Noué main', 'Laine et coton recyclé', 'Atelier',
   array['multicolore','rose'], false, false, array['/exemples/tapis-boucherouite-1.jpg','/exemples/tapis-boucherouite-2.jpg'],
   'Tissé à partir de chutes de laine et de tissus colorés.');
+
+-- Bijoux et beauté traditionnelle (exemples)
+insert into public.products (name, category, price_cents, stock, technique, material, origin, featured, images, description, metal, stones, jewelry_size, nickel_free, colors) values
+('Collier kabyle argent et corail', 'bijoux', 18500, 2, 'Émail cloisonné', 'Perles de corail', 'Kabylie', true,
+  array['/exemples/collier-kabyle-1.jpg','/exemples/collier-kabyle-2.jpg'], 'Disques ciselés, perles de corail et pendentif émaillé.', 'Métal argenté', 'Corail, émail', 'Longueur 46 cm', true, array['rouge','vert']),
+('Boucles d’oreilles berbères émaillées', 'bijoux', 6500, 5, 'Émail cloisonné', '', 'Aurès', false,
+  array['/exemples/boucles-berberes-1.jpg','/exemples/boucles-berberes-2.jpg'], 'Pendants losanges émaillés et pampilles.', 'Laiton argenté', 'Émail bleu', 'Hauteur 7 cm', true, array['bleu','rouge']);
+-- Les cosmétiques d'exemple ne sont volontairement pas insérés : ils exigent une notification CPNP réelle avant mise en vente.

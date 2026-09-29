@@ -47,7 +47,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
       <div className="relative bg-laine max-w-2xl mx-auto mt-0 sm:mt-20 sm:rounded-sm shadow-2xl">
         <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) submit(); }} className="flex items-center gap-3 px-5 border-b border-laine-fonce">
           <Search className="w-5 h-5 text-henne shrink-0" />
-          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tapis, kilim, coussin, rouge, 200 cm…"
+          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tapis, collier, khôl, rouge, argent…"
             className="flex-1 py-5 bg-transparent text-lg outline-none focus-visible:outline-none" aria-label="Rechercher une création" />
           <button type="button" onClick={onClose} className="p-2" aria-label="Fermer"><X className="w-5 h-5" /></button>
         </form>

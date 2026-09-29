@@ -1,4 +1,4 @@
-import { Order, Product, Review, StockAlert } from '../types';
+import { Order, Product, Review, Seller, SellerPrivate, StockAlert } from '../types';
 
 // Photos d'exemple (dossier public/exemples) — à remplacer par vos vraies photos
 const img = (name: string) => [`/exemples/${name}-1.jpg`, `/exemples/${name}-2.jpg`];
@@ -8,6 +8,7 @@ const base = {
   care: 'Aspirateur sans brosse rotative. Tache : tamponner à l’eau froide, sans frotter.', made_to_order: false, low_stock_threshold: 2,
   badges: [] as string[], promo_ends_at: null as string | null, sales_count: 0,
   publish_at: null as string | null, views_count: 0, cart_adds_count: 0,
+  metal: '', stones: '', jewelry_size: '', nickel_free: false, net_content: '', ingredients: '', usage: '', warnings: '', pao_months: null as number | null, cpnp_ref: '',
 };
 
 // Dates relatives à aujourd'hui pour que les badges « Nouveauté » et « Fin dans … jours » restent visibles en démonstration
@@ -29,6 +30,33 @@ export const DEMO_PRODUCTS: Product[] = [
   { ...base, id: 'demo-7', name: 'Tapis Talsint (collection d’hiver)', category: 'tapis', price_cents: 98000, stock: 1, width_cm: 170, length_cm: 250,
     origin: 'Haut Atlas', featured: true, images: img('tapis-azilal').reverse(), created_at: daysFromNow(-1), publish_at: daysFromNow(5), reference: 'TAP-TAL-007',
     colors: ['rouge', 'noir'], description: 'Pièce de la collection d’hiver, mise en ligne programmée : invisible pour les clients jusqu’à la date choisie.' },
+  // ---------- Bijoux et beauté traditionnelle ----------
+  { ...base, id: 'demo-8', name: 'Collier kabyle argent et corail', category: 'bijoux', price_cents: 18500, stock: 2, width_cm: null, length_cm: null,
+    technique: 'Émail cloisonné', material: 'Perles de corail', origin: 'Kabylie', featured: true, images: img('collier-kabyle'), created_at: daysFromNow(-6),
+    metal: 'Métal argenté', stones: 'Corail, émail vert et jaune', jewelry_size: 'Longueur 46 cm, pendentif 6 cm', nickel_free: true, colors: ['rouge', 'vert'],
+    description: 'Collier inspiré des parures kabyles : disques ciselés, perles de corail et pendentif émaillé aux couleurs traditionnelles.', care: '' },
+  { ...base, id: 'demo-9', name: 'Boucles d’oreilles berbères émaillées', category: 'bijoux', price_cents: 6500, stock: 5, width_cm: null, length_cm: null,
+    technique: 'Émail cloisonné', material: '', origin: 'Aurès', featured: false, images: img('boucles-berberes'), created_at: daysFromNow(-12),
+    metal: 'Laiton argenté', stones: 'Émail bleu, perle rouge', jewelry_size: 'Hauteur 7 cm, attache crochet', nickel_free: true, colors: ['bleu', 'rouge'],
+    description: 'Pendants losanges émaillés et pampilles, légers à porter.', care: '' },
+  { ...base, id: 'demo-10', name: 'Bracelet manchette ciselé', category: 'bijoux', price_cents: 9500, stock: 3, width_cm: null, length_cm: null,
+    technique: 'Métal martelé', material: '', origin: 'Tlemcen', featured: false, images: img('bracelet-argent'), created_at: daysFromNow(-20),
+    metal: 'Métal argenté', stones: '', jewelry_size: 'Tour de poignet 17 à 19 cm (ajustable)', nickel_free: false, colors: ['gris'],
+    description: 'Large manchette aux losanges gravés, finition vieillie.', care: '' },
+  { ...base, id: 'demo-11', name: 'Khôl traditionnel sans plomb', category: 'beaute', price_cents: 1800, stock: 12, width_cm: null, length_cm: null,
+    technique: 'Broyé et tamisé main', material: '', origin: 'Algérie', featured: true, images: img('khol-traditionnel'), created_at: daysFromNow(-4),
+    net_content: '3 g', pao_months: 12, cpnp_ref: 'DÉMONSTRATION', colors: ['noir'],
+    ingredients: 'Carbon Black (CI 77266), Talc, Ricinus Communis Seed Oil, Tocopherol. Sans plomb.',
+    usage: 'Humidifier légèrement le bâtonnet, le passer dans le flacon, puis l’appliquer au ras des cils, paupière fermée.',
+    warnings: 'Usage externe. Ne pas appliquer à l’intérieur de l’œil. Tenir hors de portée des enfants. Cesser l’utilisation en cas d’irritation.',
+    description: 'Poudre noire intense présentée dans sa mkahla en laiton, avec bâtonnet. Formule sans plomb, conforme au règlement européen.', care: '' },
+  { ...base, id: 'demo-12', name: 'Aker fassi, rouge naturel lèvres et joues', category: 'beaute', price_cents: 1500, stock: 15, width_cm: null, length_cm: null,
+    technique: 'Préparation artisanale', material: '', origin: 'Algérie', featured: false, images: img('aker-fassi'), created_at: daysFromNow(-9),
+    net_content: '5 g', pao_months: 12, cpnp_ref: 'DÉMONSTRATION', colors: ['rouge'],
+    ingredients: 'Punica Granatum Pericarp Powder, Beta Vulgaris Root Powder, Ricinus Communis Seed Oil, Iron Oxides (CI 77491).',
+    usage: 'Humidifier le bout du doigt, prélever un peu de pigment et tapoter sur les lèvres ou les pommettes.',
+    warnings: 'Usage externe. Faire un essai sur une petite zone avant la première utilisation. Tenir hors de portée des enfants.',
+    description: 'Le rouge des grands-mères, à base de pigments de grenade et de betterave, dans sa coupelle en terre cuite.', care: '' },
 ];
 
 export const DEMO_ORDERS: Order[] = [
@@ -84,3 +112,43 @@ export const DEMO_REVIEWS: Review[] = [
   { id: 4, product_id: 'demo-1', author_name: 'Marie', email: 'marie@exemple.fr', rating: 5, approved: false, verified: false, created_at: '2026-09-27T20:00:00Z',
     comment: 'Vu chez une amie, je craque ! Est-ce qu’il existe en 200 × 300 ?' },
 ];
+
+// ---------- Place de marché : artisans invités ----------
+const sellerBase = { user_id: null, avatar_url: null, commission_percent: null, shipping_europe_cents: 1900, free_shipping_from_cents: 12000, prep_days: 3, country: 'FR' };
+
+export const DEMO_SELLERS: Seller[] = [
+  { ...sellerBase, id: 'seller-fatima', shop_name: 'Atelier Fatima', slug: 'atelier-fatima', craft: 'Tissage de kilims et sacs en laine', city: 'Marseille', legal_status: 'professionnel',
+    siret: '12345678900012', status: 'approved', payouts_enabled: true, shipping_france_cents: 900, return_policy: 'Retour accepté sous 14 jours, article non utilisé.',
+    bio: 'Originaire de Fès, je tisse depuis vingt ans comme ma mère avant moi, aujourd’hui dans mon atelier marseillais. Mes kilims sont teints avec du henné, de l’indigo et de la garance.', created_at: '2026-06-01T10:00:00Z' },
+  { ...sellerBase, id: 'seller-yanis', shop_name: 'Poterie Yanis', slug: 'poterie-yanis', craft: 'Poterie berbère tournée main', city: 'Lyon', country: 'FR', legal_status: 'particulier',
+    siret: null, status: 'pending', payouts_enabled: false, shipping_france_cents: 1200, return_policy: '', bio: 'Potier amateur, je façonne des plats et jarres décorés de motifs kabyles.', created_at: new Date(Date.now() - 86400000).toISOString() },
+];
+
+export const DEMO_SELLER_PRIVATE: SellerPrivate[] = [
+  { seller_id: 'seller-fatima', email: 'fatima@exemple.fr', phone: '+212 6 00 00 00 00', application_message: 'Je vends déjà sur les marchés, j’aimerais toucher des clients en Europe.', stripe_account_id: 'acct_demo', rejection_reason: null },
+  { seller_id: 'seller-yanis', email: 'yanis@exemple.fr', phone: null, application_message: 'Bonjour, j’aimerais proposer mes poteries.', stripe_account_id: null, rejection_reason: null },
+];
+
+const art = { material: 'Laine de mouton', active: true, reference: '', compare_at_price_cents: null, colors: [] as string[], pile_height_mm: null, weight_kg: null, care: '',
+  made_to_order: false, low_stock_threshold: 2, badges: [] as string[], promo_ends_at: null, publish_at: null, featured: false, sales_count: 0, views_count: 0, cart_adds_count: 0,
+  seller_id: 'seller-fatima', moderation: 'approved' as const, moderation_note: null, origin: 'Fès' };
+const aimg = (n: string) => [`/exemples/${n}-1.jpg`, `/exemples/${n}-2.jpg`];
+
+export const DEMO_SELLER_PRODUCTS: Product[] = [
+  { ...art, id: 'demo-art-1', name: 'Kilim de Fès indigo', category: 'tapis', price_cents: 36000, stock: 1, width_cm: 110, length_cm: 170, technique: 'Tissage plat (kilim)',
+    images: aimg('kilim-fes'), colors: ['bleu', 'rouge'], views_count: 140, cart_adds_count: 6, created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    description: 'Kilim tissé sur métier vertical, teintures naturelles. Réversible.' },
+  { ...art, id: 'demo-art-2', name: 'Sac cabas en laine tissée', category: 'sacs', price_cents: 7800, stock: 4, width_cm: 40, length_cm: 45, technique: 'Tissé main',
+    images: aimg('sac-tisse'), colors: ['rouge', 'jaune'], sales_count: 3, views_count: 210, cart_adds_count: 14, created_at: new Date(Date.now() - 40 * 86400000).toISOString(),
+    description: 'Grand cabas doublé coton, anses en cuir. Tissé à la main dans l’atelier.' },
+  { ...art, id: 'demo-art-3', name: 'Tapis Khénifra rouge', category: 'tapis', price_cents: 64000, stock: 1, width_cm: 150, length_cm: 230, technique: 'Noué main',
+    images: aimg('tapis-khenifra'), moderation: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), description: 'Tapis noué, laine épaisse, motifs du Moyen Atlas.' },
+];
+
+export const DEMO_SELLER_ORDER: Order = {
+  id: 'demo-cmd-5', invoice_number: 5, stripe_session_id: 'demo_5', stripe_payment_id: null, email: 'claire.martin@exemple.fr', customer_name: 'Claire Martin', phone: '+33 6 12 34 56 78',
+  shipping_name: 'Claire Martin', shipping_address: { line1: '12 rue des Lilas', postal_code: '69003', city: 'Lyon', country: 'FR' },
+  subtotal_cents: 7800, shipping_cents: 900, total_cents: 8700, status: 'paid', tracking_number: null, tracking_carrier: null, shipped_email_sent_at: null, note: null,
+  shipping_method: 'Expédié par les artisans', created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+  order_items: [{ id: 50, product_id: 'demo-art-2', name: 'Sac cabas en laine tissée', unit_price_cents: 7800, quantity: 1, seller_id: 'seller-fatima' }],
+};

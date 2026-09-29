@@ -85,7 +85,7 @@ export function Toggle({ checked, onChange, title, description }: { checked: boo
 /** Bloc titré du formulaire. */
 export function Section({ title, description, children, id }: { title: string; description?: string; children: ReactNode; id?: string }) {
   return (
-    <section id={id} className="bg-white rounded-lg border border-stone-200 p-5 sm:p-6 scroll-mt-24">
+    <section id={id} className="bg-white rounded-lg border border-stone-200 p-4 sm:p-6 scroll-mt-24 min-w-0">
       <h2 className="font-display text-xl text-nuit">{title}</h2>
       {description && <p className="text-sm text-stone-500 mt-1 leading-snug">{description}</p>}
       <div className="mt-5 space-y-5">{children}</div>

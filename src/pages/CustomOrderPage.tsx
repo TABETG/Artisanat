@@ -50,7 +50,7 @@ export function CustomOrderPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 pt-12">
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
-      <h1 className="font-display text-5xl md:text-7xl text-nuit">Tapis sur mesure</h1>
+      <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Tapis sur mesure</h1>
       <p className="lecture mt-5 text-[1.2rem] text-encre/80">Une dimension précise, vos couleurs, un motif qui vous ressemble : nous tissons la pièce pour vous. Comptez en général 4 à 10 semaines selon la taille.</p>
 
       {product && (

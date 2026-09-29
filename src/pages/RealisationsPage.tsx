@@ -11,7 +11,7 @@ export function RealisationsPage() {
   return (
     <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-12">
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
-      <h1 className="font-display text-5xl md:text-7xl text-nuit">Nos réalisations</h1>
+      <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Nos réalisations</h1>
       <p className="lecture mt-5 text-[1.2rem] text-encre/80 max-w-2xl">Ces pièces ont trouvé leur maison. Une vous plaît ? Nous pouvons tisser un modèle proche, à vos dimensions.</p>
       {loading && <p className="mt-8 text-henne">Chargement…</p>}
       {!loading && sold.length === 0 && <p className="mt-8 text-henne">Les pièces vendues apparaîtront ici.</p>}

@@ -8,7 +8,7 @@ import { ThankYouPage, CancelledPage } from './pages/CheckoutResultPages';
 import { StoryPage } from './pages/StoryPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { ContactPage } from './pages/ContactPage';
-import { ShippingPage, TermsPage, LegalPage, PrivacyPage } from './pages/LegalPages';
+import { ShippingPage, TermsPage, LegalPage, PrivacyPage, SellerTermsPage } from './pages/LegalPages';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrderTrackingPage } from './pages/OrderTrackingPage';
 import { FaqPage } from './pages/FaqPage';
@@ -16,6 +16,9 @@ import { GiftCardPage } from './pages/GiftCardPage';
 import { CustomOrderPage } from './pages/CustomOrderPage';
 import { UnsubscribePage } from './pages/UnsubscribePage';
 import { RealisationsPage } from './pages/RealisationsPage';
+import { AccountPage } from './pages/AccountPage';
+import { SellPage } from './pages/SellPage';
+import { ArtisanProfilePage, ArtisansPage } from './pages/ArtisansPage';
 
 // L'espace vendeur est chargé à part : les clients ne téléchargent pas son code.
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
@@ -33,6 +36,10 @@ const AdminCustomRequests = lazy(() => import('./pages/admin/AdminCustomRequests
 const AdminGiftCards = lazy(() => import('./pages/admin/AdminGiftCards').then((m) => ({ default: m.AdminGiftCards })));
 const AdminReturns = lazy(() => import('./pages/admin/AdminReturns').then((m) => ({ default: m.AdminReturns })));
 const AdminNewsletter = lazy(() => import('./pages/admin/AdminNewsletter').then((m) => ({ default: m.AdminNewsletter })));
+const AdminMessages = lazy(() => import('./pages/admin/AdminMessages').then((m) => ({ default: m.AdminMessages })));
+const AdminShipping = lazy(() => import('./pages/admin/AdminShipping').then((m) => ({ default: m.AdminShipping })));
+const AdminTeam = lazy(() => import('./pages/admin/AdminTeam').then((m) => ({ default: m.AdminTeam })));
+const AdminArtisans = lazy(() => import('./pages/admin/AdminArtisans').then((m) => ({ default: m.AdminArtisans })));
 const AdminStockAlerts = lazy(() => import('./pages/admin/AdminStockAlerts').then((m) => ({ default: m.AdminStockAlerts })));
 
 const Loading = () => <p className="p-8 text-stone-500">Chargement…</p>;
@@ -55,6 +62,11 @@ export default function App() {
         <Route path="sur-mesure" element={<CustomOrderPage />} />
         <Route path="desinscription" element={<UnsubscribePage />} />
         <Route path="nos-realisations" element={<RealisationsPage />} />
+        <Route path="compte" element={<AccountPage />} />
+        <Route path="vendre" element={<SellPage />} />
+        <Route path="artisans" element={<ArtisansPage />} />
+        <Route path="artisans/:slug" element={<ArtisanProfilePage />} />
+        <Route path="conditions-vendeurs" element={<SellerTermsPage />} />
         <Route path="contact" element={<ContactPage />} />
         <Route path="livraison-et-retours" element={<ShippingPage />} />
         <Route path="conditions-generales-de-vente" element={<TermsPage />} />
@@ -80,6 +92,10 @@ export default function App() {
         <Route path="cartes-cadeaux" element={<AdminGiftCards />} />
         <Route path="retours" element={<AdminReturns />} />
         <Route path="lettre" element={<AdminNewsletter />} />
+        <Route path="messages" element={<AdminMessages />} />
+        <Route path="livraison" element={<AdminShipping />} />
+        <Route path="equipe" element={<AdminTeam />} />
+        <Route path="artisans" element={<AdminArtisans />} />
       </Route>
     </Routes>
     </Suspense>

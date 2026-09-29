@@ -5,7 +5,7 @@ import {
   adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, saveProduct, uploadProductImage,
 } from '../../lib/api';
 import { centsToInput, formatPrice, parsePriceToCents } from '../../lib/format';
-import { COLORS, TECHNIQUES } from '../../config';
+import { COLORS, KIND_LABELS, ProductKind, TECHNIQUES_BY_KIND } from '../../config';
 import { useCategories } from '../../context/SettingsContext';
 import { Product, ProductInput } from '../../types';
 import { Field, Input, Section, Select, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
@@ -23,6 +23,17 @@ const EMPTY: ProductInput = {
   pile_height_mm: null, weight_kg: null, care: '', made_to_order: false, low_stock_threshold: 2,
   badges: [], promo_ends_at: null, sales_count: 0,
   publish_at: null, views_count: 0, cart_adds_count: 0,
+  metal: '', stones: '', jewelry_size: '', nickel_free: false,
+  net_content: '', ingredients: '', usage: '', warnings: '', pao_months: null, cpnp_ref: '',
+};
+
+/** Valeurs proposées quand on choisit une catégorie d'un autre type. */
+const KIND_DEFAULTS: Record<ProductKind, Partial<ProductInput>> = {
+  textile: { material: 'Laine de mouton', technique: 'Noué main' },
+  bijou: { material: '', technique: 'Assemblé main', metal: 'Métal argenté' },
+  cosmetique: { material: '', technique: 'Préparation artisanale', pao_months: 12,
+    warnings: 'Usage externe uniquement. Tenir hors de portée des enfants. Éviter le contact direct avec l’œil (khôl : appliquer sur le bord de la paupière). Cesser l’utilisation en cas d’irritation.' },
+  autre: { material: '', technique: 'Fait main' },
 };
 
 const NAME_MAX = 120;
@@ -33,7 +44,7 @@ export function AdminProductForm() {
   const isNew = !id;
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
-  const { categories } = useCategories();
+  const { categories, kindOf } = useCategories();
   const { badgesFor } = useBadges();
 
   const [form, setForm] = useState<ProductInput>(EMPTY);
@@ -76,6 +87,7 @@ export function AdminProductForm() {
   const oldPriceCents = oldPrice.trim() ? parsePriceToCents(oldPrice) : null;
   const discount = priceCents && oldPriceCents && oldPriceCents > priceCents
     ? Math.round((1 - priceCents / oldPriceCents) * 100) : null;
+  const kind = kindOf(form.category);
   const surface = form.width_cm && form.length_cm ? (form.width_cm * form.length_cm) / 10000 : null;
   const dirty = snapshot(form, price, oldPrice, weight) !== original;
 
@@ -146,6 +158,13 @@ export function AdminProductForm() {
     if (weight.trim() && !/^\d+([.,]\d{1,2})?$/.test(weight.trim())) next.weight = 'Exemple : 8,5';
     if (form.images.length === 0) next.images = 'Ajoutez au moins une photo : c’est ce qui fait vendre.';
     if (form.description.length > DESC_MAX) next.description = `${DESC_MAX} caractères maximum.`;
+    // Cosmétiques : la loi impose ces informations avant toute mise en vente
+    if (kind === 'cosmetique' && form.active) {
+      if (!form.ingredients?.trim()) next.ingredients = 'Liste des ingrédients obligatoire (dénominations INCI).';
+      if (!form.cpnp_ref?.trim()) next.cpnp_ref = 'Le produit doit être notifié sur le portail européen CPNP avant d’être vendu.';
+      if (!form.warnings?.trim()) next.warnings = 'Précautions d’emploi obligatoires.';
+      if (!form.net_content?.trim()) next.net_content = 'Indiquez la contenance, par exemple 5 g.';
+    }
     return next;
   }
 
@@ -155,7 +174,7 @@ export function AdminProductForm() {
     setErrors(next);
     if (Object.keys(next).length) {
       flash('Quelques champs sont à compléter (en rouge).', 'error');
-      const first = ['images', 'name', 'price', 'oldPrice', 'weight', 'description'].find((k) => next[k]);
+      const first = ['images', 'name', 'price', 'oldPrice', 'weight', 'description', 'net_content', 'ingredients', 'warnings', 'cpnp_ref'].find((k) => next[k]);
       document.getElementById(`champ-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -293,7 +312,11 @@ export function AdminProductForm() {
             </div>
             <div className="grid sm:grid-cols-2 gap-5">
               <Field label="Catégorie" required>
-                <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                <Select value={form.category} onChange={(e) => {
+                  const next = e.target.value;
+                  if (kindOf(next) !== kind) setForm((f) => ({ ...f, category: next, ...KIND_DEFAULTS[kindOf(next)] }));
+                  else set('category', next);
+                }}>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                   {!categories.some((c) => c.id === form.category) && <option value={form.category}>{form.category} (catégorie supprimée)</option>}
                 </Select>
@@ -355,6 +378,39 @@ export function AdminProductForm() {
               title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />
           </Section>
 
+          {kind === 'cosmetique' && (
+            <Section title="Informations cosmétiques" description="Obligatoires pour vendre un cosmétique dans l’Union européenne (règlement 1223/2009). Elles apparaissent sur la fiche produit.">
+              <div className="bg-safran/15 border border-safran/40 rounded-md p-4 text-sm leading-relaxed">
+                Avant de vendre un khôl, un rouge à lèvres ou tout autre cosmétique : une personne responsable dans l’UE, une évaluation de la sécurité
+                par un professionnel qualifié, et une notification sur le portail européen CPNP. <strong>Le khôl traditionnel à base de galène (plomb) est interdit</strong> :
+                seuls les khôls sans plomb, aux ingrédients autorisés, peuvent être vendus.
+              </div>
+              <div id="champ-ingredients">
+                <Field label="Ingrédients (liste INCI)" required error={errors.ingredients} hint="Dans l’ordre décroissant, tels qu’écrits sur l’emballage. Ex. : Carbon Black (CI 77266), Ricinus Communis Seed Oil…">
+                  <Textarea rows={3} maxLength={3000} value={form.ingredients ?? ''} invalid={!!errors.ingredients} onChange={(e) => set('ingredients', e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Mode d’emploi" optional>
+                <Textarea rows={2} maxLength={1500} value={form.usage ?? ''} onChange={(e) => set('usage', e.target.value)} placeholder="Humidifier le bâtonnet, le passer dans la poudre puis au ras des cils." />
+              </Field>
+              <div id="champ-warnings">
+                <Field label="Précautions d’emploi" required error={errors.warnings}>
+                  <Textarea rows={3} maxLength={1500} value={form.warnings ?? ''} invalid={!!errors.warnings} onChange={(e) => set('warnings', e.target.value)} />
+                </Field>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-5">
+                <Field label="Durée après ouverture" optional hint="Symbole du petit pot ouvert.">
+                  <UnitInput unit="mois" type="number" min={1} max={60} value={form.pao_months ?? ''} onChange={(e) => set('pao_months', toInt(e.target.value))} placeholder="12" />
+                </Field>
+                <div id="champ-cpnp_ref">
+                  <Field label="Référence de notification CPNP" required error={errors.cpnp_ref} hint="Numéro obtenu après notification sur le portail européen des cosmétiques.">
+                    <Input value={form.cpnp_ref ?? ''} maxLength={40} invalid={!!errors.cpnp_ref} onChange={(e) => set('cpnp_ref', e.target.value)} placeholder="1234567" />
+                  </Field>
+                </div>
+              </div>
+            </Section>
+          )}
+
           {/* ---------- Badges ---------- */}
           <Section title="Badges" description="De petites étiquettes sur la photo qui attirent l’œil. Choisissez-en une ou deux au maximum pour rester lisible.">
             <div className="grid sm:grid-cols-2 gap-2">
@@ -385,34 +441,68 @@ export function AdminProductForm() {
 
           {/* ---------- Caractéristiques ---------- */}
           <Section title="Caractéristiques" description="Ces informations rassurent l’acheteur et apparaissent dans la fiche produit.">
+            <p className="text-sm text-stone-500">Type de produit : <strong className="text-encre">{KIND_LABELS[kind]}</strong> (défini par la catégorie).</p>
             <div className="grid sm:grid-cols-2 gap-5">
-              <Field label="Largeur" optional>
-                <UnitInput unit="cm" type="number" min={1} value={form.width_cm ?? ''} onChange={(e) => set('width_cm', toInt(e.target.value))} placeholder="160" />
-              </Field>
-              <Field label="Longueur" optional hint={surface ? `Surface : ${surface.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} m²` : undefined}>
-                <UnitInput unit="cm" type="number" min={1} value={form.length_cm ?? ''} onChange={(e) => set('length_cm', toInt(e.target.value))} placeholder="240" />
-              </Field>
-              <Field label="Hauteur des poils" optional>
-                <UnitInput unit="mm" type="number" min={0} value={form.pile_height_mm ?? ''} onChange={(e) => set('pile_height_mm', toInt(e.target.value))} placeholder="20" />
-              </Field>
+              {(kind === 'textile' || kind === 'autre') && (
+                <>
+                  <Field label="Largeur" optional>
+                    <UnitInput unit="cm" type="number" min={1} value={form.width_cm ?? ''} onChange={(e) => set('width_cm', toInt(e.target.value))} placeholder={kind === 'textile' ? '160' : '30'} />
+                  </Field>
+                  <Field label={kind === 'textile' ? 'Longueur' : 'Hauteur ou longueur'} optional hint={kind === 'textile' && surface ? `Surface : ${surface.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} m²` : undefined}>
+                    <UnitInput unit="cm" type="number" min={1} value={form.length_cm ?? ''} onChange={(e) => set('length_cm', toInt(e.target.value))} placeholder={kind === 'textile' ? '240' : '40'} />
+                  </Field>
+                </>
+              )}
+              {kind === 'textile' && (
+                <Field label="Hauteur des poils" optional>
+                  <UnitInput unit="mm" type="number" min={0} value={form.pile_height_mm ?? ''} onChange={(e) => set('pile_height_mm', toInt(e.target.value))} placeholder="20" />
+                </Field>
+              )}
+              {kind === 'bijou' && (
+                <>
+                  <Field label="Métal" hint="Argent 925, laiton, métal argenté, métal doré…">
+                    <Input value={form.metal ?? ''} maxLength={120} onChange={(e) => set('metal', e.target.value)} placeholder="Argent 925" />
+                  </Field>
+                  <Field label="Pierres et décor" optional>
+                    <Input value={form.stones ?? ''} maxLength={200} onChange={(e) => set('stones', e.target.value)} placeholder="Corail, émail vert et jaune" />
+                  </Field>
+                  <Field label="Dimensions et taille" optional hint="Longueur de chaîne, diamètre, taille de bague ou « ajustable ».">
+                    <Input value={form.jewelry_size ?? ''} maxLength={120} onChange={(e) => set('jewelry_size', e.target.value)} placeholder="Longueur 45 cm, fermoir mousqueton" />
+                  </Field>
+                </>
+              )}
+              {kind === 'cosmetique' && (
+                <div id="champ-net_content">
+                  <Field label="Contenance" required error={errors.net_content}>
+                    <Input value={form.net_content ?? ''} maxLength={40} invalid={!!errors.net_content} onChange={(e) => set('net_content', e.target.value)} placeholder="5 g" />
+                  </Field>
+                </div>
+              )}
               <div id="champ-weight">
-                <Field label="Poids" optional error={errors.weight}>
-                  <UnitInput unit="kg" inputMode="decimal" value={weight} invalid={!!errors.weight} onChange={(e) => setWeight(e.target.value)} placeholder="8,5" />
+                <Field label="Poids" optional error={errors.weight} hint={kind !== 'textile' ? 'Poids du colis, utile pour l’expédition.' : undefined}>
+                  <UnitInput unit="kg" inputMode="decimal" value={weight} invalid={!!errors.weight} onChange={(e) => setWeight(e.target.value)} placeholder={kind === 'textile' ? '8,5' : '0,1'} />
                 </Field>
               </div>
-              <Field label="Technique">
+              <Field label={kind === 'cosmetique' ? 'Fabrication' : 'Technique'}>
                 <Select value={form.technique} onChange={(e) => set('technique', e.target.value)}>
                   <option value="">Non précisée</option>
-                  {TECHNIQUES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {[...new Set([...TECHNIQUES_BY_KIND[kind], ...(form.technique ? [form.technique] : [])])].map((t) => <option key={t} value={t}>{t}</option>)}
+                  <option value="Autre">Autre</option>
                 </Select>
               </Field>
-              <Field label="Matière">
-                <Input value={form.material} onChange={(e) => set('material', e.target.value)} placeholder="Laine de mouton" />
-              </Field>
+              {kind !== 'cosmetique' && (
+                <Field label={kind === 'bijou' ? 'Autres matières' : 'Matière'} optional={kind === 'bijou'}>
+                  <Input value={form.material} onChange={(e) => set('material', e.target.value)} placeholder={kind === 'textile' ? 'Laine de mouton' : kind === 'bijou' ? 'Cordon de coton, perles de verre' : 'Argile, bois, cuir…'} />
+                </Field>
+              )}
               <Field label="Origine" optional hint="Région, village ou atelier.">
-                <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder="Moyen Atlas" />
+                <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder={kind === 'bijou' ? 'Kabylie' : kind === 'cosmetique' ? 'Algérie' : 'Moyen Atlas'} />
               </Field>
             </div>
+            {kind === 'bijou' && (
+              <Toggle checked={!!form.nickel_free} onChange={(v) => set('nickel_free', v)} title="Sans nickel (ou libération conforme à la réglementation)"
+                description="À cocher seulement si votre fournisseur le garantit : affiché sur la fiche pour les peaux sensibles." />
+            )}
 
             <fieldset>
               <legend className="font-medium text-[15px] mb-1.5">Couleurs <span className="font-normal text-stone-500 text-sm">(facultatif — permet aux clients de filtrer)</span></legend>

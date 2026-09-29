@@ -14,8 +14,8 @@ const ICONS: Record<string, ReactNode> = {
 
 export function BadgePill({ badge, size = 'md' }: { badge: Badge; size?: 'sm' | 'md' }) {
   return (
-    <span title={badge.hint} className={`inline-flex items-center gap-1.5 font-semibold tracking-tight ${BADGE_TONES[badge.tone]} ${size === 'sm' ? 'text-xs px-2 py-1' : 'text-[13px] px-3 py-1.5'}`}>
-      {ICONS[badge.id]}{badge.label}
+    <span title={badge.hint} className={`inline-flex items-center gap-1.5 font-semibold tracking-tight ${BADGE_TONES[badge.tone]} ${size === 'sm' ? 'text-xs px-2 py-1' : 'text-[11px] px-2 py-1 sm:text-[13px] sm:px-3 sm:py-1.5'}`}>
+      <span className="hidden sm:inline-flex">{ICONS[badge.id]}</span>{badge.label}
     </span>
   );
 }

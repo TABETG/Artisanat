@@ -7,6 +7,7 @@ import { formatDate, formatPrice } from '../../lib/format';
 import { ORDER_STATUS } from '../../types';
 import { StatCard } from './ui';
 import { isLowStock } from './AdminProducts';
+import { LaunchChecklist } from './LaunchChecklist';
 import { ProductImage } from '../../components/ProductImage';
 
 export function AdminDashboard() {
@@ -53,6 +54,8 @@ export function AdminDashboard() {
         </Link>
       </div>
 
+      <LaunchChecklist products={products} />
+
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard label={`Ventes de ${monthName}`} value={formatPrice(revenue)}
           sub={trend === null ? undefined : `${trend >= 0 ? '+' : ''}${trend} % par rapport au mois dernier`} />
@@ -77,7 +80,7 @@ export function AdminDashboard() {
         </section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <section className="bg-white rounded-lg border border-stone-200 p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl text-nuit">Dernières commandes</h2>
@@ -86,7 +89,7 @@ export function AdminDashboard() {
           {orders.length === 0 ? <p className="mt-3 text-stone-500">Pas encore de commande.</p> : (
             <ul className="mt-3 divide-y divide-stone-100">
               {orders.slice(0, 5).map((o) => (
-                <li key={o.id} className="py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <li key={o.id} className="py-3 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
                   <span className="font-medium">{o.shipping_name ?? o.email}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${ORDER_STATUS[o.status].tone}`}>{ORDER_STATUS[o.status].label}</span>
                   <span className="ml-auto font-medium">{formatPrice(o.total_cents)}</span>
@@ -115,7 +118,7 @@ export function AdminDashboard() {
                 <ProductImage src={p.images[0]} alt="" className="w-10 h-12 rounded" />
                 <Link to={`/admin/produits/${p.id}`} className="flex-1 min-w-0 truncate hover:text-garance">{p.name}</Link>
                 <span className="text-sm text-stone-500 whitespace-nowrap">{p.views_count} vues</span>
-                <span className="text-sm whitespace-nowrap w-28 text-right">{p.cart_adds_count} au panier <span className="text-stone-400">({Math.round((p.cart_adds_count / Math.max(1, p.views_count)) * 100)} %)</span></span>
+                <span className="text-sm whitespace-nowrap text-right hidden sm:inline">{p.cart_adds_count} au panier <span className="text-stone-400">({Math.round((p.cart_adds_count / Math.max(1, p.views_count)) * 100)} %)</span></span>
               </li>
             ))}
           </ol>
@@ -127,11 +130,11 @@ export function AdminDashboard() {
               {best.map((b, i) => {
                 const p = products.find((x) => x.name === b.name);
                 return (
-                  <li key={b.name} className="py-3 flex items-center gap-3">
+                  <li key={b.name} className="py-3 flex items-center gap-3 min-w-0">
                     <span className="w-6 text-stone-400 tabular-nums">{i + 1}.</span>
                     <ProductImage src={p?.images[0]} alt="" className="w-10 h-12 rounded" />
                     <span className="flex-1 min-w-0 truncate">{b.name}</span>
-                    <span className="text-sm text-stone-500 whitespace-nowrap">{b.qty} vendu{b.qty > 1 ? 's' : ''}</span>
+                    <span className="text-sm text-stone-500 whitespace-nowrap hidden sm:inline">{b.qty} vendu{b.qty > 1 ? 's' : ''}</span>
                     <span className="font-medium whitespace-nowrap">{formatPrice(b.total)}</span>
                   </li>
                 );
@@ -181,7 +184,7 @@ function SalesChart({ orders }: { orders: { created_at: string; total_cents: num
         ))}
       </div>
       <div className="mt-2 grid grid-cols-12 gap-1.5 sm:gap-3 text-center text-xs text-stone-500">
-        {months.map((m, i) => <span key={i}>{m.label}</span>)}
+        {months.map((m, i) => <span key={i}><span className="sm:hidden">{m.label.slice(0, 1).toUpperCase()}</span><span className="hidden sm:inline">{m.label}</span></span>)}
       </div>
     </section>
   );

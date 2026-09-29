@@ -90,3 +90,14 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Les champs de formulaire ne doivent jamais élargir leur colonne (petits écrans) */
+input, select, textarea { min-width: 0; max-width: 100%; }
+img, svg, video { max-width: 100%; }
+
+/* Écrans à encoche (iPhone) : le contenu ne passe pas sous les bords arrondis */
+body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+/* Pas de zoom automatique d'iOS sur les champs : 16 px minimum */
+@media (max-width: 640px) { input, select, textarea { font-size: 16px; } }
+/* Survols réservés aux appareils qui en ont (évite les effets « collés » au toucher) */
+@media (hover: none) { .group:hover .group-hover\:scale-\[1\.04\] { transform: none; } }

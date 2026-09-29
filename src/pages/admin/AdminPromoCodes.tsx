@@ -76,10 +76,10 @@ export function AdminPromoCodes() {
 
       <form onSubmit={submit} className="mt-6">
         <Section title="Créer un code">
-          <div className="grid sm:grid-cols-2 gap-5">
+          <div className="grid sm:grid-cols-2 gap-5 [&>*]:min-w-0">
             <Field label="Code" required hint="Lettres, chiffres ou tirets. Ex. : BIENVENUE10">
               <div className="flex gap-2">
-                <Input value={code} maxLength={30} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} placeholder="NOEL2026" />
+                <Input className="min-w-0" value={code} maxLength={30} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} placeholder="NOEL2026" />
                 <button type="button" onClick={generate} className="shrink-0 px-3 rounded-md border border-stone-300 text-sm hover:bg-stone-50">Générer</button>
               </div>
             </Field>
@@ -89,7 +89,7 @@ export function AdminPromoCodes() {
                   <button type="button" onClick={() => { setKind('percent'); setValue('10'); }} aria-pressed={kind === 'percent'} className={`px-3.5 ${kind === 'percent' ? 'bg-nuit text-laine' : 'bg-white'}`}>%</button>
                   <button type="button" onClick={() => { setKind('amount'); setValue('20'); }} aria-pressed={kind === 'amount'} className={`px-3.5 ${kind === 'amount' ? 'bg-nuit text-laine' : 'bg-white'}`}>€</button>
                 </div>
-                <UnitInput unit={kind === 'percent' ? '%' : '€'} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} className="flex-1" />
+                <UnitInput unit={kind === 'percent' ? '%' : '€'} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} className="flex-1 min-w-0" />
               </div>
             </Field>
             <Field label="Valable jusqu’au" optional>

@@ -2,6 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useState 
 import { getSettings } from '../lib/api';
 import { DEFAULT_SETTINGS } from '../settings';
 import { ShopSettings } from '../types';
+import { guessKind, ProductKind } from '../config';
 
 interface SettingsValue { settings: ShopSettings; reload: () => void }
 const SettingsContext = createContext<SettingsValue>({ settings: DEFAULT_SETTINGS, reload: () => {} });
@@ -23,5 +24,7 @@ export function useCategories() {
   return {
     categories,
     label: (id: string) => categories.find((c) => c.id === id)?.label ?? id,
+    /** Type de produit d'une catégorie : textile, bijou, cosmétique ou autre. */
+    kindOf: (id: string): ProductKind => categories.find((c) => c.id === id)?.kind ?? guessKind(id),
   };
 }
