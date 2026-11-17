@@ -1,0 +1,27 @@
+# Tests automatiques (paiement, stock, remboursements, livraison) sur un vrai PostgreSQL 16.
+# Lancement (Git Bash) :  docker compose -f docker-compose.tests.yml run --rm tests
+# Rien n'est installé sur votre ordinateur ; la base de test est jetée à la fin.
+services:
+  base-de-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: test
+    tmpfs: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 30
+  tests:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - modules-tests:/app/node_modules
+    environment:
+      TEST_DATABASE_URL: postgres://postgres:test@base-de-test:5432/postgres
+    depends_on:
+      base-de-test:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund --loglevel=error && node tests/lancer.mjs && cd supabase/tests && npm install --silent --no-audit --no-fund && node securite.mjs"
+volumes:
+  modules-tests:

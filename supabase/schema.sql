@@ -974,7 +974,9 @@ begin
   end if;
 
   insert into public.order_items (order_id, product_id, seller_id, name, unit_price_cents, quantity)
-  select v_id, (x ->> 'product_id')::uuid, (x ->> 'seller_id')::uuid, x ->> 'name',
+  -- Un produit ou un artisan supprimé entre-temps ne doit pas bloquer l'enregistrement du paiement
+  select v_id, (select p.id from public.products p where p.id = (x ->> 'product_id')::uuid),
+         (select s.id from public.sellers s where s.id = (x ->> 'seller_id')::uuid), x ->> 'name',
          (x ->> 'unit_price_cents')::integer, (x ->> 'quantity')::integer
     from jsonb_array_elements(p_items) x;
 
