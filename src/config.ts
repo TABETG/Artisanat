@@ -36,7 +36,6 @@ export const CATEGORIES: { id: string; label: string; kind: ProductKind }[] = [
   { id: 'coussins', label: 'Coussins', kind: 'textile' },
   { id: 'plaids', label: 'Plaids et couvertures', kind: 'textile' },
   { id: 'bijoux', label: 'Bijoux', kind: 'bijou' },
-  { id: 'beaute', label: 'Beauté traditionnelle', kind: 'cosmetique' },
   { id: 'sacs', label: 'Sacs et accessoires', kind: 'autre' },
   { id: 'autres', label: 'Autres créations', kind: 'autre' },
 ];

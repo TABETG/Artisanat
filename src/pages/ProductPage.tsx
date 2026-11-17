@@ -77,7 +77,7 @@ export function ProductPage() {
       { '@type': 'ListItem', position: 3, name: product.name, item: window.location.href },
     ] });
     document.head.appendChild(crumbs);
-    return () => { ld.remove(); crumbs.remove(); document.title = `${SHOP.name} — Tapis berbères tissés à la main depuis ${SHOP.since}`; };
+    return () => { ld.remove(); crumbs.remove(); document.title = `${SHOP.name} — Bijoux, accessoires et décoration faits main en France`; };
   }, [product, summary]);
 
   if (loading) return <p className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 text-henne">Chargement…</p>;

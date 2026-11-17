@@ -24,7 +24,7 @@ export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onCont
         <ul>
           <li><Link to="/boutique" onClick={onClose} className={big}>Toute la boutique</Link></li>
           <li className="flex flex-wrap gap-2 py-2">
-            {[['maison', 'Univers Maison'], ['bijoux', 'Univers Bijoux'], ['beaute', 'Univers Beauté']].map(([id, l]) => (
+            {[['maison', 'Univers Maison'], ['bijoux', 'Univers Bijoux']].map(([id, l]) => (
               <Link key={id} to={`/univers/${id}`} onClick={onClose} className="text-sm px-3 py-1.5 rounded-full border border-nuit/20 text-nuit hover:border-nuit">{l}</Link>
             ))}
           </li>

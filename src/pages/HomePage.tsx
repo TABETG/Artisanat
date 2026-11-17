@@ -75,7 +75,7 @@ export function HomePage() {
         <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-20">
           <SectionHeading title="Par type de pièce">
             <div className="flex flex-wrap gap-2">
-              {[['maison', 'Univers Maison'], ['bijoux', 'Univers Bijoux'], ['beaute', 'Univers Beauté']].map(([id, l]) => (
+              {[['maison', 'Univers Maison'], ['bijoux', 'Univers Bijoux']].map(([id, l]) => (
                 <Link key={id} to={`/univers/${id}`} className="px-4 py-2 rounded-full border-2 border-nuit text-nuit text-sm font-medium hover:bg-nuit hover:text-laine">{l}</Link>
               ))}
             </div>

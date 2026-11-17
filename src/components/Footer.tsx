@@ -18,7 +18,7 @@ export function Footer() {
         <div className="grid gap-12 md:grid-cols-[1.2fr_1fr]">
           <div>
             <p className="font-display text-[2.8rem] sm:text-[4.5rem] lg:text-[5.5rem] leading-[0.9]">Chaque pièce<br />a une histoire.</p>
-            <p className="lecture mt-5 text-laine/75 max-w-md">Tapis, bijoux et beauté berbères, faits main et choisis avec soin depuis {SHOP.since}.</p>
+            <p className="lecture mt-5 text-laine/75 max-w-md">Bijoux, accessoires et décoration, fabriqués à la main en France depuis {SHOP.since}.</p>
           </div>
           <div className="grid grid-cols-2 gap-8 content-start">
             <div>
@@ -30,7 +30,6 @@ export function Footer() {
                 <li><Link className={a} to="/catalogue">Catalogue</Link></li>
                 <li><Link className={a} to="/univers/maison">Univers Maison</Link></li>
                 <li><Link className={a} to="/univers/bijoux">Univers Bijoux</Link></li>
-                <li><Link className={a} to="/univers/beaute">Univers Beauté</Link></li>
                 <li><Link className={a} to="/nos-realisations">Nos réalisations</Link></li>
                 <li><Link className={a} to="/artisans">Nos artisans</Link></li>
                 <li><Link className={a} to="/vendre">Vendre mes créations</Link></li>

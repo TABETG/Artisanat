@@ -13,7 +13,7 @@ import { Product } from '../types';
 // avec les étapes, des outils pour choisir et un guide complet (utile au référencement).
 // =====================================================================
 
-type Id = 'maison' | 'bijoux' | 'beaute';
+type Id = 'maison' | 'bijoux';
 interface LinkItem { label: string; to: string }
 interface Column { title: string; image: (p: Product[]) => string | undefined; groups: { title: string; to: string; links: LinkItem[] }[] }
 interface Universe {
@@ -30,8 +30,8 @@ const imageOf = (category: string, search?: string) => (products: Product[]) =>
 
 const UNIVERSES: Record<Id, Universe> = {
   maison: {
-    title: 'Boutique du tapis berbère',
-    heroTitle: 'Tout l’artisanat berbère pour habiller votre maison',
+    title: 'Boutique du tapis',
+    heroTitle: 'Tout l’artisanat pour habiller votre maison',
     heroImage: imageOf('tapis', 'azilal'),
     columns: [
       { title: 'Choisir son tapis', image: imageOf('tapis', 'beni'), groups: [
@@ -79,7 +79,7 @@ const UNIVERSES: Record<Id, Universe> = {
     ],
     banner: { text: 'Laine naturelle et teintures végétales : un artisanat durable', cta: { label: 'Voir les teintures végétales', to: shop({ recherche: 'végétal' }) } },
     guide: {
-      title: 'Tout savoir pour choisir un tapis berbère',
+      title: 'Tout savoir pour choisir un tapis',
       intro: 'Nos tapis sont noués ou tissés à la main dans l’Atlas, en laine de mouton filée et teinte selon des gestes transmis depuis des générations. Voici l’essentiel pour choisir la pièce qui convient à votre intérieur.',
       sections: [
         { title: 'Tapis noué ou kilim : quelle différence ?', text: <>Un tapis <strong>noué</strong> (Beni Ouarain, Azilal) est fait de milliers de nœuds qui forment un velours épais, doux et isolant : idéal au salon ou dans une chambre. Un <strong>kilim</strong> est tissé à plat, sans poils : plus fin, réversible et léger, il convient aux pièces de passage et se déplace facilement.</> },
@@ -98,22 +98,22 @@ const UNIVERSES: Record<Id, Universe> = {
     },
     alsoSee: [
       { label: 'tapis beni ouarain', to: shop({ recherche: 'beni ouarain' }) }, { label: 'tapis azilal', to: shop({ recherche: 'azilal' }) },
-      { label: 'kilim berbère', to: shop({ recherche: 'kilim' }) }, { label: 'tapis boucherouite', to: shop({ recherche: 'boucherouite' }) },
+      { label: 'kilim tissé main', to: shop({ recherche: 'kilim' }) }, { label: 'tapis boucherouite', to: shop({ recherche: 'boucherouite' }) },
       { label: 'grand tapis de salon', to: shop({ categorie: 'tapis', taille: 'grand' }) }, { label: 'petit tapis', to: shop({ categorie: 'tapis', taille: 'petit' }) },
       { label: 'tapis écru', to: shop({ categorie: 'tapis', couleur: 'ecru' }) }, { label: 'tapis rouge', to: shop({ categorie: 'tapis', couleur: 'rouge' }) },
-      { label: 'coussin berbère', to: shop({ categorie: 'coussins' }) }, { label: 'plaid en laine', to: shop({ categorie: 'plaids' }) },
+      { label: 'coussin en laine', to: shop({ categorie: 'coussins' }) }, { label: 'plaid en laine', to: shop({ categorie: 'plaids' }) },
       { label: 'tapis sur mesure', to: '/sur-mesure' }, { label: 'tapis en promotion', to: shop({ categorie: 'tapis', promotion: '1' }) },
     ],
   },
 
   bijoux: {
-    title: 'Boutique des bijoux berbères',
-    heroTitle: 'Bijoux kabyles et berbères, faits main',
+    title: 'Boutique des bijoux',
+    heroTitle: 'Bijoux et accessoires, faits main',
     heroImage: imageOf('bijoux', 'collier'),
     columns: [
       { title: 'Colliers', image: imageOf('bijoux', 'collier'), groups: [
         { title: 'Colliers', to: shop({ categorie: 'bijoux', recherche: 'collier' }), links: [
-          { label: 'Colliers kabyles émaillés', to: shop({ categorie: 'bijoux', recherche: 'collier' }) },
+          { label: 'Colliers émaillés', to: shop({ categorie: 'bijoux', recherche: 'collier' }) },
           { label: 'Colliers de corail', to: shop({ categorie: 'bijoux', recherche: 'corail' }) },
         ] },
       ] },
@@ -139,71 +139,26 @@ const UNIVERSES: Record<Id, Universe> = {
     ],
     banner: { text: 'Chaque bijou indique son métal : le choix en toute confiance', cta: { label: 'Voir tous les bijoux', to: shop({ categorie: 'bijoux' }) } },
     guide: {
-      title: 'Tout savoir sur les bijoux berbères',
-      intro: 'Des parures kabyles aux bijoux des Aurès, les bijoux berbères associent le métal ciselé, l’émail et le corail. Ils se transmettent, se portent aux fêtes comme au quotidien.',
+      title: 'Tout savoir sur nos bijoux',
+      intro: 'Métal ciselé, émail, perles et corail : des bijoux façonnés à la main, pièce par pièce, à porter aux fêtes comme au quotidien.',
       sections: [
-        { title: 'Les grandes familles', text: <>Les bijoux <strong>kabyles</strong> sont reconnaissables à leur émail cloisonné vert, jaune et bleu, serti de corail rouge. Ceux des <strong>Aurès</strong> et du sud jouent sur le métal ciselé et les pampilles. Les fibules (<em>tabzimt</em>, <em>khelkhal</em>) fermaient autrefois les vêtements.</> },
+        { title: 'Les techniques', text: <>L’<strong>émail cloisonné</strong> dessine des motifs colorés séparés par de fins fils de métal. Le <strong>métal ciselé</strong> est travaillé au burin, motif par motif. Les <strong>perles enfilées main</strong> permettent des colliers et bracelets légers.</> },
         { title: 'Quel métal choisir ?', text: <>L’<strong>argent 925</strong> est durable et se patine avec le temps. Le <strong>métal argenté</strong> et le <strong>laiton</strong> permettent des pièces plus abordables. Si vous avez la peau sensible, choisissez un bijou marqué « sans nickel » : la mention n’apparaît que si notre fournisseur le garantit.</> },
         { title: 'Comment entretenir ses bijoux ?', text: <>Retirez-les pour vous baigner, faire du sport ou appliquer parfum et crème. Rangez-les séparément, à l’abri de l’air. L’argent se ravive avec un chiffon doux ; évitez les produits abrasifs sur l’émail.</> },
       ],
     },
     alsoSee: [
-      { label: 'collier kabyle', to: shop({ recherche: 'collier' }) }, { label: 'bijou en argent', to: shop({ categorie: 'bijoux', recherche: 'argent' }) },
-      { label: 'boucles d’oreilles berbères', to: shop({ recherche: 'boucles' }) }, { label: 'bracelet manchette', to: shop({ recherche: 'manchette' }) },
+      { label: 'collier fait main', to: shop({ recherche: 'collier' }) }, { label: 'bijou en argent', to: shop({ categorie: 'bijoux', recherche: 'argent' }) },
+      { label: 'boucles d’oreilles faites main', to: shop({ recherche: 'boucles' }) }, { label: 'bracelet manchette', to: shop({ recherche: 'manchette' }) },
       { label: 'bijou émaillé', to: shop({ recherche: 'émail' }) }, { label: 'bijou corail', to: shop({ recherche: 'corail' }) },
     ],
   },
 
-  beaute: {
-    title: 'Boutique de la beauté traditionnelle',
-    heroTitle: 'Khôl, aker fassi : la beauté de nos grands-mères',
-    heroImage: imageOf('beaute', 'khôl'),
-    columns: [
-      { title: 'Yeux', image: imageOf('beaute', 'khôl'), groups: [
-        { title: 'Khôl', to: shop({ categorie: 'beaute', recherche: 'khôl' }), links: [
-          { label: 'Khôl en poudre sans plomb', to: shop({ categorie: 'beaute', recherche: 'khôl' }) },
-          { label: 'Mkahla et bâtonnets', to: shop({ categorie: 'beaute', recherche: 'mkahla' }) },
-        ] },
-      ] },
-      { title: 'Lèvres et joues', image: imageOf('beaute', 'aker'), groups: [
-        { title: 'Rouges naturels', to: shop({ categorie: 'beaute', recherche: 'aker' }), links: [
-          { label: 'Aker fassi', to: shop({ categorie: 'beaute', recherche: 'aker' }) },
-          { label: 'Rouges à lèvres', to: shop({ categorie: 'beaute', recherche: 'rouge' }) },
-        ] },
-      ] },
-      { title: 'Offrir', image: imageOf('beaute'), groups: [
-        { title: 'Idées cadeaux', to: shop({ categorie: 'beaute' }), links: [
-          { label: 'Moins de 20 €', to: shop({ categorie: 'beaute', 'prix-max': '20' }) },
-          { label: 'Carte cadeau', to: '/carte-cadeau' },
-        ] },
-      ] },
-      { title: 'Nos engagements', image: imageOf('bijoux'), groups: [
-        { title: 'Sécurité', to: '/questions-frequentes', links: [
-          { label: 'Sans plomb, formules évaluées', to: '/questions-frequentes' },
-          { label: 'Ingrédients sur chaque fiche', to: shop({ categorie: 'beaute' }) },
-        ] },
-      ] },
-    ],
-    banner: { text: 'Khôl sans plomb, formules évaluées et notifiées en Europe', cta: { label: 'Voir la beauté traditionnelle', to: shop({ categorie: 'beaute' }) } },
-    guide: {
-      title: 'Tout savoir sur la beauté traditionnelle',
-      intro: 'Le khôl souligne le regard depuis l’Antiquité ; l’aker fassi colore lèvres et joues d’un rouge naturel. Nous les proposons dans des formules sûres, conformes au règlement européen des cosmétiques.',
-      sections: [
-        { title: 'Pourquoi « sans plomb » ?', text: <>Le khôl traditionnel était fait de <strong>galène</strong>, un minerai de plomb, aujourd’hui interdit dans l’Union européenne car toxique. Nos khôls sont à base de pigments noirs autorisés. Chaque cosmétique vendu ici a fait l’objet d’une évaluation de sécurité et d’une notification européenne.</> },
-        { title: 'Comment appliquer le khôl ?', text: <>Humidifiez légèrement le bâtonnet, passez-le dans la poudre et retirez l’excédent. Paupière fermée, faites glisser le bâtonnet entre les cils, de l’intérieur vers l’extérieur. N’appliquez jamais le produit à l’intérieur de l’œil.</> },
-        { title: 'Comment utiliser l’aker fassi ?', text: <>Humidifiez le bout du doigt, prélevez un peu de pigment et tapotez sur les lèvres ou les pommettes. Superposez pour intensifier. Faites un essai sur une petite zone avant la première utilisation.</> },
-      ],
-    },
-    alsoSee: [
-      { label: 'khôl traditionnel', to: shop({ recherche: 'khôl' }) }, { label: 'aker fassi', to: shop({ recherche: 'aker' }) },
-      { label: 'rouge à lèvres naturel', to: shop({ categorie: 'beaute', recherche: 'rouge' }) }, { label: 'beauté berbère', to: shop({ categorie: 'beaute' }) },
-    ],
-  },
 };
 
 export function UniversePage() {
   const { univers = 'maison' } = useParams();
-  const id: Id = (['maison', 'bijoux', 'beaute'] as const).includes(univers as Id) ? (univers as Id) : 'maison';
+  const id: Id = (['maison', 'bijoux'] as const).includes(univers as Id) ? (univers as Id) : 'maison';
   const u = UNIVERSES[id];
   const { data } = useAsync(listProducts, []);
   const products = data ?? [];
@@ -282,7 +237,6 @@ function Tools({ id }: { id: Id }) {
       <div className="mt-6 grid gap-5 md:grid-cols-2">
         {id === 'maison' && <><RugSizeFinder /><ColorFinder category="tapis" /></>}
         {id === 'bijoux' && <><BudgetFinder category="bijoux" steps={[30, 50, 100, 200]} /><ColorFinder category="bijoux" /></>}
-        {id === 'beaute' && <BudgetFinder category="beaute" steps={[15, 20, 30, 50]} />}
         <div className={card}>
           <div className={iconBox}>{id === 'maison' ? <Scissors className="w-9 h-9" /> : <Gift className="w-9 h-9" />}</div>
           <div>

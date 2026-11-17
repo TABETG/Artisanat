@@ -123,7 +123,7 @@ export function AdminSettings() {
                 <Input value={c.label} maxLength={40} onChange={(e) => renameCategory(i, e.target.value)} aria-label={`Nom de la catégorie ${i + 1}`} />
                 <select value={c.kind ?? guessKind(c.id)} onChange={(e) => set('categories', form.categories.map((x, j) => (j === i ? { ...x, kind: e.target.value as ProductKind } : x)))}
                   className="shrink-0 w-40 px-2 py-3 border border-stone-300 rounded-md bg-white text-sm" aria-label={`Type de produit de ${c.label}`} title="Type de produit : décide des champs à remplir">
-                  {(Object.keys(KIND_LABELS) as ProductKind[]).map((k) => <option key={k} value={k}>{KIND_LABELS[k].split(' (')[0]}</option>)}
+                  {(Object.keys(KIND_LABELS) as ProductKind[]).filter((k) => k !== 'cosmetique').map((k) => <option key={k} value={k}>{KIND_LABELS[k].split(' (')[0]}</option>)}
                 </select>
                 <span className="text-sm text-stone-500 w-24 shrink-0 text-right">{usage[c.id] ?? 0} produit{(usage[c.id] ?? 0) > 1 ? 's' : ''}</span>
                 <button type="button" onClick={() => moveCategory(i, -1)} disabled={i === 0} className="p-2.5 rounded-md hover:bg-stone-100 disabled:opacity-30" aria-label="Monter"><ArrowUp className="w-4 h-4" /></button>

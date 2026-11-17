@@ -510,7 +510,7 @@ export function AdminProductForm() {
                 </Field>
               )}
               <Field label="Origine" optional hint="Région, village ou atelier.">
-                <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder={kind === 'bijou' ? 'Kabylie' : kind === 'cosmetique' ? 'Algérie' : 'Moyen Atlas'} />
+                <Input value={form.origin} onChange={(e) => set('origin', e.target.value)} placeholder="France" />
               </Field>
             </div>
             {kind === 'bijou' && (

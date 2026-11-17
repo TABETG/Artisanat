@@ -30,33 +30,20 @@ export const DEMO_PRODUCTS: Product[] = [
   { ...base, id: 'demo-7', name: 'Tapis Talsint (collection d’hiver)', category: 'tapis', price_cents: 98000, stock: 1, width_cm: 170, length_cm: 250,
     origin: 'Haut Atlas', featured: true, images: img('tapis-azilal').reverse(), created_at: daysFromNow(-1), publish_at: daysFromNow(5), reference: 'TAP-TAL-007',
     colors: ['rouge', 'noir'], description: 'Pièce de la collection d’hiver, mise en ligne programmée : invisible pour les clients jusqu’à la date choisie.' },
-  // ---------- Bijoux et beauté traditionnelle ----------
-  { ...base, id: 'demo-8', name: 'Collier kabyle argent et corail', category: 'bijoux', price_cents: 18500, stock: 2, width_cm: null, length_cm: null,
-    technique: 'Émail cloisonné', material: 'Perles de corail', origin: 'Kabylie', featured: true, images: img('collier-kabyle'), created_at: daysFromNow(-6),
+  // ---------- Bijoux ----------
+  { ...base, id: 'demo-8', name: 'Collier argent et corail', category: 'bijoux', price_cents: 18500, stock: 2, width_cm: null, length_cm: null,
+    technique: 'Émail cloisonné', material: 'Perles de corail', origin: 'France', featured: true, images: img('collier-kabyle'), created_at: daysFromNow(-6),
     metal: 'Métal argenté', stones: 'Corail, émail vert et jaune', jewelry_size: 'Longueur 46 cm, pendentif 6 cm', nickel_free: true, colors: ['rouge', 'vert'],
-    description: 'Collier inspiré des parures kabyles : disques ciselés, perles de corail et pendentif émaillé aux couleurs traditionnelles.', care: '' },
-  { ...base, id: 'demo-9', name: 'Boucles d’oreilles berbères émaillées', category: 'bijoux', price_cents: 6500, stock: 5, width_cm: null, length_cm: null,
-    technique: 'Émail cloisonné', material: '', origin: 'Aurès', featured: false, images: img('boucles-berberes'), created_at: daysFromNow(-12),
+    description: 'Disques ciselés, perles de corail et pendentif émaillé, assemblés à la main.', care: '' },
+  { ...base, id: 'demo-9', name: 'Boucles d’oreilles émaillées', category: 'bijoux', price_cents: 6500, stock: 5, width_cm: null, length_cm: null,
+    technique: 'Émail cloisonné', material: '', origin: 'France', featured: false, images: img('boucles-berberes'), created_at: daysFromNow(-12),
     metal: 'Laiton argenté', stones: 'Émail bleu, perle rouge', jewelry_size: 'Hauteur 7 cm, attache crochet', nickel_free: true, colors: ['bleu', 'rouge'],
     description: 'Pendants losanges émaillés et pampilles, légers à porter.', care: '' },
   { ...base, id: 'demo-10', name: 'Bracelet manchette ciselé', category: 'bijoux', price_cents: 9500, stock: 3, width_cm: null, length_cm: null,
-    technique: 'Métal martelé', material: '', origin: 'Tlemcen', featured: false, images: img('bracelet-argent'), created_at: daysFromNow(-20),
+    technique: 'Métal martelé', material: '', origin: 'France', featured: false, images: img('bracelet-argent'), created_at: daysFromNow(-20),
     metal: 'Métal argenté', stones: '', jewelry_size: 'Tour de poignet 17 à 19 cm (ajustable)', nickel_free: false, colors: ['gris'],
     description: 'Large manchette aux losanges gravés, finition vieillie.', care: '' },
-  { ...base, id: 'demo-11', name: 'Khôl traditionnel sans plomb', category: 'beaute', price_cents: 1800, stock: 12, width_cm: null, length_cm: null,
-    technique: 'Broyé et tamisé main', material: '', origin: 'Algérie', featured: true, images: img('khol-traditionnel'), created_at: daysFromNow(-4),
-    net_content: '3 g', pao_months: 12, cpnp_ref: 'DÉMONSTRATION', colors: ['noir'],
-    ingredients: 'Carbon Black (CI 77266), Talc, Ricinus Communis Seed Oil, Tocopherol. Sans plomb.',
-    usage: 'Humidifier légèrement le bâtonnet, le passer dans le flacon, puis l’appliquer au ras des cils, paupière fermée.',
-    warnings: 'Usage externe. Ne pas appliquer à l’intérieur de l’œil. Tenir hors de portée des enfants. Cesser l’utilisation en cas d’irritation.',
-    description: 'Poudre noire intense présentée dans sa mkahla en laiton, avec bâtonnet. Formule sans plomb, conforme au règlement européen.', care: '' },
-  { ...base, id: 'demo-12', name: 'Aker fassi, rouge naturel lèvres et joues', category: 'beaute', price_cents: 1500, stock: 15, width_cm: null, length_cm: null,
-    technique: 'Préparation artisanale', material: '', origin: 'Algérie', featured: false, images: img('aker-fassi'), created_at: daysFromNow(-9),
-    net_content: '5 g', pao_months: 12, cpnp_ref: 'DÉMONSTRATION', colors: ['rouge'],
-    ingredients: 'Punica Granatum Pericarp Powder, Beta Vulgaris Root Powder, Ricinus Communis Seed Oil, Iron Oxides (CI 77491).',
-    usage: 'Humidifier le bout du doigt, prélever un peu de pigment et tapoter sur les lèvres ou les pommettes.',
-    warnings: 'Usage externe. Faire un essai sur une petite zone avant la première utilisation. Tenir hors de portée des enfants.',
-    description: 'Le rouge des grands-mères, à base de pigments de grenade et de betterave, dans sa coupelle en terre cuite.', care: '' },
+
 ];
 
 export const DEMO_ORDERS: Order[] = [
@@ -122,8 +109,8 @@ export const DEMO_SELLERS: Seller[] = [
   { ...sellerBase, id: 'seller-fatima', shop_name: 'Atelier Fatima', slug: 'atelier-fatima', craft: 'Tissage de kilims et sacs en laine', city: 'Marseille', legal_status: 'professionnel',
     siret: '12345678900012', status: 'approved', payouts_enabled: true, shipping_france_cents: 900, return_policy: 'Retour accepté sous 14 jours, article non utilisé.',
     bio: 'Originaire de Fès, je tisse depuis vingt ans comme ma mère avant moi, aujourd’hui dans mon atelier marseillais. Mes kilims sont teints avec du henné, de l’indigo et de la garance.', created_at: '2026-06-01T10:00:00Z' },
-  { ...sellerBase, id: 'seller-yanis', shop_name: 'Poterie Yanis', slug: 'poterie-yanis', craft: 'Poterie berbère tournée main', city: 'Lyon', country: 'FR', legal_status: 'particulier',
-    siret: null, status: 'pending', payouts_enabled: false, shipping_france_cents: 1200, return_policy: '', bio: 'Potier amateur, je façonne des plats et jarres décorés de motifs kabyles.', created_at: new Date(Date.now() - 86400000).toISOString() },
+  { ...sellerBase, id: 'seller-yanis', shop_name: 'Poterie Yanis', slug: 'poterie-yanis', craft: 'Poterie tournée main', city: 'Lyon', country: 'FR', legal_status: 'particulier',
+    siret: null, status: 'pending', payouts_enabled: false, shipping_france_cents: 1200, return_policy: '', bio: 'Potier amateur, je façonne des plats et jarres décorés de motifs géométriques.', created_at: new Date(Date.now() - 86400000).toISOString() },
 ];
 
 export const DEMO_SELLER_PRIVATE: SellerPrivate[] = [

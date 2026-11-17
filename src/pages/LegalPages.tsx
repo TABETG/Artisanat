@@ -59,10 +59,6 @@ export function TermsPage() {
         Conformément à l’article L221-18 du Code de la consommation, vous disposez de 14 jours à compter de la réception
         pour exercer votre droit de rétractation. Le remboursement intervient sous 14 jours après réception du retour.
       </p>
-      <p>
-        Exception : pour des raisons d’hygiène, le droit de rétractation ne s’applique pas aux cosmétiques (khôl, rouge à lèvres, soins…)
-        dont l’emballage ou le scellé a été ouvert après la livraison (article L221-28 du Code de la consommation).
-      </p>
       <h2>Garanties</h2>
       <p>Les articles bénéficient de la garantie légale de conformité et de la garantie contre les vices cachés.</p>
       <h2>Produits vendus par des artisans partenaires</h2>

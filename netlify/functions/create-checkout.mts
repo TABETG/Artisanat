@@ -33,7 +33,7 @@ export default async (req: Request) => {
     { auth: { persistSession: false } },
   );
   const { data: products, error } = await supabase
-    .from('products').select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,images,active,width_cm,length_cm,seller_id,moderation,market')
+    .from('products').select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,images,active,width_cm,length_cm,seller_id,moderation,market,category')
     .in('id', [...new Set(lines.map((l) => l.id))]);
   if (error || !products) return json({ error: 'Service momentanément indisponible.' }, 500);
 
@@ -44,7 +44,7 @@ export default async (req: Request) => {
     // Promotion terminée : on facture le prix d'origine
     const p = found ? applyPromoExpiry(found) : undefined;
     // Les produits de la boutique Algérie (en dinars) se paient à la livraison, jamais par Stripe
-    if (!p || !p.active || p.moderation !== 'approved' || (p.market ?? 'fr') !== 'fr') return json({ error: 'Un article de votre panier n’est plus en vente. Retirez-le pour continuer.' }, 409);
+    if (!p || !p.active || p.moderation !== 'approved' || (p.market ?? 'fr') !== 'fr' || p.category === 'beaute') return json({ error: 'Un article de votre panier n’est plus en vente. Retirez-le pour continuer.' }, 409);
     if (p.stock < line.quantity) {
       return json({ error: p.stock === 0
         ? `« ${p.name} » vient d’être vendu. Retirez-le du panier pour continuer.`
