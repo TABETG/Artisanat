@@ -1,0 +1,7 @@
+{
+  "name": "tests-base-artisanat",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node securite.mjs" },
+  "dependencies": { "@electric-sql/pglite": "^0.2.17" }
+}

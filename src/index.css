@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Artisanat — identité visuelle « Lisière »
+   Blanc de galerie pour laisser les tapis porter la couleur ; indigo pour le texte ;
+   garance pour l'achat ; la lisière rayée (bandes de fin de tapis) comme signature.
+   ========================================================================== */
+@theme {
+  --color-laine: #FBFAF7;        /* blanc de galerie (fond) */
+  --color-laine-fonce: #E9E5DD;  /* filets, zones calmes */
+  --color-nuit: #1F2452;         /* indigo : texte principal, en-têtes */
+  --color-garance: #B0281F;      /* rouge garance : achat, promotions */
+  --color-safran: #E3A725;       /* jaune safran : accents ponctuels */
+  --color-henne: #6B5647;        /* brun henné : texte secondaire */
+  --color-menthe: #2F6B4F;       /* vert thé : confirmations */
+  --color-encre: #1B1B2F;        /* texte de lecture */
+
+  --font-display: "Bricolage Grotesque Variable", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Bricolage Grotesque Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Newsreader Variable", Georgia, "Times New Roman", serif;
+}
+
+html { background: var(--color-laine); color: var(--color-encre); }
+body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
+
+/* Titres : grotesque resserrée, grasse, légèrement rentrée */
+.font-display {
+  font-weight: 750;
+  font-stretch: 80%;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+}
+
+/* Texte de lecture (descriptions, histoire, pages d'information) */
+.lecture { font-family: var(--font-serif); font-size: 1.125rem; line-height: 1.75; }
+
+:focus-visible { outline: 2px solid var(--color-garance); outline-offset: 3px; }
+
+/* --------------------------------------------------------------------------
+   La lisière : bandes de couleur comme aux extrémités d'un kilim.
+   Largeurs inégales, volontairement irrégulières comme un tissage main.
+   -------------------------------------------------------------------------- */
+.lisiere {
+  height: 14px;
+  background: linear-gradient(to bottom,
+    var(--color-nuit) 0 3px, transparent 3px 5px,
+    var(--color-garance) 5px 9px, transparent 9px 10px,
+    var(--color-safran) 10px 12px, transparent 12px 13px,
+    var(--color-nuit) 13px 14px);
+}
+.lisiere-fine {
+  height: 6px;
+  background: linear-gradient(to bottom, var(--color-garance) 0 3px, var(--color-safran) 3px 4px, transparent 4px 5px, var(--color-nuit) 5px 6px);
+}
+/* ancien nom conservé pour les pages qui l'utilisent encore */
+.motif { height: 14px;
+  background: linear-gradient(to bottom,
+    var(--color-nuit) 0 3px, transparent 3px 5px,
+    var(--color-garance) 5px 9px, transparent 9px 10px,
+    var(--color-safran) 10px 12px, transparent 12px 13px,
+    var(--color-nuit) 13px 14px); }
+
+/* Franges : fils de laine qui dépassent d'une photo de tapis */
+.franges { position: relative; }
+.franges::before, .franges::after {
+  content: ""; position: absolute; left: 6%; right: 6%; height: 22px; pointer-events: none;
+  background: repeating-linear-gradient(to right, #EDE6D8 0 2px, transparent 2px 5px, #E2D8C6 5px 6px, transparent 6px 9px);
+  -webkit-mask: linear-gradient(to bottom, #000 55%, transparent);
+          mask: linear-gradient(to bottom, #000 55%, transparent);
+}
+.franges::before { top: -18px; transform: scaleY(-1); }
+.franges::after { bottom: -18px; }
+
+/* Visuel de remplacement quand un produit n'a pas encore de photo : une trame tissée */
+.tissage {
+  background-color: #EFEAE1;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(31,36,82,.07) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(0deg, rgba(176,40,31,.12) 0 3px, transparent 3px 16px, rgba(227,167,37,.18) 16px 18px, transparent 18px 34px);
+}
+
+/* Soulignement tissé pour les liens de navigation */
+.lien-tisse { background: linear-gradient(currentColor, currentColor) left bottom / 0 2px no-repeat; transition: background-size .25s; }
+.lien-tisse:hover, .lien-tisse[aria-current="page"] { background-size: 100% 2px; }
+
+/* Une seule entrée orchestrée : le titre de l'accueil apparaît fil à fil */
+@keyframes tisser { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.apparition-tissee { animation: tisser 1.1s cubic-bezier(.6,.05,.25,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Les champs de formulaire ne doivent jamais élargir leur colonne (petits écrans) */
+input, select, textarea { min-width: 0; max-width: 100%; }
+img, svg, video { max-width: 100%; }
+
+/* Écrans à encoche (iPhone) : le contenu ne passe pas sous les bords arrondis */
+body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+/* Pas de zoom automatique d'iOS sur les champs : 16 px minimum */
+@media (max-width: 640px) { input, select, textarea { font-size: 16px; } }
+/* Survols réservés aux appareils qui en ont (évite les effets « collés » au toucher) */
+@media (hover: none) { .group:hover .group-hover\:scale-\[1\.04\] { transform: none; } }
+
+/* Impression du catalogue : seules les pages utiles */
+@media print {
+  header, [role="region"][aria-label="Confidentialité"], button[aria-label="Nous contacter"], .print\:hidden { display: none !important; }
+  body { background: #fff; }
+  @page { margin: 12mm; }
+}
