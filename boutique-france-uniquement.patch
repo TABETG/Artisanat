@@ -1,0 +1,2450 @@
+From 361462891a73a5cc8cc03c018364110fb61e0228 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 17 Nov 2026 14:34:03 +0100
+Subject: [PATCH] =?UTF-8?q?Boutique=20France=20uniquement=20:=20retrait=20?=
+ =?UTF-8?q?de=20la=20boutique=20Alg=C3=A9rie=20(sans=20suppression=20de=20?=
+ =?UTF-8?q?donn=C3=A9es)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015kX6JMomghh79NEnXoKArP
+---
+ .env.example                             |   2 -
+ CORRECTIFS-PAIEMENT.md                   |   8 ++
+ GUIDE-MISE-EN-LIGNE.md                   |  10 +-
+ netlify/edge-functions/apercu-partage.ts |   2 +-
+ netlify/functions/admin-team.mts         |   8 +-
+ netlify/functions/create-checkout.mts    |   2 +-
+ netlify/functions/create-cod-order.mts   |  78 -------------
+ netlify/functions/sitemap.mts            |   2 +-
+ netlify/shared/admin.ts                  |   2 +-
+ src/App.tsx                              |   4 -
+ src/components/CartDrawer.tsx            |  42 ++-----
+ src/components/DeliveryEstimate.tsx      |  36 +-----
+ src/components/Flag.tsx                  |  17 ---
+ src/components/Footer.tsx                |   4 +-
+ src/components/Header.tsx                |   6 +-
+ src/components/Layout.tsx                |   2 -
+ src/components/MarketChooser.tsx         |  82 --------------
+ src/components/MenuDrawer.tsx            |   8 +-
+ src/components/Price.tsx                 |   7 +-
+ src/components/ProductCard.tsx           |   4 +-
+ src/config.ts                            |   9 --
+ src/context/CartContext.tsx              |  22 ++--
+ src/context/MarketContext.tsx            |  19 ----
+ src/data/wilayas.ts                      |  64 -----------
+ src/lib/api.ts                           | 117 ++++---------------
+ src/lib/demo.ts                          |  29 -----
+ src/lib/demoStore.ts                     |  17 +--
+ src/lib/format.ts                        |  13 +--
+ src/main.tsx                             |   3 -
+ src/market.ts                            |  31 -----
+ src/pages/DzCheckoutPage.tsx             | 137 -----------------------
+ src/pages/GiftCardPage.tsx               |  17 ---
+ src/pages/HomePage.tsx                   |   8 --
+ src/pages/ProductPage.tsx                |  33 +-----
+ src/pages/admin/AdminDzShipping.tsx      |  81 --------------
+ src/pages/admin/AdminLayout.tsx          |  20 +---
+ src/pages/admin/AdminLogin.tsx           |   4 +-
+ src/pages/admin/AdminOrders.tsx          |  77 +++----------
+ src/pages/admin/AdminProductForm.tsx     |  26 +----
+ src/pages/admin/AdminProducts.tsx        |  17 +--
+ src/pages/admin/AdminSettings.tsx        |   7 --
+ src/pages/admin/AdminTeam.tsx            |   9 +-
+ src/settings.ts                          |   2 -
+ src/shipping.ts                          |   2 +-
+ src/types.ts                             |  12 +-
+ supabase/schema.sql                      | 131 ++++------------------
+ supabase/tests/securite.mjs              |  23 ++--
+ 47 files changed, 152 insertions(+), 1104 deletions(-)
+ delete mode 100644 netlify/functions/create-cod-order.mts
+ delete mode 100644 src/components/Flag.tsx
+ delete mode 100644 src/components/MarketChooser.tsx
+ delete mode 100644 src/context/MarketContext.tsx
+ delete mode 100644 src/data/wilayas.ts
+ delete mode 100644 src/market.ts
+ delete mode 100644 src/pages/DzCheckoutPage.tsx
+ delete mode 100644 src/pages/admin/AdminDzShipping.tsx
+
+diff --git a/.env.example b/.env.example
+index 2cd09c5..885d201 100644
+--- a/.env.example
++++ b/.env.example
+@@ -21,5 +21,3 @@ GIFT_CARD_SECRET=une-autre-longue-phrase-secrete
+ # Facultatif — clé des liens de désinscription (sinon dérivée de la clé serveur Supabase)
+ NEWSLETTER_SECRET=une-longue-phrase-secrete
+ 
+-# Facultatif — email de la famille qui reçoit les commandes de la boutique Algérie (sinon OWNER_EMAIL)
+-DZ_OWNER_EMAIL=
+diff --git a/CORRECTIFS-PAIEMENT.md b/CORRECTIFS-PAIEMENT.md
+index ae65fe7..be14b99 100644
+--- a/CORRECTIFS-PAIEMENT.md
++++ b/CORRECTIFS-PAIEMENT.md
+@@ -31,3 +31,11 @@ Branche de travail : `correctifs-paiement` (sauvegarde de départ : branche `sau
+ ```bash
+ docker compose -f docker-compose.tests.yml run --rm tests
+ ```
++
++## Boutique France uniquement (version 19)
++
++- Retirés du site : choix du pays à l’arrivée, boutique Algérie, prix en dinars, paiement à la livraison, page de commande Algérie, tarifs par wilaya, accès « famille », pays de livraison au choix.
++- Livraison : France métropolitaine uniquement (panier, fiche produit et serveur).
++- Aucune donnée supprimée : les anciens produits et commandes « Algérie » restent en base mais ne sont plus affichés ; les anciens accès limités n’ouvrent plus rien.
++- Le code de la boutique Algérie reste disponible dans la branche `sauvegarde-avant-correctifs` (réutilisable pour l’autre site).
++- Après mise à jour : exécuter à nouveau `supabase/schema.sql` dans Supabase.
+diff --git a/GUIDE-MISE-EN-LIGNE.md b/GUIDE-MISE-EN-LIGNE.md
+index 3ddd6c6..1d3eddf 100644
+--- a/GUIDE-MISE-EN-LIGNE.md
++++ b/GUIDE-MISE-EN-LIGNE.md
+@@ -183,15 +183,7 @@ Le client choisit son pays et son mode dans le panier, voit la date de livraison
+ 
+ **Équipe et journal** : onglet *Équipe et journal* pour donner l’accès vendeur à un associé (il reçoit une invitation) et voir l’historique des actions (produits, commandes, remboursements, réglages).
+ 
+-**Deux boutiques : France et Algérie**
+-- À la première visite, le client choisit son pays ; il peut changer depuis l’en-tête. Chaque boutique a ses propres produits, prix et panier.
+-- *France* : prix en euros, paiement par Stripe, livraison selon l’onglet *Livraison France*.
+-- *Algérie* : prix en dinars, **paiement à la livraison** (pas de paiement en ligne), livraison dans les 58 wilayas à domicile ou au bureau du transporteur. Tarifs dans *Livraison Algérie*.
+-- Dans la fiche produit, choisissez la boutique (France ou Algérie). Un produit appartient à une seule boutique : le stock est séparé.
+-- **Compte de la famille** : *Équipe et journal → Ajouter une personne → Accès : Boutique Algérie uniquement*. Cette personne ne voit que les commandes et les produits d’Algérie et les tarifs des wilayas ; elle n’a accès ni aux réglages, ni aux paiements Stripe, ni aux clients France (règles appliquées par la base de données).
+-- Chaque commande Algérie arrive « À confirmer par téléphone » : la famille appelle (bouton Appeler ou WhatsApp), puis clique *Client joint : confirmée* ou *Annuler* (les articles reviennent en stock).
+-- Variable facultative `DZ_OWNER_EMAIL` dans Netlify : l’email qui reçoit les commandes d’Algérie.
+-- Important : l’argent encaissé en dinars reste en Algérie ; l’activité là-bas doit être déclarée sur place (registre du commerce de la personne qui vend).
++**Une seule boutique : la France** — prix en euros, paiement par carte (Stripe), livraison en France métropolitaine selon l’onglet *Livraison*.
+ 
+ **Types de produits** : chaque catégorie a un type (*Réglages → Catégories*) qui décide des champs de la fiche :
+ - *Textile* (tapis, coussins, plaids) : dimensions, surface, hauteur des poils, guide des tailles.
+diff --git a/netlify/edge-functions/apercu-partage.ts b/netlify/edge-functions/apercu-partage.ts
+index 6338780..c395668 100644
+--- a/netlify/edge-functions/apercu-partage.ts
++++ b/netlify/edge-functions/apercu-partage.ts
+@@ -14,7 +14,7 @@ export default async (request: Request, context: { next: () => Promise<Response>
+   if (!match || !base || !key || !(response.headers.get('content-type') ?? '').includes('text/html')) return response;
+ 
+   try {
+-    const res = await fetch(`${base}/rest/v1/products?id=eq.${match[1]}&active=eq.true&select=name,description,price_cents,images`, {
++    const res = await fetch(`${base}/rest/v1/products?id=eq.${match[1]}&active=eq.true&market=eq.fr&select=name,description,price_cents,images`, {
+       headers: { apikey: key, Authorization: `Bearer ${key}` },
+     });
+     const [product] = (await res.json()) as { name: string; description: string; price_cents: number; images: string[] }[];
+diff --git a/netlify/functions/admin-team.mts b/netlify/functions/admin-team.mts
+index 76e3bb4..93877d4 100644
+--- a/netlify/functions/admin-team.mts
++++ b/netlify/functions/admin-team.mts
+@@ -9,14 +9,14 @@ export default async (req: Request) => {
+   const token = req.headers.get('authorization')!.replace(/^Bearer\s+/i, '');
+   const { data: me } = await supabase.auth.getUser(token);
+ 
+-  let b: { action?: string; email?: string; userId?: string; market?: string | null };
++  let b: { action?: string; email?: string; userId?: string };
+   try { b = await req.json(); } catch { return json({ error: 'Requête invalide' }, 400); }
+ 
+   if (b.action === 'list') {
+     const { data: rows } = await supabase.from('admins').select('user_id,market');
+     const members = await Promise.all((rows ?? []).map(async (r) => {
+       const { data } = await supabase.auth.admin.getUserById(r.user_id);
+-      return { user_id: r.user_id, email: data.user?.email ?? '—', last_sign_in_at: data.user?.last_sign_in_at ?? null, me: r.user_id === me.user?.id, market: r.market ?? null };
++      return { user_id: r.user_id, email: data.user?.email ?? '—', last_sign_in_at: data.user?.last_sign_in_at ?? null, me: r.user_id === me.user?.id };
+     }));
+     return json({ members });
+   }
+@@ -37,8 +37,8 @@ export default async (req: Request) => {
+       if (error || !data.user) return json({ error: 'Invitation impossible : vérifiez l’adresse.' }, 400);
+       userId = data.user.id;
+     }
+-    // market 'dz' : la personne ne gère que la boutique Algérie (commandes, produits, tarifs des wilayas)
+-    await supabase.from('admins').upsert({ user_id: userId, market: b.market === 'dz' ? 'dz' : null });
++    // Accès complet uniquement (market = null)
++    await supabase.from('admins').upsert({ user_id: userId, market: null });
+     return json({ ok: true });
+   }
+ 
+diff --git a/netlify/functions/create-checkout.mts b/netlify/functions/create-checkout.mts
+index 22c2d70..9d870ec 100644
+--- a/netlify/functions/create-checkout.mts
++++ b/netlify/functions/create-checkout.mts
+@@ -43,7 +43,7 @@ export default async (req: Request) => {
+     const found = products.find((x) => x.id === line.id);
+     // Promotion terminée : on facture le prix d'origine
+     const p = found ? applyPromoExpiry(found) : undefined;
+-    // Les produits de la boutique Algérie (en dinars) se paient à la livraison, jamais par Stripe
++    // Seuls les produits de la boutique française (euros) peuvent être payés
+     if (!p || !p.active || p.moderation !== 'approved' || (p.market ?? 'fr') !== 'fr') return json({ error: 'Un article de votre panier n’est plus en vente. Retirez-le pour continuer.' }, 409);
+     if (p.stock < line.quantity) {
+       return json({ error: p.stock === 0
+diff --git a/netlify/functions/create-cod-order.mts b/netlify/functions/create-cod-order.mts
+deleted file mode 100644
+index c3321fb..0000000
+--- a/netlify/functions/create-cod-order.mts
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Boutique Algérie : commande avec paiement à la livraison (aucun paiement en ligne).
+-// Les prix, les frais de livraison et le stock sont vérifiés ici, côté serveur.
+-import { json, serviceClient } from '../shared/admin';
+-import { absoluteUrl, layout, sendEmails } from '../shared/email';
+-import { applyPromoExpiry } from '../../src/pricing';
+-
+-const PHONE = /^(?:\+213|00213|0)(5|6|7)\d{8}$/;
+-
+-export default async (req: Request) => {
+-  if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405);
+-  let b: { items?: unknown; name?: unknown; phone?: unknown; wilaya?: unknown; commune?: unknown; address?: unknown; delivery?: unknown; note?: unknown; email?: unknown };
+-  try { b = await req.json(); } catch { return json({ error: 'Requête invalide' }, 400); }
+-
+-  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+-  const name = str(b.name, 100), commune = str(b.commune, 100), address = str(b.address, 300), note = str(b.note, 1000);
+-  const email = str(b.email, 200).toLowerCase() || null;
+-  const phone = str(b.phone, 20).replace(/[\s.-]/g, '');
+-  const delivery = b.delivery === 'bureau' ? 'bureau' : 'domicile';
+-  const wilayaCode = Number(b.wilaya);
+-  if (name.length < 2) return json({ error: 'Indiquez votre nom.' }, 400);
+-  if (!PHONE.test(phone)) return json({ error: 'Numéro de téléphone algérien invalide (ex. 0550 12 34 56).' }, 400);
+-  if (!commune || (delivery === 'domicile' && address.length < 3)) return json({ error: 'Adresse incomplète.' }, 400);
+-
+-  const raw = Array.isArray(b.items) ? b.items.slice(0, 30) : [];
+-  const lines = raw.map((x) => x as { id?: unknown; quantity?: unknown })
+-    .filter((x) => typeof x.id === 'string' && Number.isInteger(x.quantity) && (x.quantity as number) > 0 && (x.quantity as number) <= 20)
+-    .map((x) => ({ id: x.id as string, quantity: x.quantity as number }));
+-  if (!lines.length) return json({ error: 'Votre panier est vide.' }, 400);
+-
+-  const supabase = serviceClient();
+-  const { data: settingsRow } = await supabase.from('settings').select('data').eq('id', 1).maybeSingle();
+-  if ((settingsRow?.data as { dz_enabled?: boolean } | null)?.dz_enabled === false) return json({ error: 'La boutique Algérie est fermée pour le moment.' }, 403);
+-
+-  // Limite anti-abus : 3 commandes en attente par numéro et par jour
+-  const since = new Date(Date.now() - 86400000).toISOString();
+-  const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true }).eq('phone', phone).eq('status', 'to_confirm').gte('created_at', since);
+-  if ((count ?? 0) >= 3) return json({ error: 'Vous avez déjà des commandes en attente : nous allons vous appeler pour les confirmer.' }, 429);
+-
+-  const { data: rate } = await supabase.from('dz_shipping_rates').select('name,home_cents,desk_cents,active').eq('code', wilayaCode).maybeSingle();
+-  const shipping = rate?.active ? (delivery === 'bureau' ? rate.desk_cents : rate.home_cents) : null;
+-  if (!rate || shipping == null) return json({ error: 'Cette wilaya ou ce mode de livraison n’est pas encore desservi.' }, 400);
+-
+-  const { data: products } = await supabase.from('products')
+-    .select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,active,market,moderation')
+-    .in('id', lines.map((l) => l.id));
+-  let subtotal = 0;
+-  const items: { product_id: string; name: string; unit_price_cents: number; quantity: number }[] = [];
+-  for (const line of lines) {
+-    const found = products?.find((p) => p.id === line.id);
+-    const p = found ? applyPromoExpiry(found) : undefined;
+-    if (!p || !p.active || p.market !== 'dz' || p.moderation !== 'approved') return json({ error: 'Un article de votre panier n’est plus disponible. Retirez-le pour continuer.' }, 409);
+-    if (p.stock < line.quantity) return json({ error: `Stock insuffisant pour « ${p.name} ».` }, 409);
+-    subtotal += p.price_cents * line.quantity;
+-    items.push({ product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: line.quantity });
+-  }
+-
+-  const { data: order, error } = await supabase.from('orders').insert({
+-    stripe_session_id: `cod_${crypto.randomUUID()}`, market: 'dz', payment_method: 'cod', status: 'to_confirm',
+-    email, customer_name: name, phone, shipping_name: name, wilaya: `${String(wilayaCode).padStart(2, '0')} - ${rate.name}`, delivery_type: delivery,
+-    shipping_address: { line1: delivery === 'bureau' ? `Bureau du transporteur, ${commune}` : address, city: commune, state: rate.name, country: 'DZ' },
+-    subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping, customer_message: note || null,
+-    shipping_method: delivery === 'bureau' ? 'Retrait au bureau du transporteur' : 'Livraison à domicile',
+-  }).select('id').single();
+-  if (error || !order) { console.error('create-cod-order', error); return json({ error: 'La commande n’a pas pu être enregistrée. Réessayez.' }, 500); }
+-
+-  await supabase.from('order_items').insert(items.map((i) => ({ ...i, order_id: order.id })));
+-  for (const i of items) await supabase.rpc('decrement_stock', { p_product_id: i.product_id, p_quantity: i.quantity });
+-
+-  // Prévenir la famille qui gère la boutique Algérie
+-  const to = process.env.DZ_OWNER_EMAIL ?? process.env.OWNER_EMAIL;
+-  if (to && process.env.RESEND_API_KEY) {
+-    const lines = [`${name} — ${phone}`, `${rate.name}, ${commune} (${delivery === 'bureau' ? 'bureau' : 'domicile'})`, ...items.map((i) => `• ${i.quantity} × ${i.name}`),
+-      `Total à encaisser : ${((subtotal + shipping) / 100).toLocaleString('fr-FR')} DA`, 'Appelez le client pour confirmer avant de préparer le colis.'];
+-    sendEmails([{ to, subject: `Nouvelle commande Algérie — ${name}`, text: lines.join('\n'), html: layout('Nouvelle commande Algérie', lines, { label: 'Voir la commande', url: absoluteUrl('/admin/commandes') }) }],
+-      process.env.EMAIL_FROM ?? 'Boutique <onboarding@resend.dev>').catch(() => {});
+-  }
+-  return json({ number: order.id.slice(0, 8).toUpperCase(), total_cents: subtotal + shipping });
+-};
+diff --git a/netlify/functions/sitemap.mts b/netlify/functions/sitemap.mts
+index be2b016..32a61dd 100644
+--- a/netlify/functions/sitemap.mts
++++ b/netlify/functions/sitemap.mts
+@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
+ export default async (req: Request) => {
+   const origin = process.env.URL ?? new URL(req.url).origin;
+   const supabase = createClient(process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!, process.env.VITE_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+-  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).limit(5000);
++  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).eq('market', 'fr').limit(5000);
+   const pages = ['/', '/boutique', '/univers/maison', '/univers/bijoux', '/univers/beaute', '/catalogue', '/artisans', '/sur-mesure', '/carte-cadeau', '/nos-realisations', '/notre-histoire', '/livraison-et-retours', '/questions-frequentes', '/contact'];
+   const urls = [
+     ...pages.map((p) => `<url><loc>${origin}${p}</loc></url>`),
+diff --git a/netlify/shared/admin.ts b/netlify/shared/admin.ts
+index df95671..77f79e8 100644
+--- a/netlify/shared/admin.ts
++++ b/netlify/shared/admin.ts
+@@ -17,7 +17,7 @@ export async function requireAdmin(req: Request): Promise<Response | null> {
+   const { data: auth } = await supabase.auth.getUser(token);
+   if (!auth.user) return json({ error: 'Session expirée : reconnectez-vous.' }, 401);
+   const { data: admin } = await supabase.from('admins').select('user_id,market').eq('user_id', auth.user.id).maybeSingle();
+-  // Les gestionnaires d'une seule boutique (Algérie) n'ont pas accès aux fonctions serveur (paiements, équipe, emails)
++  // Anciens accès limités à une boutique (colonne market renseignée) : refusés
+   if (!admin || admin.market) return json({ error: 'Accès refusé' }, 403);
+ 
+   // Double authentification activée → le jeton doit être de niveau aal2
+diff --git a/src/App.tsx b/src/App.tsx
+index 28a792f..6952809 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -20,7 +20,6 @@ import { AccountPage } from './pages/AccountPage';
+ import { SellPage } from './pages/SellPage';
+ import { CatalogPage } from './pages/CatalogPage';
+ import { UniversePage } from './pages/UniversePage';
+-import { DzCheckoutPage } from './pages/DzCheckoutPage';
+ import { ArtisanProfilePage, ArtisansPage } from './pages/ArtisansPage';
+ 
+ // L'espace vendeur est chargé à part : les clients ne téléchargent pas son code.
+@@ -44,7 +43,6 @@ const AdminShipping = lazy(() => import('./pages/admin/AdminShipping').then((m)
+ const AdminTeam = lazy(() => import('./pages/admin/AdminTeam').then((m) => ({ default: m.AdminTeam })));
+ const AdminArtisans = lazy(() => import('./pages/admin/AdminArtisans').then((m) => ({ default: m.AdminArtisans })));
+ const AdminCatalogs = lazy(() => import('./pages/admin/AdminCatalogs').then((m) => ({ default: m.AdminCatalogs })));
+-const AdminDzShipping = lazy(() => import('./pages/admin/AdminDzShipping').then((m) => ({ default: m.AdminDzShipping })));
+ const AdminStockAlerts = lazy(() => import('./pages/admin/AdminStockAlerts').then((m) => ({ default: m.AdminStockAlerts })));
+ 
+ const Loading = () => <p className="p-8 text-stone-500">Chargement…</p>;
+@@ -70,7 +68,6 @@ export default function App() {
+         <Route path="compte" element={<AccountPage />} />
+         <Route path="vendre" element={<SellPage />} />
+         <Route path="catalogue" element={<CatalogPage />} />
+-        <Route path="commande-algerie" element={<DzCheckoutPage />} />
+         <Route path="univers/:univers" element={<UniversePage />} />
+         <Route path="artisans" element={<ArtisansPage />} />
+         <Route path="artisans/:slug" element={<ArtisanProfilePage />} />
+@@ -102,7 +99,6 @@ export default function App() {
+         <Route path="lettre" element={<AdminNewsletter />} />
+         <Route path="messages" element={<AdminMessages />} />
+         <Route path="livraison" element={<AdminShipping />} />
+-        <Route path="livraison-algerie" element={<AdminDzShipping />} />
+         <Route path="equipe" element={<AdminTeam />} />
+         <Route path="artisans" element={<AdminArtisans />} />
+         <Route path="catalogues" element={<AdminCatalogs />} />
+diff --git a/src/components/CartDrawer.tsx b/src/components/CartDrawer.tsx
+index 7e0b54f..87df234 100644
+--- a/src/components/CartDrawer.tsx
++++ b/src/components/CartDrawer.tsx
+@@ -1,10 +1,9 @@
+-import { useMarket } from '../context/MarketContext';
+ import { useEffect, useState } from 'react';
+ import { Link, useLocation, useNavigate } from 'react-router-dom';
+-import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, Truck, X } from 'lucide-react';
++import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, X } from 'lucide-react';
+ import { useCart } from '../context/CartContext';
+ import { formatPrice } from '../lib/format';
+-import { COUNTRIES, KIND_LABELS, quoteShipping, servedCountries, addBusinessDays } from '../shipping';
++import { KIND_LABELS, quoteShipping, addBusinessDays } from '../shipping';
+ import { useSettings } from '../context/SettingsContext';
+ import { listProducts, startCheckout } from '../lib/api';
+ import { useMarketplace } from '../context/MarketplaceContext';
+@@ -13,8 +12,7 @@ import { Product } from '../types';
+ import { ProductImage } from './ProductImage';
+ 
+ export function CartDrawer() {
+-  const isDz = useMarket().market === 'dz';
+-  const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded, add, country, setCountry, methodId, setMethodId } = useCart();
++  const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded, add, country, methodId, setMethodId } = useCart();
+   const [catalog, setCatalog] = useState<Product[]>([]);
+   const navigate = useNavigate();
+   const { pathname } = useLocation();
+@@ -35,7 +33,6 @@ export function CartDrawer() {
+ 
+   if (!isOpen) return null;
+ 
+-  const served = servedCountries(settings.shipping_zones, settings.shipping_methods);
+   // Pièces de l'atelier : modes de livraison de la boutique. Pièces d'artisans : chaque artisan expédie à son tarif.
+   const { sellerOf } = useMarketplace();
+   const ownLines = lines.filter((l) => !l.seller_id);
+@@ -153,22 +150,11 @@ export function CartDrawer() {
+               </div>
+             )}
+ 
+-            {/* ---------- Livraison : pays et mode (boutique France) ---------- */}
+-            {isDz ? (
+-              <section className="px-6 pb-5" aria-label="Livraison en Algérie">
+-                <p className="font-display text-2xl text-nuit">Livraison</p>
+-                <p className="mt-2 text-sm text-henne">Dans les 58 wilayas, à domicile ou au bureau du transporteur. Le prix dépend de votre wilaya : il s’affiche à l’étape suivante.</p>
+-              </section>
+-            ) : (
++            {/* ---------- Livraison en France : mode ---------- */}
+             <section className="px-6 pb-5" aria-label="Livraison">
+               <div className="flex items-center justify-between gap-3 mb-3">
+                 <p className="font-display text-2xl text-nuit">Livraison</p>
+-                <label className="flex items-center gap-2 text-sm">
+-                  <span className="text-henne">vers</span>
+-                  <select value={country} onChange={(e) => { setCountry(e.target.value); setMethodId(null); }} className="py-1.5 px-2 bg-white border border-laine-fonce" aria-label="Pays de livraison">
+-                    {COUNTRIES.filter((c) => served.includes(c.code) || c.code === country).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+-                  </select>
+-                </label>
++                <span className="text-sm text-henne">en France métropolitaine</span>
+               </div>
+               {sellerGroups.length > 0 && (
+                 <ul className="mb-3 space-y-2">
+@@ -211,39 +197,31 @@ export function CartDrawer() {
+                 </div>
+               )}
+             </section>
+-            )}
+             </div>
+ 
+             <div className="border-t border-laine-fonce px-6 py-5 space-y-2 shrink-0">
+               <div className="flex justify-between"><span>Sous-total</span><span>{formatPrice(subtotal)}</span></div>
+-              {!isDz && <div className="flex justify-between text-henne">
++              <div className="flex justify-between text-henne">
+                 <span>Livraison{sellerGroups.length && ownLines.length ? ' (atelier + artisans)' : ''}</span><span>{!canShip ? '—' : shipping === 0 ? 'Offerte' : formatPrice(shipping)}</span>
+-              </div>}
+-              {!isDz && missingForFree > 0 && (
++              </div>
++              {missingForFree > 0 && (
+                 <p className="text-sm text-henne">Plus que {formatPrice(missingForFree)} pour la livraison offerte.</p>
+               )}
+               <div className="flex justify-between font-display text-xl text-nuit pt-2">
+-                <span>{isDz ? 'Total des articles' : 'Total'}</span><span>{formatPrice(isDz ? subtotal : subtotal + shipping)}</span>
++                <span>Total</span><span>{formatPrice(subtotal + shipping)}</span>
+               </div>
+               {error && <p className="text-sm text-garance bg-garance/10 p-3 rounded-sm" role="alert">{error}</p>}
+-              {isDz ? (
+-                <button onClick={() => { close(); navigate('/commande-algerie'); }}
+-                  className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit">
+-                  <Truck className="w-5 h-5" /> Commander — paiement à la livraison
+-                </button>
+-              ) : (
+               <button onClick={pay} disabled={paying || !canShip}
+                 className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit disabled:opacity-60">
+                 <Lock className="w-4 h-4" />
+                 {paying ? 'Ouverture du paiement…' : 'Payer ma commande'}
+               </button>
+-              )}
+               <button onClick={continueShopping}
+                 className="w-full py-3.5 rounded-sm border border-nuit/25 text-nuit flex items-center justify-center gap-2 hover:border-nuit">
+                 <ArrowLeft className="w-4 h-4" /> Continuer mes achats
+               </button>
+               <p className="text-xs text-center text-henne">
+-                {isDz ? 'Vous payez en espèces au livreur, à la réception du colis. Nous vous appelons d’abord pour confirmer.' : 'Paiement par carte (Visa, Mastercard, CB), Apple Pay ou Google Pay, sur la page sécurisée de Stripe.'}
++                Paiement par carte (Visa, Mastercard, CB), Apple Pay ou Google Pay, sur la page sécurisée de Stripe.
+               </p>
+             </div>
+           </>
+diff --git a/src/components/DeliveryEstimate.tsx b/src/components/DeliveryEstimate.tsx
+index 8275a6c..c37d688 100644
+--- a/src/components/DeliveryEstimate.tsx
++++ b/src/components/DeliveryEstimate.tsx
+@@ -1,19 +1,16 @@
+ import { Truck } from 'lucide-react';
+-import { listDzRates } from '../lib/api';
+-import { useAsync } from '../lib/useAsync';
+ import { useCart } from '../context/CartContext';
+ import { useSettings } from '../context/SettingsContext';
+-import { COUNTRIES, KIND_LABELS, addBusinessDays, quoteShipping, servedCountries } from '../shipping';
++import { KIND_LABELS, addBusinessDays, quoteShipping } from '../shipping';
+ import { formatPrice } from '../lib/format';
+ import { Product } from '../types';
+ 
+ const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+ 
+-/** Fiche produit : date de livraison estimée et modes disponibles pour le pays choisi. */
++/** Fiche produit : date de livraison estimée et modes disponibles en France. */
+ export function DeliveryEstimate({ product }: { product: Product }) {
+   const { settings } = useSettings();
+-  const { country, setCountry } = useCart();
+-  const served = servedCountries(settings.shipping_zones, settings.shipping_methods);
++  const { country } = useCart();
+   const quotes = quoteShipping(country, [{ quantity: 1, price_cents: product.price_cents, width_cm: product.width_cm, length_cm: product.length_cm }],
+     settings.shipping_zones, settings.shipping_methods).filter((q) => q.method.kind !== 'retrait');
+   const pickup = settings.shipping_methods.find((m) => m.active && m.kind === 'retrait' && m.prices[settings.shipping_zones.find((z) => z.countries.includes(country))?.id ?? ''] != null);
+@@ -31,14 +28,9 @@ export function DeliveryEstimate({ product }: { product: Product }) {
+               le <strong>{fmt(addBusinessDays(now, settings.preparation_days + fastest.method.max_days))}</strong>
+             </p>
+           ) : (
+-            <p className="text-[15px]">Livraison vers ce pays sur demande : écrivez-nous.</p>
++            <p className="text-[15px]">Livraison sur demande : écrivez-nous.</p>
+           )}
+-          <label className="mt-1 inline-flex items-center gap-1.5 text-sm text-henne">
+-            vers
+-            <select value={country} onChange={(e) => setCountry(e.target.value)} className="bg-transparent underline underline-offset-2 text-nuit cursor-pointer" aria-label="Pays de livraison">
+-              {COUNTRIES.filter((c) => served.includes(c.code) || c.code === country).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+-            </select>
+-          </label>
++          <p className="mt-1 text-sm text-henne">en France métropolitaine</p>
+           {quotes.length > 0 && (
+             <ul className="mt-3 space-y-1 text-sm">
+               {quotes.map((q) => (
+@@ -58,21 +50,3 @@ export function DeliveryEstimate({ product }: { product: Product }) {
+     </div>
+   );
+ }
+-
+-/** Boutique Algérie : prix de livraison selon la wilaya, paiement à la livraison. */
+-export function DzDelivery() {
+-  const { data: rates } = useAsync(listDzRates, []);
+-  const active = (rates ?? []).filter((r) => r.active);
+-  const home = active.map((r) => r.home_cents).filter((c): c is number => c != null);
+-  const desk = active.map((r) => r.desk_cents).filter((c): c is number => c != null);
+-  return (
+-    <div className="border border-laine-fonce bg-white/60 p-4 flex gap-3">
+-      <Truck className="w-5 h-5 text-garance shrink-0 mt-0.5" />
+-      <div className="text-[15px]">
+-        <p>Livraison dans <strong>{active.length || 58} wilayas</strong>, en 2 à 5 jours.</p>
+-        {home.length > 0 && <p className="text-sm text-henne mt-1">À domicile dès {formatPrice(Math.min(...home))} · au bureau du transporteur dès {desk.length ? formatPrice(Math.min(...desk)) : '—'}</p>}
+-        <p className="text-sm text-henne mt-1">Vous payez en espèces au livreur, à la réception.</p>
+-      </div>
+-    </div>
+-  );
+-}
+diff --git a/src/components/Flag.tsx b/src/components/Flag.tsx
+deleted file mode 100644
+index 6dcec4e..0000000
+--- a/src/components/Flag.tsx
++++ /dev/null
+@@ -1,17 +0,0 @@
+-import type { Market } from '../market';
+-
+-/** Petit drapeau dessiné (les drapeaux en emoji ne s'affichent pas sous Windows). */
+-export function Flag({ market, className = 'w-5 h-auto' }: { market: Market; className?: string }) {
+-  if (market === 'fr') return (
+-    <svg viewBox="0 0 3 2" className={`${className} inline-block shrink-0 rounded-[2px] ring-1 ring-black/10`} aria-hidden>
+-      <rect width="1" height="2" fill="#002654" /><rect x="1" width="1" height="2" fill="#fff" /><rect x="2" width="1" height="2" fill="#CE1126" />
+-    </svg>
+-  );
+-  return (
+-    <svg viewBox="0 0 30 20" className={`${className} inline-block shrink-0 rounded-[2px] ring-1 ring-black/10`} aria-hidden>
+-      <rect width="15" height="20" fill="#006233" /><rect x="15" width="15" height="20" fill="#fff" />
+-      <circle cx="15" cy="10" r="5" fill="#D21034" /><circle cx="16.25" cy="10" r="4" fill="#fff" />
+-      <path d="M17.6 10 20.2 8.8 18.6 11.1 18.6 8.9 20.2 11.2Z" fill="#D21034" />
+-    </svg>
+-  );
+-}
+diff --git a/src/components/Footer.tsx b/src/components/Footer.tsx
+index df6d278..c8d1162 100644
+--- a/src/components/Footer.tsx
++++ b/src/components/Footer.tsx
+@@ -3,12 +3,10 @@ import { SHOP } from '../config';
+ import { useSettings } from '../context/SettingsContext';
+ import { Mark } from './Header';
+ import { usePanels } from '../context/PanelsContext';
+-import { useMarket } from '../context/MarketContext';
+ 
+ export function Footer() {
+   const { settings } = useSettings();
+   const { openContact } = usePanels();
+-  const { market } = useMarket();
+   const col = 'space-y-2.5 text-laine/80';
+   const a = 'hover:text-safran';
+   return (
+@@ -52,7 +50,7 @@ export function Footer() {
+ 
+         <div className="mt-14 pt-6 border-t border-laine/15 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-x-6 gap-y-3 text-sm text-laine/55">
+           <span className="flex items-center gap-2"><Mark className="w-6 h-6" /> © {new Date().getFullYear()} {SHOP.name}</span>
+-          <span>{market === 'dz' ? 'Algérie : paiement à la livraison dans les 58 wilayas' : 'Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay'}</span>
++          <span>Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</span>
+           <span className="flex flex-wrap gap-x-4 gap-y-2 lg:ml-auto">
+             <Link className="hover:text-laine" to="/conditions-generales-de-vente">Conditions de vente</Link>
+             <Link className="hover:text-laine" to="/mentions-legales">Mentions légales</Link>
+diff --git a/src/components/Header.tsx b/src/components/Header.tsx
+index c8458da..cb93218 100644
+--- a/src/components/Header.tsx
++++ b/src/components/Header.tsx
+@@ -2,8 +2,6 @@ import { useState } from 'react';
+ import { Link, NavLink } from 'react-router-dom';
+ import { Heart, Menu, Search, ShoppingBag, User } from 'lucide-react';
+ import { useCustomer } from '../context/CustomerContext';
+-import { MarketSwitch } from './MarketChooser';
+-import { useMarket } from '../context/MarketContext';
+ import { SearchOverlay } from './SearchOverlay';
+ import { usePanels } from '../context/PanelsContext';
+ import { useFavorites } from '../context/FavoritesContext';
+@@ -24,7 +22,6 @@ export function Header() {
+   const [searchOpen, setSearchOpen] = useState(false);
+   const { openMenu } = usePanels();
+   const { customer } = useCustomer();
+-  const { market } = useMarket();
+   const icon = 'relative p-1.5 sm:p-2.5 text-nuit hover:text-garance';
+ 
+   return (
+@@ -42,13 +39,12 @@ export function Header() {
+         </Link>
+ 
+         <nav className="hidden lg:flex items-center gap-5 xl:gap-7 ml-2 xl:ml-6" aria-label="Navigation principale">
+-          {links.filter((l) => market === 'fr' || (l.to !== '/carte-cadeau' && l.to !== '/artisans')).map((l) => (
++          {links.map((l) => (
+             <NavLink key={l.to} to={l.to} className={`lien-tisse text-[15px] text-nuit pb-0.5 whitespace-nowrap ${l.to === '/carte-cadeau' ? 'hidden xl:inline' : ''}`}>{l.label}</NavLink>
+           ))}
+         </nav>
+ 
+         <div className="ml-auto flex items-center shrink-0">
+-          <span className="hidden sm:block"><MarketSwitch /></span><span className="sm:hidden"><MarketSwitch compact /></span>
+           <button onClick={() => setSearchOpen(true)} className={icon} aria-label="Rechercher"><Search className="w-[22px] h-[22px]" /></button>
+           <Link to="/compte" className={icon} aria-label={customer ? 'Mon compte (connecté)' : 'Mon compte'}>
+             <User className="w-[22px] h-[22px]" />
+diff --git a/src/components/Layout.tsx b/src/components/Layout.tsx
+index a14fe99..f6c349c 100644
+--- a/src/components/Layout.tsx
++++ b/src/components/Layout.tsx
+@@ -9,7 +9,6 @@ import { useSettings } from '../context/SettingsContext';
+ import { SHOP } from '../config';
+ import { CartReminder } from './CartReminder';
+ import { NewsletterCatalogBand } from './NewsletterCatalogBand';
+-import { FirstVisitMarket } from './MarketChooser';
+ import { Countdown } from './Countdown';
+ import { MenuDrawer } from './MenuDrawer';
+ import { ContactSidebar } from './ContactSidebar';
+@@ -82,7 +81,6 @@ export function Layout() {
+ 
+       {menu && <MenuDrawer onClose={closeMenu} onContact={() => setContact('contact')} />}
+       {contact && <ContactSidebar initialTab={contact} onClose={closeContact} />}
+-      <FirstVisitMarket />
+       <PrivacyBanner onDetails={() => setContact('donnees')} />
+     </div>
+     </PanelsContext.Provider>
+diff --git a/src/components/MarketChooser.tsx b/src/components/MarketChooser.tsx
+deleted file mode 100644
+index cf3d940..0000000
+--- a/src/components/MarketChooser.tsx
++++ /dev/null
+@@ -1,82 +0,0 @@
+-import { Flag } from './Flag';
+-import { useEffect, useState } from 'react';
+-import { createPortal } from 'react-dom';
+-import { useLocation } from 'react-router-dom';
+-import { Check, ChevronDown } from 'lucide-react';
+-import { useMarket } from '../context/MarketContext';
+-import { useSettings } from '../context/SettingsContext';
+-import { Market, MARKETS } from '../market';
+-import { Mark } from './Header';
+-
+-/** Bouton d'en-tête « France ▾ » pour passer d'une boutique à l'autre. */
+-export function MarketSwitch({ compact = false }: { compact?: boolean }) {
+-  const { market } = useMarket();
+-  const { settings } = useSettings();
+-  const [open, setOpen] = useState(false);
+-  if (!settings.dz_enabled) return null;
+-  return (
+-    <>
+-      <button onClick={() => setOpen(true)} className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-2 text-nuit hover:text-garance" aria-label={`Boutique ${MARKETS[market].label} : changer de pays`}>
+-        <Flag market={market} />
+-        {!compact && <span className="hidden md:inline text-sm">{MARKETS[market].label}</span>}
+-        <ChevronDown className="w-3.5 h-3.5" />
+-      </button>
+-      {open && <MarketDialog onClose={() => setOpen(false)} />}
+-    </>
+-  );
+-}
+-
+-/** Choix de la boutique : à la première visite, puis depuis l'en-tête. */
+-export function MarketDialog({ onClose, first = false }: { onClose: () => void; first?: boolean }) {
+-  const { market, choose } = useMarket();
+-  const { pathname } = useLocation();
+-  useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
+-
+-  function pick(m: Market) {
+-    const changed = m !== market;
+-    choose(m);
+-    onClose();
+-    if (!changed) return;
+-    // Nouvelle boutique : produits, prix et panier sont rechargés. Une fiche produit appartient à une boutique : on repart de la boutique.
+-    const target = pathname.startsWith('/produit/') || pathname.startsWith('/commande') ? '/boutique' : pathname;
+-    window.location.assign(target);
+-  }
+-
+-  return createPortal(
+-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-label="Choisir votre boutique">
+-      <div className="absolute inset-0 bg-nuit/50" onClick={first ? undefined : onClose} />
+-      <div className="relative w-full sm:max-w-lg bg-laine shadow-2xl">
+-        <div className="lisiere" aria-hidden />
+-        <div className="p-6 sm:p-8">
+-          <div className="flex items-center gap-3"><Mark className="w-9 h-9" /><p className="font-display text-3xl text-nuit">Où êtes-vous ?</p></div>
+-          <p className="mt-2 text-henne">Chaque pays a sa boutique : ses pièces, ses prix et sa livraison.</p>
+-          <div className="mt-6 grid gap-3">
+-            {(Object.keys(MARKETS) as Market[]).map((m) => (
+-              <button key={m} onClick={() => pick(m)} className={`flex items-center gap-4 p-4 text-left border-2 ${market === m && !first ? 'border-nuit bg-white' : 'border-laine-fonce bg-white hover:border-nuit'}`}>
+-                <Flag market={m} className="w-12 h-auto" />
+-                <span className="flex-1">
+-                  <span className="block font-display text-2xl text-nuit">{MARKETS[m].label}</span>
+-                  <span className="block text-sm text-henne">
+-                    {m === 'fr' ? 'Prix en euros · carte bancaire, Apple Pay · livraison en France et en Europe' : 'Prix en dinars · paiement à la livraison · 58 wilayas'}
+-                  </span>
+-                </span>
+-                {market === m && !first && <Check className="w-5 h-5 text-menthe" />}
+-              </button>
+-            ))}
+-          </div>
+-        </div>
+-      </div>
+-    </div>,
+-    document.body,
+-  );
+-}
+-
+-/** Première visite : demande le pays une seule fois. */
+-export function FirstVisitMarket() {
+-  const { chosen } = useMarket();
+-  const { settings } = useSettings();
+-  const { pathname } = useLocation();
+-  const [closed, setClosed] = useState(false);
+-  if (chosen || closed || !settings.dz_enabled || pathname.startsWith('/admin')) return null;
+-  return <MarketDialog first onClose={() => setClosed(true)} />;
+-}
+diff --git a/src/components/MenuDrawer.tsx b/src/components/MenuDrawer.tsx
+index bb58c7a..a2332ad 100644
+--- a/src/components/MenuDrawer.tsx
++++ b/src/components/MenuDrawer.tsx
+@@ -3,7 +3,6 @@ import { BookOpen, Gift, Heart, Mail, Package, Ruler, Store, Truck, User } from
+ import { Drawer } from './Drawer';
+ import { useCategories, useSettings } from '../context/SettingsContext';
+ import { useFavorites } from '../context/FavoritesContext';
+-import { useMarket } from '../context/MarketContext';
+ import { listProducts } from '../lib/api';
+ import { useAsync } from '../lib/useAsync';
+ 
+@@ -12,7 +11,6 @@ export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onCont
+   const { categories } = useCategories();
+   const { settings } = useSettings();
+   const { ids } = useFavorites();
+-  const { market } = useMarket();
+   const { data: products } = useAsync(listProducts, []);
+   const shown = products ? categories.filter((c) => products.some((p) => p.category === c.id)) : categories;
+   const big = 'block py-3 font-display text-[2rem] leading-none text-nuit hover:text-garance';
+@@ -34,7 +32,7 @@ export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onCont
+           <li className="mt-3"><Link to="/boutique?promotion=1" onClick={onClose} className={`${big} text-garance`}>Promotions</Link></li>
+           <li><Link to="/boutique?nouveautes=1" onClick={onClose} className={big}>Nouveautés</Link></li>
+           <li><Link to="/sur-mesure" onClick={onClose} className={big}>Sur mesure</Link></li>
+-          {market === 'fr' && <li><Link to="/artisans" onClick={onClose} className={big}>Nos artisans</Link></li>}
++          <li><Link to="/artisans" onClick={onClose} className={big}>Nos artisans</Link></li>
+           <li><Link to="/nos-realisations" onClick={onClose} className={big}>Réalisations</Link></li>
+           <li><Link to="/notre-histoire" onClick={onClose} className={big}>L’atelier</Link></li>
+         </ul>
+@@ -43,9 +41,9 @@ export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onCont
+         <ul className="text-[15px]">
+           <li><Link to="/compte" onClick={onClose} className={small}><User className="w-4 h-4" /> Mon compte</Link></li>
+           <li><Link to="/favoris" onClick={onClose} className={small}><Heart className="w-4 h-4" /> Mes favoris ({ids.length})</Link></li>
+-          {market === 'fr' && <li><Link to="/carte-cadeau" onClick={onClose} className={small}><Gift className="w-4 h-4" /> Carte cadeau</Link></li>}
++          <li><Link to="/carte-cadeau" onClick={onClose} className={small}><Gift className="w-4 h-4" /> Carte cadeau</Link></li>
+           <li><Link to="/catalogue" onClick={onClose} className={small}><BookOpen className="w-4 h-4" /> Catalogue</Link></li>
+-          {market === 'fr' && <li><Link to="/vendre" onClick={onClose} className={small}><Store className="w-4 h-4" /> Vendre mes créations</Link></li>}
++          <li><Link to="/vendre" onClick={onClose} className={small}><Store className="w-4 h-4" /> Vendre mes créations</Link></li>
+           <li><Link to="/suivi-commande" onClick={onClose} className={small}><Package className="w-4 h-4" /> Suivre ma commande</Link></li>
+           <li><Link to="/livraison-et-retours" onClick={onClose} className={small}><Truck className="w-4 h-4" /> Livraison et retours</Link></li>
+           <li><Link to="/questions-frequentes" onClick={onClose} className={small}><Ruler className="w-4 h-4" /> Questions fréquentes</Link></li>
+diff --git a/src/components/Price.tsx b/src/components/Price.tsx
+index 7f150fa..901bb5f 100644
+--- a/src/components/Price.tsx
++++ b/src/components/Price.tsx
+@@ -1,16 +1,15 @@
+ import { formatPrice } from '../lib/format';
+-import type { Market } from '../market';
+ 
+ export function discountPercent(price: number, compareAt: number | null): number | null {
+   return compareAt && compareAt > price ? Math.round((1 - price / compareAt) * 100) : null;
+ }
+ 
+-export function Price({ cents, compareAt, size = 'md', market }: { cents: number; compareAt: number | null; size?: 'md' | 'lg'; market?: Market }) {
++export function Price({ cents, compareAt, size = 'md' }: { cents: number; compareAt: number | null; size?: 'md' | 'lg' }) {
+   const off = discountPercent(cents, compareAt);
+   return (
+     <span className={`inline-flex flex-wrap items-baseline gap-x-2 ${size === 'lg' ? 'text-2xl' : ''}`}>
+-      <span className={`font-semibold tabular-nums ${off ? 'text-garance' : 'text-nuit'}`}>{formatPrice(cents, market)}</span>
+-      {off && <span className={`line-through text-henne/70 ${size === 'lg' ? 'text-lg' : 'text-sm'}`}>{formatPrice(compareAt!, market)}</span>}
++      <span className={`font-semibold tabular-nums ${off ? 'text-garance' : 'text-nuit'}`}>{formatPrice(cents)}</span>
++      {off && <span className={`line-through text-henne/70 ${size === 'lg' ? 'text-lg' : 'text-sm'}`}>{formatPrice(compareAt!)}</span>}
+     </span>
+   );
+ }
+diff --git a/src/components/ProductCard.tsx b/src/components/ProductCard.tsx
+index 3e1e81c..b4132a3 100644
+--- a/src/components/ProductCard.tsx
++++ b/src/components/ProductCard.tsx
+@@ -20,7 +20,7 @@ export function ProductCard({ product }: { product: Product }) {
+   const badges = useBadges().badgesFor(product);
+   const { settings } = useSettings();
+   const threshold = freeShippingThreshold(settings);
+-  const freeShipping = (product.market ?? 'fr') === 'fr' && !soldOut && threshold !== null && product.price_cents >= threshold;
++  const freeShipping = !soldOut && threshold !== null && product.price_cents >= threshold;
+ 
+   return (
+     <Link to={`/produit/${product.id}`} className="group block">
+@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
+         <h3 className="font-display text-[1.1rem] sm:text-[1.35rem] leading-tight text-nuit group-hover:text-garance">{product.name}</h3>
+         {seller && <p className="text-sm text-henne mt-0.5">par {seller.shop_name}</p>}
+         <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+-          <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} market={product.market} />
++          <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} />
+           {dims && <span className="text-xs sm:text-sm text-henne">{dims}</span>}
+         </div>
+         {(review || freeShipping) && (
+diff --git a/src/config.ts b/src/config.ts
+index 6fa7d42..c9023af 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -90,15 +90,6 @@ export const CARRIERS: { id: string; label: string; url: (code: string) => strin
+   { id: 'autre', label: 'Autre transporteur', url: () => '' },
+ ];
+ 
+-/** Transporteurs de la boutique Algérie (suivi sur leur propre site ou application). */
+-export const DZ_CARRIERS: { id: string; label: string; url: (code: string) => string }[] = [
+-  { id: 'yalidine', label: 'Yalidine', url: () => '' },
+-  { id: 'zr-express', label: 'ZR Express', url: () => '' },
+-  { id: 'maystro', label: 'Maystro Delivery', url: () => '' },
+-  { id: 'livraison-famille', label: 'Livraison par nos soins', url: () => '' },
+-  { id: 'autre', label: 'Autre transporteur', url: () => '' },
+-];
+-
+ export function trackingUrl(carrier: string | null, code: string | null): string | null {
+   if (!code) return null;
+   const c = CARRIERS.find((x) => x.id === (carrier ?? 'colissimo'));
+diff --git a/src/context/CartContext.tsx b/src/context/CartContext.tsx
+index 0ac9083..b574137 100644
+--- a/src/context/CartContext.tsx
++++ b/src/context/CartContext.tsx
+@@ -1,7 +1,6 @@
+ import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+ import { Product } from '../types';
+ import { trackProduct } from '../lib/api';
+-import { currentMarket, Market } from '../market';
+ 
+ export interface CartLine {
+   id: string;
+@@ -36,12 +35,11 @@ interface CartValue {
+ }
+ 
+ const CartContext = createContext<CartValue | null>(null);
+-// Un panier par boutique : les articles de France et d'Algérie ne se mélangent pas
+-const storageKey = (m: Market) => (m === 'fr' ? 'artisanat-panier' : `artisanat-panier-${m}`);
++const STORAGE_KEY = 'artisanat-panier';
+ 
+-function load(m: Market = currentMarket()): CartLine[] {
++function load(): CartLine[] {
+   try {
+-    const raw = localStorage.getItem(storageKey(m));
++    const raw = localStorage.getItem(STORAGE_KEY);
+     return raw ? (JSON.parse(raw) as CartLine[]) : [];
+   } catch {
+     return [];
+@@ -49,22 +47,16 @@ function load(m: Market = currentMarket()): CartLine[] {
+ }
+ 
+ export function CartProvider({ children }: { children: ReactNode }) {
+-  const [market, setMarket] = useState<Market>(currentMarket);
+   const [lines, setLines] = useState<CartLine[]>(() => load());
+-  useEffect(() => {
+-    const h = () => { const m = currentMarket(); setMarket(m); setLines(load(m)); };
+-    window.addEventListener('artisanat-boutique', h);
+-    return () => window.removeEventListener('artisanat-boutique', h);
+-  }, []);
+   const [isOpen, setIsOpen] = useState(false);
+   const [lastAdded, setLastAdded] = useState<string | null>(null);
+-  const [country, setCountry] = useState<string>(() => { try { return localStorage.getItem('artisanat-pays') ?? 'FR'; } catch { return 'FR'; } });
++  // Boutique française : livraison en France uniquement
++  const [country, setCountry] = useState<string>('FR');
+   const [methodId, setMethodId] = useState<string | null>(null);
+-  useEffect(() => { try { localStorage.setItem('artisanat-pays', country); } catch { /* ignoré */ } }, [country]);
+ 
+   useEffect(() => {
+-    try { localStorage.setItem(storageKey(market), JSON.stringify(lines)); } catch { /* navigation privée */ }
+-  }, [lines, market]);
++    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch { /* navigation privée */ }
++  }, [lines]);
+ 
+   const value = useMemo<CartValue>(() => ({
+     lines,
+diff --git a/src/context/MarketContext.tsx b/src/context/MarketContext.tsx
+deleted file mode 100644
+index 4d5169a..0000000
+--- a/src/context/MarketContext.tsx
++++ /dev/null
+@@ -1,19 +0,0 @@
+-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+-import { currentMarket, hasChosenMarket, Market, setCurrentMarket } from '../market';
+-
+-interface MarketValue { market: Market; chosen: boolean; choose: (m: Market) => void }
+-const MarketContext = createContext<MarketValue>({ market: 'fr', chosen: true, choose: () => {} });
+-
+-/** Boutique choisie (France ou Algérie). Changer de boutique recharge les produits, les prix et le panier. */
+-export function MarketProvider({ children }: { children: ReactNode }) {
+-  const [market, setMarket] = useState<Market>(currentMarket);
+-  const [chosen, setChosen] = useState(hasChosenMarket);
+-  useEffect(() => {
+-    const h = () => { setMarket(currentMarket()); setChosen(true); };
+-    window.addEventListener('artisanat-boutique', h);
+-    return () => window.removeEventListener('artisanat-boutique', h);
+-  }, []);
+-  return <MarketContext.Provider value={{ market, chosen, choose: setCurrentMarket }}>{children}</MarketContext.Provider>;
+-}
+-
+-export const useMarket = () => useContext(MarketContext);
+diff --git a/src/data/wilayas.ts b/src/data/wilayas.ts
+deleted file mode 100644
+index 91bf421..0000000
+--- a/src/data/wilayas.ts
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Les 58 wilayas d'Algérie avec des tarifs de livraison de départ (centimes de dinar).
+-// Les vrais tarifs se règlent dans l'espace vendeur → Livraison Algérie.
+-import type { DzRate } from '../market';
+-
+-export const DEFAULT_DZ_RATES: DzRate[] = [
+-  { code: 1, name: "Adrar", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 2, name: "Chlef", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 3, name: "Laghouat", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 4, name: "Oum El Bouaghi", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 5, name: "Batna", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 6, name: "Béjaïa", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 7, name: "Biskra", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 8, name: "Béchar", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 9, name: "Blida", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 10, name: "Bouira", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 11, name: "Tamanrasset", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 12, name: "Tébessa", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 13, name: "Tlemcen", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 14, name: "Tiaret", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 15, name: "Tizi Ouzou", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 16, name: "Alger", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 17, name: "Djelfa", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 18, name: "Jijel", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 19, name: "Sétif", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 20, name: "Saïda", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 21, name: "Skikda", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 22, name: "Sidi Bel Abbès", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 23, name: "Annaba", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 24, name: "Guelma", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 25, name: "Constantine", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 26, name: "Médéa", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 27, name: "Mostaganem", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 28, name: "M'Sila", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 29, name: "Mascara", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 30, name: "Ouargla", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 31, name: "Oran", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 32, name: "El Bayadh", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 33, name: "Illizi", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 34, name: "Bordj Bou Arréridj", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 35, name: "Boumerdès", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 36, name: "El Tarf", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 37, name: "Tindouf", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 38, name: "Tissemsilt", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 39, name: "El Oued", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 40, name: "Khenchela", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 41, name: "Souk Ahras", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 42, name: "Tipaza", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 43, name: "Mila", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 44, name: "Aïn Defla", home_cents: 60000, desk_cents: 40000, active: true },
+-  { code: 45, name: "Naâma", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 46, name: "Aïn Témouchent", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 47, name: "Ghardaïa", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 48, name: "Relizane", home_cents: 75000, desk_cents: 45000, active: true },
+-  { code: 49, name: "Timimoun", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 50, name: "Bordj Badji Mokhtar", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 51, name: "Ouled Djellal", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 52, name: "Béni Abbès", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 53, name: "In Salah", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 54, name: "In Guezzam", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 55, name: "Touggourt", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 56, name: "Djanet", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 57, name: "El M'Ghair", home_cents: 110000, desk_cents: 70000, active: true },
+-  { code: 58, name: "El Meniaa", home_cents: 110000, desk_cents: 70000, active: true },
+-];
+diff --git a/src/lib/api.ts b/src/lib/api.ts
+index 156b2e3..d2662e7 100644
+--- a/src/lib/api.ts
++++ b/src/lib/api.ts
+@@ -2,8 +2,7 @@
+ // En mode démonstration → base simulée dans le navigateur ; sinon → Supabase.
+ import { db, DEMO_MODE } from './supabase';
+ import { demoAuth, demoDB, demoSave, wait } from './demoStore';
+-import { DEMO_ADMIN, DEMO_DZ_MANAGER } from './demo';
+-import { currentMarket, DzRate, Market } from '../market';
++import { DEMO_ADMIN } from './demo';
+ import { imageToDataUrl, resizeImage } from './image';
+ import { AdminCounts, CatalogRequest, ContactMessage, Campaign, Refund, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
+ import { withDefaults } from '../settings';
+@@ -18,18 +17,17 @@ const PRODUCT_FIELDS =
+   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
+   'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold,' +
+   'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count,seller_id,moderation,moderation_note,' +
+-  'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref,market';
++  'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref';
+ 
+ const byNewest = <T extends { created_at: string }>(a: T, b: T) => b.created_at.localeCompare(a.created_at);
+ 
+ // =============== Boutique (public) ===============
+ 
+ export async function listProducts(): Promise<Product[]> {
+-  const market = currentMarket();
+-  if (DEMO_MODE) { await wait(150); const d = demoDB(); return d.products.filter((p) => p.active && (p.market ?? 'fr') === market && isPublished(p) && isSellable(p, d.sellers)).map(normalize).sort(byNewest); }
+-  // Seuls les produits de la boutique choisie (France ou Algérie)
++  if (DEMO_MODE) { await wait(150); const d = demoDB(); return d.products.filter((p) => p.active && isPublished(p) && isSellable(p, d.sellers)).map(normalize).sort(byNewest); }
++  // Boutique française uniquement (les anciens produits « Algérie » éventuels restent en base mais ne sont jamais affichés)
+   const { data, error } = await db()
+-    .from('products').select(PRODUCT_FIELDS).eq('active', true).eq('market', market)
++    .from('products').select(PRODUCT_FIELDS).eq('active', true).eq('market', 'fr')
+     .order('created_at', { ascending: false });
+   if (error) throw error;
+   // Un artisan connecté voit aussi ses produits en relecture : on ne garde que les produits validés
+@@ -38,7 +36,7 @@ export async function listProducts(): Promise<Product[]> {
+ 
+ export async function getProduct(id: string): Promise<Product | null> {
+   if (DEMO_MODE) { await wait(100); const d = demoDB(); const p = d.products.find((x) => x.id === id && x.active && isPublished(x) && isSellable(x, d.sellers)); return p ? normalize(p) : null; }
+-  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).maybeSingle();
++  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).eq('market', 'fr').maybeSingle();
+   if (error) throw error;
+   return data ? normalize(data as unknown as Product) : null;
+ }
+@@ -46,7 +44,7 @@ export async function getProduct(id: string): Promise<Product | null> {
+ /** Valeurs par défaut des champs récents + fin de promotion appliquée (côté boutique). */
+ function normalize(p: Product): Product {
+   return applyPromoExpiry({ ...p, badges: p.badges ?? [], promo_ends_at: p.promo_ends_at ?? null, sales_count: p.sales_count ?? 0,
+-    publish_at: p.publish_at ?? null, views_count: p.views_count ?? 0, cart_adds_count: p.cart_adds_count ?? 0, market: p.market ?? 'fr' });
++    publish_at: p.publish_at ?? null, views_count: p.views_count ?? 0, cart_adds_count: p.cart_adds_count ?? 0 });
+ }
+ 
+ export const isPublished = (p: Pick<Product, 'publish_at'>) => !p.publish_at || new Date(p.publish_at).getTime() <= Date.now();
+@@ -154,20 +152,15 @@ export async function getAdminStatus(): Promise<AdminStatus> {
+   if (!session.session) return 'anonymous';
+   const { data: aal } = await db().auth.mfa.getAuthenticatorAssuranceLevel();
+   if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') return 'mfa';
++  // Seuls les administrateurs à accès complet (les anciens accès « boutique Algérie » sont refusés)
+   const { data } = await db().from('admins').select('user_id,market').eq('user_id', session.session.user.id).maybeSingle();
+-  adminScope = (data?.market as Market | null) ?? null;
+-  return data ? 'ok' : 'forbidden';
++  return data && !data.market ? 'ok' : 'forbidden';
+ }
+ 
+-/** Périmètre du compte vendeur connecté : null = accès complet, 'dz' = boutique Algérie uniquement. */
+-let adminScope: Market | null = null;
+-export const getAdminScope = (): Market | null => (DEMO_MODE ? demoAuth.scope() : adminScope);
+-
+ export async function signIn(email: string, password: string): Promise<void> {
+   if (DEMO_MODE) {
+     await wait();
+     const mail = email.trim().toLowerCase();
+-    if (mail === DEMO_DZ_MANAGER.email && password === DEMO_DZ_MANAGER.password) { demoAuth.set(true, 'dz'); return; }
+     if (mail !== DEMO_ADMIN.email || password !== DEMO_ADMIN.password) {
+       throw new Error('Email ou mot de passe incorrect.');
+     }
+@@ -206,12 +199,10 @@ export async function updatePassword(password: string): Promise<void> {
+ // =============== Espace vendeur : produits ===============
+ 
+ export async function adminListProducts(): Promise<Product[]> {
+-  const scope = getAdminScope();
+-  const mine = (p: Product) => !scope || (p.market ?? 'fr') === scope;
+-  if (DEMO_MODE) { await wait(150); return demoDB().products.filter(mine).sort(byNewest); }
+-  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).order('created_at', { ascending: false });
++  if (DEMO_MODE) { await wait(150); return [...demoDB().products].sort(byNewest); }
++  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('market', 'fr').order('created_at', { ascending: false });
+   if (error) throw error;
+-  return (data as unknown as Product[]).filter(mine);
++  return data as unknown as Product[];
+ }
+ 
+ export async function saveProduct(input: ProductInput, id?: string): Promise<Product> {
+@@ -270,7 +261,7 @@ export async function deleteProduct(product: Product): Promise<void> {
+ export async function uploadProductImage(file: File): Promise<string> {
+   if (DEMO_MODE) return imageToDataUrl(file);
+   const blob = await resizeImage(file);
+-  const path = `${getAdminScope() === 'dz' ? 'algerie' : new Date().getFullYear()}/${crypto.randomUUID()}.jpg`;
++  const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.jpg`;
+   const { error } = await db().storage.from('product-images').upload(path, blob, {
+     contentType: 'image/jpeg', cacheControl: '31536000',
+   });
+@@ -287,10 +278,9 @@ function storagePath(url: string): string | null {
+ // =============== Espace vendeur : commandes ===============
+ 
+ export async function adminListOrders(): Promise<Order[]> {
+-  const scope = getAdminScope();
+-  if (DEMO_MODE) { await wait(150); return demoDB().orders.filter((o) => !scope || (o.market ?? 'fr') === scope).sort(byNewest); }
++  if (DEMO_MODE) { await wait(150); return [...demoDB().orders].sort(byNewest); }
+   const { data, error } = await db()
+-    .from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(500);
++    .from('orders').select('*, order_items(*)').eq('market', 'fr').order('created_at', { ascending: false }).limit(500);
+   if (error) throw error;
+   return data as Order[];
+ }
+@@ -341,7 +331,6 @@ export async function adminCounts(): Promise<AdminCounts> {
+   const catalogs = await adminListCatalogRequests().catch(() => [] as CatalogRequest[]);
+   return {
+     catalogsToSend: catalogs.filter((c) => c.status === 'new').length,
+-    ordersToConfirm: orders.filter((o) => o.status === 'to_confirm').length,
+     sellersPending: sellers.filter((s) => s.status === 'pending').length,
+     productsToReview: products.filter((p) => p.moderation === 'pending').length,
+     messagesNew: messages.filter((m) => !m.handled).length,
+@@ -883,17 +872,17 @@ export async function setMessageHandled(id: number, handled: boolean): Promise<v
+ 
+ // =============== Équipe et journal d'activité ===============
+ 
+-export interface TeamMember { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: Market | null }
++export interface TeamMember { user_id: string; email: string; last_sign_in_at: string | null; me: boolean }
+ 
+ export async function listTeam(): Promise<TeamMember[]> {
+   if (DEMO_MODE) return [{ user_id: 'demo', email: DEMO_ADMIN.email, last_sign_in_at: new Date().toISOString(), me: true }, ...(demoDB().team ?? [])];
+   return (await callAdminFunction<{ members: TeamMember[] }>({ action: 'list' }, 'admin-team')).members;
+ }
+ 
+-export async function addTeamMember(email: string, market: Market | null = null): Promise<void> {
+-  if (DEMO_MODE) { await wait(); const d = demoDB(); d.team = [...(d.team ?? []), { user_id: `demo-${Date.now()}`, email: email.trim().toLowerCase(), last_sign_in_at: null, me: false, market }]; demoSave(); return; }
+-  await callAdminFunction({ action: 'add', email, market }, 'admin-team');
+-  logActivity(`Accès vendeur donné à ${email}${market === 'dz' ? ' (boutique Algérie)' : ''}`);
++export async function addTeamMember(email: string): Promise<void> {
++  if (DEMO_MODE) { await wait(); const d = demoDB(); d.team = [...(d.team ?? []), { user_id: `demo-${Date.now()}`, email: email.trim().toLowerCase(), last_sign_in_at: null, me: false }]; demoSave(); return; }
++  await callAdminFunction({ action: 'add', email }, 'admin-team');
++  logActivity(`Accès vendeur donné à ${email}`);
+ }
+ 
+ export async function removeTeamMember(userId: string): Promise<void> {
+@@ -961,69 +950,3 @@ export async function markCatalogsSent(ids: number[]): Promise<void> {
+   if (error) throw error;
+ }
+ 
+-// =============== Boutique Algérie : paiement à la livraison ===============
+-
+-export interface CodOrderInput {
+-  items: { id: string; quantity: number }[];
+-  name: string; phone: string; email: string; wilaya: number; commune: string; address: string; delivery: 'domicile' | 'bureau'; note: string;
+-}
+-
+-export async function listDzRates(): Promise<DzRate[]> {
+-  if (DEMO_MODE) return demoDB().dzRates;
+-  const { data, error } = await db().from('dz_shipping_rates').select('*').order('code');
+-  if (error) throw error;
+-  return data as DzRate[];
+-}
+-
+-export async function saveDzRates(rates: DzRate[]): Promise<void> {
+-  logActivity('Tarifs de livraison Algérie modifiés');
+-  if (DEMO_MODE) { demoDB().dzRates = rates; demoSave(); return; }
+-  const { error } = await db().from('dz_shipping_rates').upsert(rates);
+-  if (error) throw new Error('Enregistrement impossible.');
+-}
+-
+-/** Commande Algérie : enregistrée sans paiement en ligne ; la famille appelle le client pour confirmer. */
+-export async function createCodOrder(input: CodOrderInput): Promise<{ number: string; total_cents: number }> {
+-  if (DEMO_MODE) {
+-    await wait(600);
+-    const d = demoDB();
+-    const rate = d.dzRates.find((r) => r.code === input.wilaya);
+-    const shipping = rate?.active ? (input.delivery === 'bureau' ? rate.desk_cents : rate.home_cents) : null;
+-    if (!rate || shipping == null) throw new Error('Cette wilaya ou ce mode de livraison n’est pas encore desservi.');
+-    const lines = input.items.map((it, i) => {
+-      const p = d.products.find((x) => x.id === it.id && x.market === 'dz');
+-      if (!p || p.stock < it.quantity) throw new Error('Un article de votre panier n’est plus disponible.');
+-      p.stock -= it.quantity; p.sales_count = (p.sales_count ?? 0) + it.quantity;
+-      return { id: Date.now() + i, product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: it.quantity };
+-    });
+-    const subtotal = lines.reduce((n, l) => n + l.unit_price_cents * l.quantity, 0);
+-    const id = `demo-dz-${Date.now()}`;
+-    d.orders.unshift({
+-      id, stripe_session_id: id, stripe_payment_id: null, market: 'dz', payment_method: 'cod', status: 'to_confirm',
+-      email: input.email || null, customer_name: input.name, phone: input.phone, shipping_name: input.name,
+-      wilaya: `${String(rate.code).padStart(2, '0')} - ${rate.name}`, delivery_type: input.delivery,
+-      shipping_address: { line1: input.delivery === 'bureau' ? `Bureau du transporteur, ${input.commune}` : input.address, city: input.commune, state: rate.name, country: 'DZ' },
+-      subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping, customer_message: input.note || null,
+-      shipping_method: input.delivery === 'bureau' ? 'Retrait au bureau du transporteur' : 'Livraison à domicile',
+-      tracking_number: null, tracking_carrier: null, shipped_email_sent_at: null, note: null, created_at: new Date().toISOString(), order_items: lines,
+-      invoice_number: Math.max(0, ...d.orders.map((o) => o.invoice_number ?? 0)) + 1,
+-    } as Order);
+-    demoSave();
+-    return { number: id.slice(-8).toUpperCase(), total_cents: subtotal + shipping };
+-  }
+-  const res = await fetch('/.netlify/functions/create-cod-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+-  const body = await res.json().catch(() => ({}));
+-  if (!res.ok) throw new Error(body.error ?? 'La commande n’a pas pu être envoyée. Réessayez.');
+-  return body;
+-}
+-
+-/** Annulation d'une commande Algérie : les articles reviennent en stock. */
+-export async function restockOrder(order: Order): Promise<void> {
+-  for (const it of order.order_items ?? []) {
+-    if (!it.product_id) continue;
+-    if (DEMO_MODE) { const p = demoDB().products.find((x) => x.id === it.product_id); if (p) p.stock += it.quantity; continue; }
+-    const { data } = await db().from('products').select('stock').eq('id', it.product_id).maybeSingle();
+-    if (data) await db().from('products').update({ stock: (data.stock as number) + it.quantity }).eq('id', it.product_id);
+-  }
+-  if (DEMO_MODE) demoSave();
+-}
+diff --git a/src/lib/demo.ts b/src/lib/demo.ts
+index e9d379e..1dba4f9 100644
+--- a/src/lib/demo.ts
++++ b/src/lib/demo.ts
+@@ -101,8 +101,6 @@ export const DEMO_ALERTS: StockAlert[] = [
+ ];
+ 
+ export const DEMO_ADMIN = { email: 'demo@artisanat.fr', password: 'demo' };
+-/** Démonstration : compte de la famille qui gère uniquement la boutique Algérie. */
+-export const DEMO_DZ_MANAGER = { email: 'algerie@artisanat.fr', password: 'demo' };
+ 
+ export const DEMO_REVIEWS: Review[] = [
+   { id: 1, product_id: 'demo-3', author_name: 'Nadia R.', email: 'nadia.r@exemple.fr', rating: 5, approved: true, verified: true, created_at: '2026-09-12T10:00:00Z',
+@@ -155,30 +153,3 @@ export const DEMO_SELLER_ORDER: Order = {
+   order_items: [{ id: 50, product_id: 'demo-art-2', name: 'Sac cabas en laine tissée', unit_price_cents: 7800, quantity: 1, seller_id: 'seller-fatima' }],
+ };
+ 
+-// ---------- Boutique Algérie (prix en centimes de dinar : 8 500 000 = 85 000 DA) ----------
+-export const DEMO_DZ_PRODUCTS: Product[] = [
+-  { ...base, id: 'demo-dz-1', market: 'dz', name: 'Tapis kabyle des Ath Hichem', category: 'tapis', price_cents: 8500000, stock: 1, width_cm: 150, length_cm: 220,
+-    origin: 'Tizi Ouzou', featured: true, images: img('tapis-khenifra'), created_at: daysFromNow(-2), reference: 'DZ-TAP-001', colors: ['rouge', 'noir'],
+-    description: 'Tapis noué en laine, motifs géométriques traditionnels. Disponible à Alger, livré dans les 58 wilayas.' },
+-  { ...base, id: 'demo-dz-2', market: 'dz', name: 'Kilim des Aurès', category: 'tapis', price_cents: 4200000, stock: 2, width_cm: 120, length_cm: 180,
+-    origin: 'Batna', featured: false, images: img('kilim-zanafi'), created_at: daysFromNow(-6), technique: 'Tissage plat (kilim)', colors: ['rouge', 'jaune', 'bleu'],
+-    description: 'Kilim tissé à plat, réversible, couleurs vives.' },
+-  { ...base, id: 'demo-dz-3', market: 'dz', name: 'Collier kabyle émaillé', category: 'bijoux', price_cents: 1500000, stock: 3, width_cm: null, length_cm: null,
+-    technique: 'Émail cloisonné', material: 'Corail', origin: 'Ath Yenni', featured: true, images: img('collier-kabyle'), created_at: daysFromNow(-4),
+-    metal: 'Argent', stones: 'Corail, émail', jewelry_size: 'Longueur 46 cm', colors: ['rouge', 'vert'], care: '',
+-    description: 'Collier des Ath Yenni en argent émaillé et corail.' },
+-  { ...base, id: 'demo-dz-4', market: 'dz', name: 'Khôl en poudre et sa mkahla', category: 'beaute', price_cents: 120000, stock: 20, width_cm: null, length_cm: null,
+-    technique: 'Broyé et tamisé main', material: '', origin: 'Algérie', featured: false, images: img('khol-traditionnel'), created_at: daysFromNow(-1),
+-    net_content: '3 g', ingredients: 'Carbon Black (CI 77266), Talc, Ricinus Communis Seed Oil. Sans plomb.', warnings: 'Usage externe. Ne pas appliquer à l’intérieur de l’œil.',
+-    cpnp_ref: '', colors: ['noir'], care: '', description: 'Khôl noir intense sans plomb, flacon en laiton et bâtonnet.' },
+-];
+-
+-export const DEMO_DZ_ORDER: Order = {
+-  id: 'demo-dz-cmd-1', invoice_number: 6, stripe_session_id: 'cod_demo_1', stripe_payment_id: null, market: 'dz', payment_method: 'cod',
+-  email: null, customer_name: 'Amina Belkacem', phone: '0550 12 34 56', shipping_name: 'Amina Belkacem',
+-  wilaya: '16 - Alger', delivery_type: 'domicile', shipping_address: { line1: '12 rue Didouche Mourad', city: 'Alger Centre', state: 'Alger', country: 'DZ' },
+-  subtotal_cents: 1500000, shipping_cents: 60000, total_cents: 1560000, status: 'to_confirm', tracking_number: null, tracking_carrier: null,
+-  shipped_email_sent_at: null, note: null, customer_message: 'Appelez-moi après 17 h, s’il vous plaît.', shipping_method: 'Livraison à domicile',
+-  created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+-  order_items: [{ id: 60, product_id: 'demo-dz-3', name: 'Collier kabyle émaillé', unit_price_cents: 1500000, quantity: 1 }],
+-};
+diff --git a/src/lib/demoStore.ts b/src/lib/demoStore.ts
+index c7b6173..b751248 100644
+--- a/src/lib/demoStore.ts
++++ b/src/lib/demoStore.ts
+@@ -1,12 +1,10 @@
+ // Mode démonstration : une fausse base de données enregistrée dans le navigateur.
+ // Permet de tester la boutique ET l'espace vendeur sans rien configurer.
+ import { Seller, SellerPrivate, SellerTransfer, ContactMessage, Campaign, ReturnRequest, CustomRequest, GiftCard, Order, Product, PromoCode, Review, ShopSettings, StockAlert, Subscriber } from '../types';
+-import { DEMO_ALERTS, DEMO_EXTRA_ORDERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_REVIEWS, DEMO_SELLERS, DEMO_SELLER_PRIVATE, DEMO_SELLER_PRODUCTS, DEMO_SELLER_ORDER, DEMO_DZ_PRODUCTS, DEMO_DZ_ORDER } from './demo';
+-import { DEFAULT_DZ_RATES } from '../data/wilayas';
+-import type { DzRate } from '../market';
++import { DEMO_ALERTS, DEMO_EXTRA_ORDERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_REVIEWS, DEMO_SELLERS, DEMO_SELLER_PRIVATE, DEMO_SELLER_PRODUCTS, DEMO_SELLER_ORDER } from './demo';
+ import { DEFAULT_SETTINGS } from '../settings';
+ 
+-const KEY = 'artisanat-demo-v17';
++const KEY = 'artisanat-demo-v18';
+ const AUTH_KEY = 'artisanat-demo-connecte';
+ 
+ export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAlert[]; reviews: Review[]; settings: ShopSettings; subscribers: Subscriber[]; promoCodes: PromoCode[]; customRequests: CustomRequest[]; giftCards: GiftCard[]; returns: ReturnRequest[]; campaigns: Campaign[]; messages: ContactMessage[];
+@@ -14,13 +12,12 @@ export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAle
+   shipments: { order_id: string; seller_id: string; shipping_cents: number; status: 'to_ship' | 'shipped' | 'delivered'; carrier: string | null; tracking_number: string | null; shipped_at: string | null }[];
+   transfers: SellerTransfer[];
+   catalogs?: import('../types').CatalogRequest[];
+-  dzRates: DzRate[];
+-  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: 'fr' | 'dz' | null }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[]; refunds?: import('../types').Refund[] }
++  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[]; refunds?: import('../types').Refund[] }
+ 
+ let cache: DemoDB | null = null;
+ 
+ function seed(): DemoDB {
+-  return structuredClone({ products: [...DEMO_PRODUCTS, ...DEMO_SELLER_PRODUCTS, ...DEMO_DZ_PRODUCTS], dzRates: DEFAULT_DZ_RATES, orders: [DEMO_DZ_ORDER, DEMO_SELLER_ORDER, ...DEMO_ORDERS, ...DEMO_EXTRA_ORDERS],
++  return structuredClone({ products: [...DEMO_PRODUCTS, ...DEMO_SELLER_PRODUCTS], orders: [DEMO_SELLER_ORDER, ...DEMO_ORDERS, ...DEMO_EXTRA_ORDERS],
+     sellers: DEMO_SELLERS, sellerPrivate: DEMO_SELLER_PRIVATE,
+     shipments: [{ order_id: DEMO_SELLER_ORDER.id, seller_id: 'seller-fatima', shipping_cents: 900, status: 'to_ship' as const, carrier: null, tracking_number: null, shipped_at: null }],
+     transfers: [{ id: 1, order_id: DEMO_SELLER_ORDER.id, seller_id: 'seller-fatima', sales_cents: 7800, shipping_cents: 900, commission_cents: 1170, amount_cents: 7530, stripe_transfer_id: 'tr_demo', created_at: DEMO_SELLER_ORDER.created_at }], alerts: DEMO_ALERTS, reviews: DEMO_REVIEWS,
+@@ -75,10 +72,8 @@ export function demoReset(): void {
+ 
+ export const demoAuth = {
+   isLoggedIn: () => { try { return !!sessionStorage.getItem(AUTH_KEY); } catch { return false; } },
+-  /** Démonstration : '1' = accès complet, 'dz' = gestionnaire de la boutique Algérie. */
+-  scope: (): 'dz' | null => { try { return sessionStorage.getItem(AUTH_KEY) === 'dz' ? 'dz' : null; } catch { return null; } },
+-  set: (value: boolean, scope: 'dz' | null = null) => {
+-    try { if (value) sessionStorage.setItem(AUTH_KEY, scope ?? '1'); else sessionStorage.removeItem(AUTH_KEY); } catch { /* ignoré */ }
++  set: (value: boolean) => {
++    try { if (value) sessionStorage.setItem(AUTH_KEY, '1'); else sessionStorage.removeItem(AUTH_KEY); } catch { /* ignoré */ }
+     window.dispatchEvent(new Event('artisanat-demo-auth'));
+   },
+ };
+diff --git a/src/lib/format.ts b/src/lib/format.ts
+index ae04bd4..1b92450 100644
+--- a/src/lib/format.ts
++++ b/src/lib/format.ts
+@@ -1,18 +1,15 @@
+-import { currentMarket, Market } from '../market';
+-
+ const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+-const dinar = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+ 
+-/** Prix affiché dans la monnaie de la boutique : « 1 240,00 € » ou « 85 000 DA ». */
+-export function formatPrice(cents: number, market: Market = currentMarket()): string {
+-  return market === 'dz' ? `${dinar.format(Math.round(cents / 100))} DA` : euro.format(cents / 100);
++/** Prix affiché en euros : « 1 240,00 € ». */
++export function formatPrice(cents: number): string {
++  return euro.format(cents / 100);
+ }
+ 
+-export const currencySymbol = (market: Market = currentMarket()) => (market === 'dz' ? 'DA' : '€');
++export const currencySymbol = () => '€';
+ 
+ /** "1 250,50" ou "1250.5" → 125050 centimes. Renvoie null si invalide. */
+ export function parsePriceToCents(input: string): number | null {
+-  const clean = input.replace(/\s/g, '').replace('€', '').replace(/DA$/i, '').replace(',', '.');
++  const clean = input.replace(/\s/g, '').replace('€', '').replace(',', '.');
+   if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
+   return Math.round(parseFloat(clean) * 100);
+ }
+diff --git a/src/main.tsx b/src/main.tsx
+index a52e727..3face71 100644
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -7,7 +7,6 @@ import { FavoritesProvider } from './context/FavoritesContext';
+ import { SettingsProvider } from './context/SettingsContext';
+ import { CustomerProvider } from './context/CustomerContext';
+ import { MarketplaceProvider } from './context/MarketplaceContext';
+-import { MarketProvider } from './context/MarketContext';
+ import { ReviewsProvider } from './context/ReviewsContext';
+ import { BadgesProvider } from './context/BadgesContext';
+ // Polices hébergées avec le site : rien n'est chargé depuis Google (plus rapide, et conforme au RGPD)
+@@ -20,7 +19,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
+   <React.StrictMode>
+     <BrowserRouter>
+       <SettingsProvider>
+-        <MarketProvider>
+         <CustomerProvider>
+         <MarketplaceProvider>
+         <CartProvider>
+@@ -34,7 +32,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
+         </CartProvider>
+         </MarketplaceProvider>
+         </CustomerProvider>
+-        </MarketProvider>
+       </SettingsProvider>
+     </BrowserRouter>
+   </React.StrictMode>,
+diff --git a/src/market.ts b/src/market.ts
+deleted file mode 100644
+index 01b7f6d..0000000
+--- a/src/market.ts
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Deux boutiques dans un seul site : France (euros, paiement Stripe) et Algérie (dinars, paiement à la livraison).
+-export type Market = 'fr' | 'dz';
+-
+-export const MARKETS: Record<Market, { label: string; currency: 'EUR' | 'DZD'; payment: string }> = {
+-  fr: { label: 'France', currency: 'EUR', payment: 'Paiement sécurisé par carte' },
+-  dz: { label: 'Algérie', currency: 'DZD', payment: 'Paiement à la livraison' },
+-};
+-
+-const KEY = 'artisanat-boutique';
+-let current: Market = 'fr';
+-try {
+-  const fromUrl = new URLSearchParams(window.location.search).get('boutique');
+-  const saved = localStorage.getItem(KEY);
+-  current = fromUrl === 'dz' || fromUrl === 'fr' ? fromUrl : saved === 'dz' ? 'dz' : 'fr';
+-} catch { /* navigation privée */ }
+-
+-/** Boutique choisie par le visiteur (lue par l'API et par le format des prix). */
+-export const currentMarket = (): Market => current;
+-export const hasChosenMarket = (): boolean => { try { return !!localStorage.getItem(KEY) || !!new URLSearchParams(window.location.search).get('boutique'); } catch { return true; } };
+-
+-export function setCurrentMarket(m: Market): void {
+-  current = m;
+-  try { localStorage.setItem(KEY, m); } catch { /* ignoré */ }
+-  window.dispatchEvent(new Event('artisanat-boutique'));
+-}
+-
+-/** Tarif de livraison d'une wilaya (centimes de dinar ; null = non desservi). */
+-export interface DzRate { code: number; name: string; home_cents: number | null; desk_cents: number | null; active: boolean }
+-
+-/** Numéro mobile algérien : 05, 06 ou 07 suivi de 8 chiffres (ou +213). */
+-export const isDzPhone = (v: string) => /^(?:\+213|00213|0)(5|6|7)\d{8}$/.test(v.replace(/[\s.-]/g, ''));
+diff --git a/src/pages/DzCheckoutPage.tsx b/src/pages/DzCheckoutPage.tsx
+deleted file mode 100644
+index 37bc820..0000000
+--- a/src/pages/DzCheckoutPage.tsx
++++ /dev/null
+@@ -1,137 +0,0 @@
+-import { FormEvent, useState } from 'react';
+-import { Link, Navigate } from 'react-router-dom';
+-import { Building2, Check, Home, Phone, Truck } from 'lucide-react';
+-import { useCart } from '../context/CartContext';
+-import { useMarket } from '../context/MarketContext';
+-import { useSettings } from '../context/SettingsContext';
+-import { createCodOrder, listDzRates } from '../lib/api';
+-import { useAsync } from '../lib/useAsync';
+-import { formatPrice } from '../lib/format';
+-import { isDzPhone } from '../market';
+-import { ProductImage } from '../components/ProductImage';
+-
+-/** Boutique Algérie : commande avec paiement à la livraison (pas de paiement en ligne). */
+-export function DzCheckoutPage() {
+-  const { market } = useMarket();
+-  const { lines, subtotal, clear } = useCart();
+-  const { settings } = useSettings();
+-  const { data: rates } = useAsync(listDzRates, []);
+-  const [f, setF] = useState({ name: '', phone: '', email: '', wilaya: '', commune: '', address: '', delivery: 'domicile' as 'domicile' | 'bureau', note: '' });
+-  const [busy, setBusy] = useState(false);
+-  const [error, setError] = useState<string | null>(null);
+-  const [done, setDone] = useState<{ number: string; total_cents: number } | null>(null);
+-  const input = 'w-full px-3.5 py-3 bg-white border border-laine-fonce focus:border-nuit focus:outline-none';
+-  const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+-
+-  if (market !== 'dz') return <Navigate to="/boutique" replace />;
+-
+-  if (done) return (
+-    <div className="max-w-2xl mx-auto px-5 pt-16 text-center">
+-      <span className="inline-flex w-16 h-16 rounded-full bg-[#DCEBE2] text-menthe items-center justify-center"><Check className="w-8 h-8" /></span>
+-      <h1 className="mt-5 font-display text-[2.6rem] sm:text-5xl text-nuit">Commande enregistrée !</h1>
+-      <p className="lecture mt-4 text-[1.15rem]">Numéro <strong>{done.number}</strong>. Nous vous appelons au <strong>{f.phone}</strong> pour confirmer avant l’envoi.</p>
+-      <p className="mt-2 text-henne">Vous paierez <strong className="text-nuit">{formatPrice(done.total_cents)}</strong> en espèces au livreur, à la réception.</p>
+-      {settings.dz_phone && <p className="mt-4 text-henne">Une question ? Appelez ou écrivez sur WhatsApp au <a className="text-garance underline" href={`tel:${settings.dz_phone.replace(/\s/g, '')}`}>{settings.dz_phone}</a>.</p>}
+-      <Link to="/boutique" className="inline-block mt-8 bg-nuit text-laine px-7 py-3.5 hover:bg-garance">Continuer mes achats</Link>
+-    </div>
+-  );
+-
+-  if (!lines.length) return (
+-    <div className="max-w-2xl mx-auto px-5 pt-16"><h1 className="font-display text-4xl text-nuit">Votre panier est vide</h1>
+-      <Link to="/boutique" className="inline-block mt-6 text-garance underline">Voir la boutique</Link></div>
+-  );
+-
+-  const rate = rates?.find((r) => String(r.code) === f.wilaya);
+-  const shipping = rate ? (f.delivery === 'bureau' ? rate.desk_cents : rate.home_cents) : null;
+-
+-  async function submit(e: FormEvent) {
+-    e.preventDefault();
+-    if (f.name.trim().length < 2) return setError('Indiquez votre nom et prénom.');
+-    if (!isDzPhone(f.phone)) return setError('Numéro de téléphone invalide : 10 chiffres commençant par 05, 06 ou 07.');
+-    if (!rate || shipping == null) return setError('Choisissez une wilaya et un mode de livraison disponibles.');
+-    if (!f.commune.trim() || (f.delivery === 'domicile' && f.address.trim().length < 3)) return setError('Indiquez votre commune et votre adresse.');
+-    setBusy(true); setError(null);
+-    try {
+-      const r = await createCodOrder({ items: lines.map((l) => ({ id: l.id, quantity: l.quantity })), name: f.name, phone: f.phone, email: f.email,
+-        wilaya: rate.code, commune: f.commune, address: f.address, delivery: f.delivery, note: f.note });
+-      clear(); setDone(r); window.scrollTo(0, 0);
+-    } catch (err) { setError(err instanceof Error ? err.message : 'Erreur'); }
+-    finally { setBusy(false); }
+-  }
+-
+-  return (
+-    <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-10">
+-      <div className="lisiere-fine w-16 mb-5" aria-hidden />
+-      <h1 className="font-display text-[2.6rem] sm:text-6xl text-nuit">Finaliser ma commande</h1>
+-      <p className="mt-3 flex items-center gap-2 text-henne"><Truck className="w-5 h-5 text-garance" /> Paiement à la livraison, en espèces, partout en Algérie.</p>
+-
+-      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_380px] items-start">
+-        <form onSubmit={submit} className="space-y-5" noValidate>
+-          <fieldset className="space-y-3">
+-            <legend className="font-display text-2xl text-nuit mb-2">Vos coordonnées</legend>
+-            <div className="grid sm:grid-cols-2 gap-3">
+-              <label><span className="font-medium block mb-1">Nom et prénom</span><input required maxLength={100} autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} className={input} /></label>
+-              <label><span className="font-medium block mb-1">Téléphone</span>
+-                <span className="relative block"><Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-henne" />
+-                  <input required type="tel" inputMode="tel" autoComplete="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0550 12 34 56" className={`${input} pl-9`} /></span></label>
+-            </div>
+-            <label className="block"><span className="font-medium block mb-1">Email <span className="font-normal text-sm text-henne">(facultatif)</span></span>
+-              <input type="email" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} className={input} /></label>
+-          </fieldset>
+-
+-          <fieldset className="space-y-3">
+-            <legend className="font-display text-2xl text-nuit mb-2">Livraison</legend>
+-            <div className="grid sm:grid-cols-2 gap-3">
+-              <label><span className="font-medium block mb-1">Wilaya</span>
+-                <select required value={f.wilaya} onChange={(e) => set('wilaya', e.target.value)} className={input}>
+-                  <option value="">Choisir…</option>
+-                  {rates?.filter((r) => r.active && (r.home_cents != null || r.desk_cents != null)).map((r) => <option key={r.code} value={r.code}>{String(r.code).padStart(2, '0')} - {r.name}</option>)}
+-                </select></label>
+-              <label><span className="font-medium block mb-1">Commune</span><input required maxLength={100} value={f.commune} onChange={(e) => set('commune', e.target.value)} className={input} /></label>
+-            </div>
+-            <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Mode de livraison">
+-              {([['domicile', 'À domicile', Home, rate?.home_cents], ['bureau', 'Au bureau du transporteur', Building2, rate?.desk_cents]] as const).map(([id, label, Icon, price]) => {
+-                const unavailable = !!rate && price == null;
+-                return (
+-                  <label key={id} className={`flex items-start gap-3 p-4 border-2 cursor-pointer ${f.delivery === id ? 'border-nuit bg-white' : 'border-laine-fonce bg-white/60'} ${unavailable ? 'opacity-40 cursor-not-allowed' : ''}`}>
+-                    <input type="radio" name="livraison" disabled={unavailable} checked={f.delivery === id} onChange={() => set('delivery', id)} className="mt-1 accent-nuit" />
+-                    <span className="flex-1"><span className="flex items-center gap-2 font-medium text-nuit"><Icon className="w-4 h-4" /> {label}</span>
+-                      <span className="block text-sm text-henne">{!rate ? 'Choisissez d’abord la wilaya' : unavailable ? 'Non disponible' : formatPrice(price as number)}</span></span>
+-                  </label>
+-                );
+-              })}
+-            </div>
+-            {f.delivery === 'domicile' && (
+-              <label className="block"><span className="font-medium block mb-1">Adresse</span><input maxLength={300} autoComplete="street-address" value={f.address} onChange={(e) => set('address', e.target.value)} className={input} placeholder="Rue, cité, numéro, repère" /></label>
+-            )}
+-            <label className="block"><span className="font-medium block mb-1">Remarque <span className="font-normal text-sm text-henne">(facultatif)</span></span>
+-              <textarea rows={2} maxLength={1000} value={f.note} onChange={(e) => set('note', e.target.value)} className={input} placeholder="Horaires pour vous appeler, précisions…" /></label>
+-          </fieldset>
+-
+-          {error && <p className="text-garance bg-garance/10 p-3" role="alert">{error}</p>}
+-          <button disabled={busy} className="w-full sm:w-auto bg-garance text-laine px-10 py-4 font-medium text-lg hover:bg-nuit disabled:opacity-60">
+-            {busy ? 'Envoi…' : 'Confirmer ma commande'}
+-          </button>
+-          <p className="text-sm text-henne">Aucun paiement maintenant. Nous vous appelons pour confirmer, puis vous payez au livreur à la réception.</p>
+-        </form>
+-
+-        <aside className="bg-white border border-laine-fonce p-5 lg:sticky lg:top-24">
+-          <p className="font-display text-2xl text-nuit">Récapitulatif</p>
+-          <ul className="mt-4 space-y-3">
+-            {lines.map((l) => (
+-              <li key={l.id} className="flex items-center gap-3">
+-                <ProductImage src={l.image ?? undefined} alt="" className="w-12 h-14 shrink-0" />
+-                <span className="flex-1 min-w-0 text-[15px]"><span className="block truncate">{l.name}</span><span className="text-sm text-henne">{l.quantity} × {formatPrice(l.price_cents)}</span></span>
+-              </li>
+-            ))}
+-          </ul>
+-          <dl className="mt-5 pt-4 border-t border-laine-fonce space-y-1.5">
+-            <div className="flex justify-between"><dt>Articles</dt><dd>{formatPrice(subtotal)}</dd></div>
+-            <div className="flex justify-between text-henne"><dt>Livraison</dt><dd>{shipping == null ? '—' : shipping === 0 ? 'Offerte' : formatPrice(shipping)}</dd></div>
+-            <div className="flex justify-between font-display text-xl text-nuit pt-2"><dt>À payer au livreur</dt><dd>{formatPrice(subtotal + (shipping ?? 0))}</dd></div>
+-          </dl>
+-        </aside>
+-      </div>
+-    </div>
+-  );
+-}
+diff --git a/src/pages/GiftCardPage.tsx b/src/pages/GiftCardPage.tsx
+index 7ecc1f5..7ba3fb5 100644
+--- a/src/pages/GiftCardPage.tsx
++++ b/src/pages/GiftCardPage.tsx
+@@ -1,5 +1,3 @@
+-import { Link } from 'react-router-dom';
+-import { useMarket } from '../context/MarketContext';
+ import { FormEvent, useState } from 'react';
+ import { Gift, Lock } from 'lucide-react';
+ import { GIFT_AMOUNTS, startGiftCardCheckout } from '../lib/api';
+@@ -7,21 +5,6 @@ import { formatPrice, parsePriceToCents } from '../lib/format';
+ import { SHOP } from '../config';
+ 
+ export function GiftCardPage() {
+-  const { market } = useMarket();
+-  return market === 'dz' ? <GiftCardUnavailable /> : <GiftCardShop />;
+-}
+-
+-function GiftCardUnavailable() {
+-  return (
+-    <div className="max-w-2xl mx-auto px-5 pt-16">
+-      <h1 className="font-display text-[2.6rem] sm:text-5xl text-nuit">Carte cadeau</h1>
+-      <p className="lecture mt-4 text-henne">Les cartes cadeaux sont disponibles dans la boutique France uniquement, car elles se paient en ligne par carte bancaire.</p>
+-      <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 hover:bg-garance">Voir la boutique Algérie</Link>
+-    </div>
+-  );
+-}
+-
+-function GiftCardShop() {
+   const [amount, setAmount] = useState(10000);
+   const [custom, setCustom] = useState('');
+   const [buyer, setBuyer] = useState('');
+diff --git a/src/pages/HomePage.tsx b/src/pages/HomePage.tsx
+index 3abcfb1..f7020ba 100644
+--- a/src/pages/HomePage.tsx
++++ b/src/pages/HomePage.tsx
+@@ -7,7 +7,6 @@ import { SectionHeading } from '../components/SectionHeading';
+ import { SHOP } from '../config';
+ import { useCategories, useSettings } from '../context/SettingsContext';
+ import { useBadges } from '../context/BadgesContext';
+-import { useMarket } from '../context/MarketContext';
+ import { discountOf } from '../badges';
+ import { formatPrice } from '../lib/format';
+ import { freeShippingThreshold } from '../settings';
+@@ -16,7 +15,6 @@ import { Product } from '../types';
+ export function HomePage() {
+   const { data: products, loading, error } = useAsync(listProducts, []);
+   const { settings } = useSettings();
+-  const { market } = useMarket();
+   const { categories } = useCategories();
+   const { bestSellerIds } = useBadges();
+   const all = products ?? [];
+@@ -139,15 +137,9 @@ export function HomePage() {
+         <div className="md:col-span-6 lg:col-start-7 order-1 md:order-2">
+           <p className="font-display text-[6rem] sm:text-[9rem] lg:text-[13rem] leading-[0.8] text-laine-fonce select-none" aria-hidden>{SHOP.since}</p>
+           <ul className="mt-8 grid grid-cols-1 min-[420px]:grid-cols-2 gap-x-8 gap-y-5 max-w-xl lecture text-base border-t border-laine-fonce pt-6">
+-            {market === 'dz' ? <>
+-            <li><strong className="block font-sans text-nuit">58 wilayas</strong>à domicile ou au bureau</li>
+-            <li><strong className="block font-sans text-nuit">Paiement à la livraison</strong>en espèces, au livreur</li>
+-            <li><strong className="block font-sans text-nuit">Confirmation</strong>par téléphone avant l’envoi</li>
+-            </> : <>
+             <li><strong className="block font-sans text-nuit">Livraison suivie</strong>{freeShippingThreshold(settings) ? `offerte dès ${formatPrice(freeShippingThreshold(settings)!)}` : 'avec numéro de suivi'}</li>
+             <li><strong className="block font-sans text-nuit">14 jours</strong>pour changer d’avis</li>
+             <li><strong className="block font-sans text-nuit">Paiement sécurisé</strong>carte, Apple Pay, Google Pay</li>
+-            </>}
+             <li><strong className="block font-sans text-nuit">Sur mesure</strong>vos dimensions, vos couleurs</li>
+           </ul>
+         </div>
+diff --git a/src/pages/ProductPage.tsx b/src/pages/ProductPage.tsx
+index 0a28abd..f0192b2 100644
+--- a/src/pages/ProductPage.tsx
++++ b/src/pages/ProductPage.tsx
+@@ -1,8 +1,7 @@
+-import { Flag } from '../components/Flag';
+ import type { ReactNode } from 'react';
+ import { Fragment, useEffect, useState } from 'react';
+ import { Link, useParams } from 'react-router-dom';
+-import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, Truck, X } from 'lucide-react';
++import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, X } from 'lucide-react';
+ import { getProduct, listProducts } from '../lib/api';
+ import { useAsync } from '../lib/useAsync';
+ import { useCart } from '../context/CartContext';
+@@ -14,9 +13,7 @@ import { discountPercent, Price } from '../components/Price';
+ import { BadgePill, BadgeStack } from '../components/ProductBadges';
+ import { useBadges } from '../context/BadgesContext';
+ import { SizeGuide } from '../components/SizeGuide';
+-import { DeliveryEstimate, DzDelivery } from '../components/DeliveryEstimate';
+-import { useMarket } from '../context/MarketContext';
+-import { MARKETS, setCurrentMarket } from '../market';
++import { DeliveryEstimate } from '../components/DeliveryEstimate';
+ import { useMarketplace } from '../context/MarketplaceContext';
+ import { formatPrice as fp } from '../lib/format';
+ import { recentlyViewed, rememberViewed } from '../lib/recentlyViewed';
+@@ -45,7 +42,6 @@ export function ProductPage() {
+   const { label: categoryLabel, kindOf } = useCategories();
+   const { badgesFor } = useBadges();
+   const { sellerOf } = useMarketplace();
+-  const { market } = useMarket();
+   const [photo, setPhoto] = useState(0);
+   const [zoom, setZoom] = useState(false);
+   const [quantity, setQuantity] = useState(1);
+@@ -91,24 +87,7 @@ export function ProductPage() {
+     );
+   }
+ 
+-  // Fiche d'une autre boutique (lien partagé depuis l'autre pays) : on propose de changer de boutique
+-  if ((product.market ?? 'fr') !== market) {
+-    const other = MARKETS[product.market ?? 'fr'];
+-    return (
+-      <div className="max-w-2xl mx-auto px-5 pt-16 text-center">
+-        <Flag market={product.market ?? 'fr'} className="w-16 h-auto mx-auto" />
+-        <h1 className="mt-4 font-display text-[2.4rem] sm:text-5xl text-nuit">{product.name}</h1>
+-        <p className="lecture mt-3 text-henne">Cette pièce est vendue dans la boutique {other.label}.</p>
+-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+-          <button onClick={() => { setCurrentMarket(product.market ?? 'fr'); window.location.reload(); }} className="bg-nuit text-laine px-6 py-3.5 hover:bg-garance">Voir la boutique {other.label}</button>
+-          <Link to="/boutique" className="px-6 py-3.5 border border-nuit/25 text-nuit hover:border-nuit">Rester sur la boutique {MARKETS[market].label}</Link>
+-        </div>
+-      </div>
+-    );
+-  }
+-
+   const soldOut = product.stock === 0;
+-  const isDz = market === 'dz';
+   const inCart = lines.find((l) => l.id === product.id)?.quantity ?? 0;
+   const canAdd = !soldOut && inCart < product.stock;
+   const dims = formatDimensions(product.width_cm, product.length_cm);
+@@ -185,7 +164,7 @@ export function ProductPage() {
+               {product.promo_ends_at && <> · offre valable jusqu’au {new Date(product.promo_ends_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</>}
+             </p>
+           )}
+-          {!isDz && settings.installments_enabled && !soldOut && product.price_cents >= settings.installments_min_cents && (
++          {settings.installments_enabled && !soldOut && product.price_cents >= settings.installments_min_cents && (
+             <p className="text-sm mt-2">ou <strong>3 × {formatPrice(Math.ceil(product.price_cents / 3))}</strong> sans frais avec Klarna</p>
+           )}
+           {(() => {
+@@ -255,7 +234,7 @@ export function ProductPage() {
+ 
+           {(() => {
+             const seller = sellerOf(product.seller_id);
+-            if (!seller) return !soldOut && <div className="mt-6">{isDz ? <DzDelivery /> : <DeliveryEstimate product={product} />}</div>;
++            if (!seller) return !soldOut && <div className="mt-6"><DeliveryEstimate product={product} /></div>;
+             return (
+               <div className="mt-6 border border-laine-fonce bg-white/60 p-4 text-[15px]">
+                 <p className="text-sm text-henne">Créé et expédié par</p>
+@@ -273,12 +252,8 @@ export function ProductPage() {
+           })()}
+ 
+           <ul className="mt-7 grid gap-3 text-sm border-y border-laine-fonce py-5">
+-            {isDz ? (
+-              <li className="flex gap-3"><Truck className="w-5 h-5 text-garance shrink-0" />Paiement en espèces à la livraison, après confirmation par téléphone</li>
+-            ) : <>
+             <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />{kind === 'cosmetique' ? '14 jours pour changer d’avis, si l’emballage n’a pas été ouvert (hygiène)' : '14 jours pour changer d’avis'}</li>
+             <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay{settings.installments_enabled ? ', Klarna' : ''}</li>
+-            </>}
+             <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Fait à la main : chaque pièce est unique</li>
+           </ul>
+ 
+diff --git a/src/pages/admin/AdminDzShipping.tsx b/src/pages/admin/AdminDzShipping.tsx
+deleted file mode 100644
+index 928b454..0000000
+--- a/src/pages/admin/AdminDzShipping.tsx
++++ /dev/null
+@@ -1,81 +0,0 @@
+-import { useEffect, useState } from 'react';
+-import { Search, Truck } from 'lucide-react';
+-import { listDzRates, saveDzRates } from '../../lib/api';
+-import { centsToInput, parsePriceToCents } from '../../lib/format';
+-import { DzRate } from '../../market';
+-import { Input, Toast } from './ui';
+-
+-/** Boutique Algérie : prix de livraison par wilaya, à domicile et au bureau du transporteur. */
+-export function AdminDzShipping() {
+-  const [rates, setRates] = useState<DzRate[] | null>(null);
+-  const [q, setQ] = useState('');
+-  const [bulk, setBulk] = useState({ home: '', desk: '' });
+-  const [saving, setSaving] = useState(false);
+-  const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
+-  const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3000); };
+-  useEffect(() => { listDzRates().then(setRates).catch(() => flash('Chargement impossible', 'error')); }, []);
+-  if (!rates) return <p className="text-stone-500">Chargement…</p>;
+-
+-  const patch = (code: number, p: Partial<DzRate>) => setRates((l) => l!.map((r) => (r.code === code ? { ...r, ...p } : r)));
+-  const toCents = (v: string) => (v.trim() ? parsePriceToCents(v) : null);
+-  const shown = rates.filter((r) => !q.trim() || `${r.code} ${r.name}`.toLowerCase().includes(q.trim().toLowerCase()));
+-
+-  function applyToAll() {
+-    const home = toCents(bulk.home), desk = toCents(bulk.desk);
+-    setRates((l) => l!.map((r) => (shown.includes(r) ? { ...r, ...(bulk.home ? { home_cents: home } : {}), ...(bulk.desk ? { desk_cents: desk } : {}) } : r)));
+-    flash(`Prix appliqués à ${shown.length} wilaya(s) : pensez à enregistrer`);
+-  }
+-
+-  async function save() {
+-    setSaving(true);
+-    try { await saveDzRates(rates!); flash('Tarifs enregistrés'); } catch (e) { flash(e instanceof Error ? e.message : 'Erreur', 'error'); }
+-    finally { setSaving(false); }
+-  }
+-
+-  const priceInput = (cents: number | null, onChange: (c: number | null) => void, label: string) => (
+-    <label className="flex items-center border border-stone-300 rounded-md bg-white focus-within:border-nuit">
+-      <span className="sr-only">{label}</span>
+-      <input inputMode="numeric" defaultValue={cents == null ? '' : centsToInput(cents)} placeholder="—"
+-        onBlur={(e) => onChange(toCents(e.target.value))} className="w-24 px-2.5 py-2 bg-transparent focus:outline-none tabular-nums" />
+-      <span className="pr-2 text-sm text-stone-500">DA</span>
+-    </label>
+-  );
+-
+-  return (
+-    <div className="max-w-4xl">
+-      <h1 className="font-display text-3xl text-nuit flex items-center gap-3"><Truck className="w-7 h-7 text-garance" /> Livraison en Algérie</h1>
+-      <p className="text-stone-500 mt-1">Prix payés par le client, en dinars. Laissez vide pour ne pas proposer un mode ; décochez une wilaya pour ne pas la desservir.</p>
+-
+-      <div className="mt-5 bg-white rounded-lg border border-stone-200 p-4 flex flex-wrap items-end gap-3">
+-        <label className="relative flex-1 min-w-48"><span className="sr-only">Rechercher une wilaya</span>
+-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+-          <Input className="pl-9" placeholder="Rechercher une wilaya" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+-        <label className="text-sm">Domicile<input inputMode="numeric" value={bulk.home} onChange={(e) => setBulk({ ...bulk, home: e.target.value })} className="block w-24 mt-1 px-2.5 py-2 border border-stone-300 rounded-md" placeholder="DA" /></label>
+-        <label className="text-sm">Bureau<input inputMode="numeric" value={bulk.desk} onChange={(e) => setBulk({ ...bulk, desk: e.target.value })} className="block w-24 mt-1 px-2.5 py-2 border border-stone-300 rounded-md" placeholder="DA" /></label>
+-        <button onClick={applyToAll} disabled={!bulk.home && !bulk.desk} className="px-4 py-2.5 rounded-md border border-stone-300 disabled:opacity-50">Appliquer aux {shown.length} wilayas affichées</button>
+-      </div>
+-
+-      <div className="mt-4 bg-white rounded-lg border border-stone-200 overflow-x-auto">
+-        <table className="w-full min-w-[520px] text-[15px]">
+-          <thead className="text-left text-sm text-stone-500 border-b border-stone-200">
+-            <tr><th className="p-3">Wilaya</th><th className="p-3">À domicile</th><th className="p-3">Au bureau</th><th className="p-3">Desservie</th></tr>
+-          </thead>
+-          <tbody>
+-            {shown.map((r) => (
+-              <tr key={`${r.code}-${r.home_cents}-${r.desk_cents}`} className={`border-b border-stone-100 ${r.active ? '' : 'opacity-50'}`}>
+-                <td className="p-3"><span className="font-mono text-stone-400 mr-2">{String(r.code).padStart(2, '0')}</span>{r.name}</td>
+-                <td className="p-2">{priceInput(r.home_cents, (c) => patch(r.code, { home_cents: c }), `Prix à domicile, ${r.name}`)}</td>
+-                <td className="p-2">{priceInput(r.desk_cents, (c) => patch(r.code, { desk_cents: c }), `Prix au bureau, ${r.name}`)}</td>
+-                <td className="p-3"><input type="checkbox" checked={r.active} onChange={(e) => patch(r.code, { active: e.target.checked })} className="w-5 h-5 accent-emerald-700" aria-label={`Desservir ${r.name}`} /></td>
+-              </tr>
+-            ))}
+-          </tbody>
+-        </table>
+-      </div>
+-      <div className="sticky bottom-0 mt-4 -mx-4 px-4 py-3 bg-stone-100/95 backdrop-blur border-t border-stone-200">
+-        <button onClick={save} disabled={saving} className="bg-garance text-laine px-8 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-60">{saving ? 'Enregistrement…' : 'Enregistrer les tarifs'}</button>
+-      </div>
+-      <Toast message={toast?.msg ?? null} tone={toast?.tone} />
+-    </div>
+-  );
+-}
+diff --git a/src/pages/admin/AdminLayout.tsx b/src/pages/admin/AdminLayout.tsx
+index c05b140..a2f577e 100644
+--- a/src/pages/admin/AdminLayout.tsx
++++ b/src/pages/admin/AdminLayout.tsx
+@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
+ import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
+ import { Bell, BookOpen, Gift, Inbox, LayoutDashboard, LogOut, Menu, MessageSquare, Package, RotateCcw, Ruler, Send, Settings, ShoppingBag, Store, Ticket, Truck, Undo2, UserCog, Users, X } from 'lucide-react';
+ import { DEMO_MODE } from '../../lib/supabase';
+-import { adminCounts, AdminStatus, getAdminScope, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
++import { adminCounts, AdminStatus, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
+ import { demoReset } from '../../lib/demoStore';
+ import { AdminCounts } from '../../types';
+ import { SHOP } from '../../config';
+@@ -47,21 +47,10 @@ export function AdminLayout() {
+   }
+ 
+   const alertTotal = (counts?.outOfStock ?? 0) + (counts?.alertsPending ?? 0);
+-  // Gestionnaire de la boutique Algérie (la famille) : seulement ses commandes, ses produits et ses tarifs
+-  const scope = getAdminScope();
+-  if (scope === 'dz' && !['/admin/commandes', '/admin/produits', '/admin/livraison-algerie'].some((p) => pathname.startsWith(p))) {
+-    return <Navigate to="/admin/commandes" replace />;
+-  }
+-  const groups: { title: string; items: { to: string; label: string; icon: ReactNode; badge?: number; end?: boolean }[] }[] = scope === 'dz' ? [
+-    { title: 'Boutique Algérie', items: [
+-      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: counts?.ordersToConfirm },
+-      { to: '/admin/produits', label: 'Produits', icon: <Package className="w-4 h-4" /> },
+-      { to: '/admin/livraison-algerie', label: 'Livraison par wilaya', icon: <Truck className="w-4 h-4" /> },
+-    ] },
+-  ] : [
++  const groups: { title: string; items: { to: string; label: string; icon: ReactNode; badge?: number; end?: boolean }[] }[] = [
+     { title: 'Ventes', items: [
+       { to: '/admin', label: 'Tableau de bord', icon: <LayoutDashboard className="w-4 h-4" />, end: true },
+-      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: (counts?.ordersToPrepare ?? 0) + (counts?.ordersToConfirm ?? 0) },
++      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: counts?.ordersToPrepare },
+       { to: '/admin/messages', label: 'Messages', icon: <Inbox className="w-4 h-4" />, badge: counts?.messagesNew },
+       { to: '/admin/clients', label: 'Clients', icon: <Users className="w-4 h-4" /> },
+       { to: '/admin/retours', label: 'Retours', icon: <Undo2 className="w-4 h-4" />, badge: counts?.returnsNew },
+@@ -80,8 +69,7 @@ export function AdminLayout() {
+       { to: '/admin/catalogues', label: 'Catalogues papier', icon: <BookOpen className="w-4 h-4" />, badge: counts?.catalogsToSend },
+     ] },
+     { title: 'Boutique', items: [
+-      { to: '/admin/livraison', label: 'Livraison France', icon: <Truck className="w-4 h-4" /> },
+-      { to: '/admin/livraison-algerie', label: 'Livraison Algérie', icon: <Truck className="w-4 h-4" /> },
++      { to: '/admin/livraison', label: 'Livraison', icon: <Truck className="w-4 h-4" /> },
+       { to: '/admin/reglages', label: 'Réglages', icon: <Settings className="w-4 h-4" /> },
+       { to: '/admin/equipe', label: 'Équipe et journal', icon: <UserCog className="w-4 h-4" /> },
+     ] },
+diff --git a/src/pages/admin/AdminLogin.tsx b/src/pages/admin/AdminLogin.tsx
+index 03320e2..393cde5 100644
+--- a/src/pages/admin/AdminLogin.tsx
++++ b/src/pages/admin/AdminLogin.tsx
+@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+ import { ShieldCheck } from 'lucide-react';
+ import { DEMO_MODE } from '../../lib/supabase';
+ import { getAdminStatus, requestPasswordReset, signIn, signOut, verifyMfaCode } from '../../lib/api';
+-import { DEMO_ADMIN, DEMO_DZ_MANAGER } from '../../lib/demo';
++import { DEMO_ADMIN } from '../../lib/demo';
+ import { Field, Input } from './ui';
+ import { SHOP } from '../../config';
+ 
+@@ -83,7 +83,7 @@ export function AdminLogin() {
+         </div>
+         {DEMO_MODE && (
+           <p className="bg-safran/20 text-encre text-sm p-3 rounded">
+-            Démonstration : identifiants préremplis ({DEMO_ADMIN.email} / {DEMO_ADMIN.password}). Cliquez sur « Se connecter ». Compte de la famille (boutique Algérie seulement) : {DEMO_DZ_MANAGER.email} / {DEMO_DZ_MANAGER.password}.
++            Démonstration : identifiants préremplis ({DEMO_ADMIN.email} / {DEMO_ADMIN.password}). Cliquez sur « Se connecter ».
+           </p>
+         )}
+         <Field label="Email">
+diff --git a/src/pages/admin/AdminOrders.tsx b/src/pages/admin/AdminOrders.tsx
+index c39843a..118dc0b 100644
+--- a/src/pages/admin/AdminOrders.tsx
++++ b/src/pages/admin/AdminOrders.tsx
+@@ -1,12 +1,11 @@
+ import { useEffect, useMemo, useState } from 'react';
+ import type { ReactNode } from 'react';
+-import { ChevronDown, Download, ExternalLink, FileText, Mail, Phone, Printer, RotateCcw, Search, Truck } from 'lucide-react';
+-import { adminListOrders, adminListRefunds, downloadFile, getAdminScope, notifyShipped, ordersToCsv, refundOrder, restockOrder, updateOrder } from '../../lib/api';
+-import { Market } from '../../market';
++import { ChevronDown, Download, ExternalLink, FileText, Mail, Printer, RotateCcw, Search, Truck } from 'lucide-react';
++import { adminListOrders, adminListRefunds, downloadFile, notifyShipped, ordersToCsv, refundOrder, updateOrder } from '../../lib/api';
+ import { useAsync } from '../../lib/useAsync';
+ import { formatDate, formatPrice } from '../../lib/format';
+ import { Order, ORDER_STATUS, OrderStatus, REFUND_STATUS, type Refund } from '../../types';
+-import { CARRIERS, DZ_CARRIERS, SHOP, trackingUrl } from '../../config';
++import { CARRIERS, SHOP, trackingUrl } from '../../config';
+ import { Field, Input, Modal, Select, Textarea, Toast, UnitInput } from './ui';
+ import { centsToInput, parsePriceToCents } from '../../lib/format';
+ import { useSettings } from '../../context/SettingsContext';
+@@ -24,17 +23,15 @@ export function AdminOrders() {
+   const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
+   const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3500); };
+ 
+-  const scope = getAdminScope();
+-  const [market, setMarket] = useState<'tout' | Market>(scope ?? 'tout');
+-  const all = (data ?? []).filter((o) => market === 'tout' || (o.market ?? 'fr') === market);
+-  const isTodo = (o: Order) => o.status === 'to_confirm' || o.status === 'paid' || o.status === 'check_stock';
++  const all = data ?? [];
++  const isTodo = (o: Order) => o.status === 'paid' || o.status === 'check_stock';
+   const orders = useMemo(() => {
+     const q = search.trim().toLowerCase();
+     return all.filter((o) =>
+       (filter === 'all' || (filter === 'todo' ? isTodo(o) : o.status === filter)) &&
+-      (!q || `${o.shipping_name} ${o.customer_name} ${o.email} ${o.phone} ${o.wilaya} ${orderNumber(o)} ${o.tracking_number}`.toLowerCase().includes(q)));
++      (!q || `${o.shipping_name} ${o.customer_name} ${o.email} ${o.phone} ${orderNumber(o)} ${o.tracking_number}`.toLowerCase().includes(q)));
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [data, market, filter, search]);
++  }, [data, filter, search]);
+   const count = (f: Filter) => all.filter((o) => f === 'all' || (f === 'todo' ? isTodo(o) : o.status === f)).length;
+ 
+   function onSaved(updated: Order, message: string) {
+@@ -54,15 +51,8 @@ export function AdminOrders() {
+           <Download className="w-4 h-4" /> Exporter pour la comptabilité (Excel)
+         </button>
+       </div>
+-      {!scope && (
+-        <div className="mt-4 inline-flex rounded-md border border-stone-300 bg-white overflow-hidden" role="group" aria-label="Boutique">
+-          {([['tout', 'Toutes les boutiques'], ['fr', 'France'], ['dz', 'Algérie']] as const).map(([id, l]) => (
+-            <button key={id} onClick={() => setMarket(id)} aria-pressed={market === id} className={`px-3.5 py-2 text-sm ${market === id ? 'bg-nuit text-laine' : 'hover:bg-stone-50'}`}>{l}</button>
+-          ))}
+-        </div>
+-      )}
+       <div className="mt-5 flex flex-wrap gap-2">
+-        {([['todo', 'À traiter'], ['to_confirm', 'À confirmer'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['refunded', 'Remboursées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
++        {([['todo', 'À traiter'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['refunded', 'Remboursées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
+           <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
+             className={`px-3.5 py-2 rounded-md text-sm ${filter === f ? 'bg-nuit text-laine' : 'bg-white border border-stone-200 hover:border-stone-400'}`}>
+             {label} <span className="opacity-60">{count(f)}</span>
+@@ -94,8 +84,7 @@ export function AdminOrders() {
+               {o.shipping_method?.startsWith('Retrait') && <span className="text-xs px-2 py-0.5 rounded bg-nuit/10 text-nuit">Retrait atelier</span>}
+               {/express|chrono/i.test(o.shipping_method ?? '') && <span className="text-xs px-2 py-0.5 rounded bg-garance/10 text-garance">Express</span>}
+               {/relais/i.test(o.shipping_method ?? '') && <span className="text-xs px-2 py-0.5 rounded bg-safran/25 text-henne">Point relais à confirmer</span>}
+-              {o.market === 'dz' && <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Algérie · {o.wilaya ?? ''} · paiement à la livraison</span>}
+-              <span className="ml-auto font-medium">{formatPrice(o.total_cents, o.market ?? 'fr')}</span>
++              <span className="ml-auto font-medium">{formatPrice(o.total_cents)}</span>
+               <ChevronDown className={`w-5 h-5 transition-transform ${openId === o.id ? 'rotate-180' : ''}`} />
+               <span className="w-full text-sm text-stone-500">
+                 {formatDate(o.created_at)} · {(o.order_items ?? []).reduce((n, i) => n + i.quantity, 0)} article(s)
+@@ -112,7 +101,7 @@ export function AdminOrders() {
+ 
+ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: Order, message: string) => void; onError: (m: string) => void }) {
+   const [status, setStatus] = useState<OrderStatus>(order.status);
+-  const [carrier, setCarrier] = useState(order.tracking_carrier ?? (order.market === 'dz' ? 'yalidine' : 'colissimo'));
++  const [carrier, setCarrier] = useState(order.tracking_carrier ?? 'colissimo');
+   const [tracking, setTracking] = useState(order.tracking_number ?? '');
+   const [note, setNote] = useState(order.note ?? '');
+   const [sendEmail, setSendEmail] = useState(!order.shipped_email_sent_at);
+@@ -120,26 +109,13 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+   const [refunding, setRefunding] = useState(false);
+   const [refundsVersion, setRefundsVersion] = useState(0);
+   const { settings } = useSettings();
+-  const isCod = order.payment_method === 'cod';
+-  const money = (c: number) => formatPrice(c, order.market ?? 'fr');
+-  const carriers = order.market === 'dz' ? DZ_CARRIERS : CARRIERS;
++  const money = (c: number) => formatPrice(c);
++  const carriers = CARRIERS;
+   const { sellerOf } = useMarketplace();
+   const a = order.shipping_address;
+   const link = trackingUrl(carrier, tracking.trim() || null);
+   const becomesShipped = status === 'shipped' && order.status !== 'shipped';
+ 
+-  /** Boutique Algérie : confirmation ou annulation en un clic (l'annulation remet le stock). */
+-  async function quick(next: OrderStatus, message: string) {
+-    setSaving(true);
+-    try {
+-      await updateOrder(order.id, { status: next });
+-      if (next === 'cancelled') await restockOrder(order);
+-      setStatus(next);
+-      onSaved({ ...order, status: next }, message);
+-    } catch (e) { onError(e instanceof Error ? e.message : 'Erreur'); }
+-    finally { setSaving(false); }
+-  }
+-
+   async function save() {
+     setSaving(true);
+     const patch = { status, tracking_number: tracking.trim() || null, tracking_carrier: tracking.trim() ? carrier : null, note: note.trim() || null };
+@@ -170,21 +146,8 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+       {refunding && <RefundModal order={order} onClose={() => setRefunding(false)} onError={onError}
+         onDone={(o, m) => { setRefunding(false); setStatus(o.status); setRefundsVersion((v) => v + 1); onSaved(o, m); }} />}
+       <div className="space-y-5 text-[15px]">
+-        {isCod && order.status === 'to_confirm' && (
+-          <div className="bg-garance/10 border border-garance/30 rounded-md p-4 space-y-3">
+-            <p className="font-medium text-garance">Appelez le client pour confirmer avant de préparer le colis.</p>
+-            <div className="flex flex-wrap gap-2">
+-              {order.phone && <a href={`tel:${order.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 bg-nuit text-laine px-4 py-2.5 rounded-md"><Phone className="w-4 h-4" /> Appeler</a>}
+-              {order.phone && <a href={`https://wa.me/${dzWhatsapp(order.phone)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-emerald-700 text-white px-4 py-2.5 rounded-md">WhatsApp</a>}
+-              <button onClick={() => quick('paid', 'Commande confirmée : à préparer')} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-emerald-700 text-emerald-800 hover:bg-emerald-50">Client joint : confirmée</button>
+-              <button onClick={() => { if (confirm('Annuler cette commande et remettre les articles en stock ?')) quick('cancelled', 'Commande annulée, articles remis en stock'); }} disabled={saving}
+-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-stone-300 hover:border-garance hover:text-garance">Annuler (injoignable ou refus)</button>
+-            </div>
+-          </div>
+-        )}
+         <Info title="Livraison">
+           <p className="font-medium">{order.shipping_name}</p>
+-          {isCod && <p className="text-sm text-emerald-800">Wilaya {order.wilaya} · {order.delivery_type === 'bureau' ? 'au bureau du transporteur' : 'à domicile'} · <strong>{money(order.total_cents)} à encaisser</strong></p>}
+           {a && <p className="whitespace-pre-line">{[a.line1, a.line2, `${a.postal_code ?? ''} ${a.city ?? ''}`, a.country].filter(Boolean).join('\n')}</p>}
+         </Info>
+         {order.customer_message && (
+@@ -206,11 +169,11 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+               <li className="flex justify-between text-garance"><span>Remise{order.promo_code ? ` (code ${order.promo_code})` : ''}</span><span>−{money(order.discount_cents)}</span></li>
+             )}
+             <li className="flex justify-between text-stone-500"><span>{order.shipping_method ?? 'Livraison'}</span><span>{order.shipping_cents ? money(order.shipping_cents) : 'Offerte'}</span></li>
+-            <li className="flex justify-between font-medium border-t mt-1 pt-1"><span>{isCod ? 'À encaisser à la livraison' : 'Total payé'}</span><span>{money(order.total_cents)}</span></li>
++            <li className="flex justify-between font-medium border-t mt-1 pt-1"><span>Total payé</span><span>{money(order.total_cents)}</span></li>
+             {!!order.refunded_cents && <li className="flex justify-between text-violet-800"><span>Déjà remboursé</span><span>−{money(order.refunded_cents)}</span></li>}
+           </ul>
+         </Info>
+-        {!isCod && <RefundHistory orderId={order.id} version={refundsVersion} money={money} />}
++        <RefundHistory orderId={order.id} version={refundsVersion} money={money} />
+         <div className="flex flex-wrap gap-2">
+           <button onClick={() => printSlip(order, settings.email, settings.phone)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
+             <Printer className="w-4 h-4" /> Bon de livraison
+@@ -218,7 +181,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+           <button onClick={() => printInvoice(order)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
+             <FileText className="w-4 h-4" /> Facture
+           </button>
+-          {!isCod && (order.refunded_cents ?? 0) < order.total_cents && (order.stripe_payment_id || order.id.startsWith('demo')) && (
++          {(order.refunded_cents ?? 0) < order.total_cents && (order.stripe_payment_id || order.id.startsWith('demo')) && (
+             <button onClick={() => setRefunding(true)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-violet-300 text-violet-800 hover:bg-violet-50">
+               <RotateCcw className="w-4 h-4" /> Rembourser
+             </button>
+@@ -240,7 +203,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+         )}
+         <Field label="Étape de la commande">
+           <Select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}>
+-            {(Object.keys(ORDER_STATUS) as OrderStatus[]).filter((s) => isCod ? s !== 'refunded' && s !== 'check_stock' : s !== 'to_confirm').map((s) => <option key={s} value={s}>{ORDER_STATUS[s].label}</option>)}
++            {(Object.keys(ORDER_STATUS) as OrderStatus[]).map((s) => <option key={s} value={s}>{ORDER_STATUS[s].label}</option>)}
+           </Select>
+         </Field>
+         <div className="grid sm:grid-cols-2 gap-4">
+@@ -250,7 +213,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
+             </Select>
+           </Field>
+           <Field label="Numéro de suivi" optional>
+-            <Input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder={order.market === 'dz' ? 'Numéro du transporteur' : '6A123456789FR'} />
++            <Input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="6A123456789FR" />
+           </Field>
+         </div>
+         {link && <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-garance underline"><Truck className="w-4 h-4" /> Vérifier le suivi</a>}
+@@ -398,9 +361,3 @@ function printSlip(o: Order, email: string, phone: string) {
+   setTimeout(() => w.print(), 300);
+ }
+ 
+-
+-/** 0550 12 34 56 → 213550123456 (format international pour WhatsApp). */
+-function dzWhatsapp(phone: string): string {
+-  const d = phone.replace(/\D/g, '');
+-  return d.startsWith('213') ? d : d.startsWith('00213') ? d.slice(2) : `213${d.replace(/^0/, '')}`;
+-}
+diff --git a/src/pages/admin/AdminProductForm.tsx b/src/pages/admin/AdminProductForm.tsx
+index ced0795..f570c70 100644
+--- a/src/pages/admin/AdminProductForm.tsx
++++ b/src/pages/admin/AdminProductForm.tsx
+@@ -1,12 +1,10 @@
+-import { Flag } from '../../components/Flag';
+ import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+ import { Link, useNavigate, useParams } from 'react-router-dom';
+ import { ArrowLeft, ArrowRight, Copy, ExternalLink, ImagePlus, Star, Trash2, X } from 'lucide-react';
+ import {
+-  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, getAdminScope, saveProduct, uploadProductImage,
++  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, saveProduct, uploadProductImage,
+ } from '../../lib/api';
+ import { centsToInput, currencySymbol, formatPrice, parsePriceToCents } from '../../lib/format';
+-import { MARKETS } from '../../market';
+ import { COLORS, KIND_LABELS, ProductKind, TECHNIQUES_BY_KIND } from '../../config';
+ import { useCategories } from '../../context/SettingsContext';
+ import { Product, ProductInput } from '../../types';
+@@ -68,7 +66,7 @@ export function AdminProductForm() {
+ 
+   // Chargement du produit à modifier
+   useEffect(() => {
+-    if (isNew) { const start = { ...EMPTY, market: getAdminScope() ?? EMPTY.market }; setForm(start); setPrice(''); setOldPrice(''); setWeight(''); setOriginal(snapshot(start, '', '', '')); return; }
++    if (isNew) { const start = { ...EMPTY }; setForm(start); setPrice(''); setOldPrice(''); setWeight(''); setOriginal(snapshot(start, '', '', '')); return; }
+     adminListProducts().then((list) => {
+       const p = list.find((x) => x.id === id);
+       if (!p) { navigate('/admin/produits', { replace: true }); return; }
+@@ -306,18 +304,6 @@ export function AdminProductForm() {
+ 
+           {/* ---------- Informations ---------- */}
+           <Section title="Informations principales">
+-            {!getAdminScope() && (
+-              <Field label="Boutique" hint="Les produits de la boutique Algérie sont vendus en dinars, payés à la livraison et gérés par la famille.">
+-                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Boutique">
+-                  {(['fr', 'dz'] as const).map((m) => (
+-                    <button key={m} type="button" role="radio" aria-checked={(form.market ?? 'fr') === m} onClick={() => set('market', m)}
+-                      className={`px-4 py-3 rounded-md border-2 text-left ${(form.market ?? 'fr') === m ? 'border-nuit bg-nuit/5' : 'border-stone-200 bg-white'}`}>
+-                      <Flag market={m} className="w-5 h-auto mr-2 align-[-2px]" />{MARKETS[m].label} <span className="text-sm text-stone-500">({MARKETS[m].currency === 'EUR' ? 'euros' : 'dinars'})</span>
+-                    </button>
+-                  ))}
+-                </div>
+-              </Field>
+-            )}
+             <div id="champ-name">
+               <Field label="Nom du produit" required error={errors.name} counter={{ value: form.name.length, max: NAME_MAX }}
+                 hint="Soyez précis : type, motif, couleur. Ex. : Tapis Beni Ouarain écru à losanges bruns">
+@@ -356,14 +342,14 @@ export function AdminProductForm() {
+             <div className="grid sm:grid-cols-2 gap-5">
+               <div id="champ-price">
+                 <Field label="Prix de vente" required error={errors.price} hint="TTC, tel que le client le paiera.">
+-                  <UnitInput unit={currencySymbol(form.market ?? 'fr')} inputMode="decimal" value={price} invalid={!!errors.price}
++                  <UnitInput unit={currencySymbol()} inputMode="decimal" value={price} invalid={!!errors.price}
+                     onChange={(e) => { setPrice(e.target.value); setErrors((x) => ({ ...x, price: '' })); }} placeholder="450" />
+                 </Field>
+               </div>
+               <div id="champ-oldPrice" className="space-y-4">
+                 <Field label="Ancien prix (promotion)" optional error={errors.oldPrice}
+                   hint={discount ? `Affiché barré, avec le badge « −${discount} % ».` : 'Laissez vide s’il n’y a pas de promotion.'}>
+-                  <UnitInput unit={currencySymbol(form.market ?? 'fr')} inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
++                  <UnitInput unit={currencySymbol()} inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
+                     onChange={(e) => { setOldPrice(e.target.value); setErrors((x) => ({ ...x, oldPrice: '' })); }} placeholder="520" />
+                 </Field>
+                 {oldPrice.trim() && (
+@@ -568,8 +554,8 @@ export function AdminProductForm() {
+           <div className="bg-white rounded-lg border border-stone-200 p-5">
+             <p className="text-sm font-medium text-stone-500 mb-3">Aperçu dans la boutique</p>
+             <div className="pointer-events-none"><ProductCard product={preview} /></div>
+-            {(form.market ?? 'fr') === 'fr' && priceCents !== null && priceCents > 0 && (
+-              <p className="text-xs text-stone-500 mt-3">Vous recevrez environ {formatPrice(Math.round(priceCents * 0.985 - 25), 'fr')} après la commission Stripe (carte européenne).</p>
++            {priceCents !== null && priceCents > 0 && (
++              <p className="text-xs text-stone-500 mt-3">Vous recevrez environ {formatPrice(Math.round(priceCents * 0.985 - 25))} après la commission Stripe (carte européenne).</p>
+             )}
+           </div>
+         </aside>
+diff --git a/src/pages/admin/AdminProducts.tsx b/src/pages/admin/AdminProducts.tsx
+index 5ff094b..8f2806e 100644
+--- a/src/pages/admin/AdminProducts.tsx
++++ b/src/pages/admin/AdminProducts.tsx
+@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
+ import { AlertTriangle, Copy, Download, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+ import {
+   adminListProducts, adminListStockAlerts, deleteProduct, discountPatch, duplicateProduct, removeDiscountPatch,
+-  setProductActive, setProductStock, updateProductFields, downloadFile, productsToCsv, getAdminScope,
++  setProductActive, setProductStock, updateProductFields, downloadFile, productsToCsv,
+ } from '../../lib/api';
+ import { useAsync } from '../../lib/useAsync';
+ import { formatPrice } from '../../lib/format';
+@@ -46,8 +46,7 @@ export function AdminProducts() {
+     if (msg) { flash(msg); navigate(location.pathname, { replace: true, state: null }); }
+   }, [location, navigate]);
+ 
+-  const [shop, setShop] = useState<'tout' | 'fr' | 'dz'>('tout');
+-  const all = (data ?? []).filter((p) => shop === 'tout' || (p.market ?? 'fr') === shop);
++  const all = data ?? [];
+   const waitingFor = (id: string) => (alerts.data ?? []).filter((a) => a.product_id === id && !a.notified).length;
+   const counts: Record<Filter, number> = {
+     tous: all.length,
+@@ -177,13 +176,6 @@ export function AdminProducts() {
+           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+           <Input className="pl-10" placeholder="Rechercher par nom ou référence" value={search} onChange={(e) => setSearch(e.target.value)} />
+         </label>
+-        {!getAdminScope() && (
+-          <Select value={shop} onChange={(e) => setShop(e.target.value as 'tout' | 'fr' | 'dz')} aria-label="Boutique">
+-            <option value="tout">Toutes les boutiques</option>
+-            <option value="fr">France</option>
+-            <option value="dz">Algérie</option>
+-          </Select>
+-        )}
+         <Select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Catégorie">
+           <option value="tout">Toutes les catégories</option>
+           {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+@@ -233,11 +225,10 @@ export function AdminProducts() {
+                   {categoryLabel(p.category)}{p.reference && ` · ${p.reference}`}
+                 </p>
+                 <p className="text-sm mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+-                  <span className="font-medium">{formatPrice(p.price_cents, p.market ?? 'fr')}</span>
+-                  {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!, p.market ?? 'fr')}</span>}
++                  <span className="font-medium">{formatPrice(p.price_cents)}</span>
++                  {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!)}</span>}
+                   {!p.active && <Tag tone="stone">Masqué</Tag>}
+                   {p.seller_id && <Tag tone="blue">Artisan partenaire</Tag>}
+-                  {p.market === 'dz' && !getAdminScope() && <Tag tone="green">Algérie</Tag>}
+                   {p.moderation === 'pending' && <Tag tone="amber">À valider</Tag>}
+                   {p.active && p.publish_at && new Date(p.publish_at) > new Date() && <Tag tone="blue">En ligne le {new Date(p.publish_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Tag>}
+                   {p.stock === 0 && <Tag tone="red">Rupture</Tag>}
+diff --git a/src/pages/admin/AdminSettings.tsx b/src/pages/admin/AdminSettings.tsx
+index cf399ce..9d42e90 100644
+--- a/src/pages/admin/AdminSettings.tsx
++++ b/src/pages/admin/AdminSettings.tsx
+@@ -146,13 +146,6 @@ export function AdminSettings() {
+           </Field>
+         </Section>
+ 
+-        <Section title="Boutique Algérie" description="Une seconde boutique en dinars, payée à la livraison, gérée par la famille depuis son propre compte (Équipe et journal).">
+-          <Toggle checked={form.dz_enabled} onChange={(v) => set('dz_enabled', v)} title="Ouvrir la boutique Algérie" description="Les visiteurs choisissent leur pays à l’arrivée et peuvent changer depuis l’en-tête." />
+-          <Field label="Téléphone ou WhatsApp pour l’Algérie" optional hint="Affiché aux clients d’Algérie après leur commande.">
+-            <Input value={form.dz_phone} maxLength={30} onChange={(e) => set('dz_phone', e.target.value)} placeholder="0550 12 34 56" />
+-          </Field>
+-        </Section>
+-
+         <Section title="Place de marché" description="D’autres artisans peuvent candidater pour vendre leurs créations sur la boutique.">
+           <Toggle checked={form.marketplace_enabled} onChange={(v) => set('marketplace_enabled', v)} title="Accepter les candidatures d’artisans" description="Page « Vendre mes créations » ouverte au public." />
+           <Field label="Commission par défaut" hint="Prélevée sur le prix des articles vendus par les artisans (hors frais d’envoi). Modifiable artisan par artisan.">
+diff --git a/src/pages/admin/AdminTeam.tsx b/src/pages/admin/AdminTeam.tsx
+index 9c6117d..7cc200a 100644
+--- a/src/pages/admin/AdminTeam.tsx
++++ b/src/pages/admin/AdminTeam.tsx
+@@ -9,7 +9,6 @@ export function AdminTeam() {
+   const team = useAsync(listTeam, []);
+   const activity = useAsync(listActivity, []);
+   const [email, setEmail] = useState('');
+-  const [role, setRole] = useState<'complet' | 'dz'>('complet');
+   const [busy, setBusy] = useState(false);
+   const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
+   const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3500); };
+@@ -17,7 +16,7 @@ export function AdminTeam() {
+   async function add(e: FormEvent) {
+     e.preventDefault();
+     setBusy(true);
+-    try { await addTeamMember(email, role === 'dz' ? 'dz' : null); setEmail(''); team.reload(); flash('Accès donné. Si la personne n’a pas encore de compte, elle reçoit une invitation par email.'); }
++    try { await addTeamMember(email); setEmail(''); team.reload(); flash('Accès donné. Si la personne n’a pas encore de compte, elle reçoit une invitation par email.'); }
+     catch (err) { flash(err instanceof Error ? err.message : 'Erreur', 'error'); }
+     finally { setBusy(false); }
+   }
+@@ -37,7 +36,6 @@ export function AdminTeam() {
+               <li key={m.user_id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                 <span className="font-medium">{m.email}</span>
+                 {m.me && <span className="text-xs px-2 py-0.5 rounded bg-nuit/10 text-nuit">Vous</span>}
+-                <span className={`text-xs px-2 py-0.5 rounded ${m.market === 'dz' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>{m.market === 'dz' ? 'Boutique Algérie uniquement' : 'Accès complet'}</span>
+                 <span className="text-sm text-stone-500">{m.last_sign_in_at ? `Dernière connexion : ${formatDate(m.last_sign_in_at)}` : 'Invitation envoyée, pas encore connecté'}</span>
+                 {!m.me && <button onClick={() => remove(m.user_id, m.email)} className="ml-auto p-2.5 rounded-md text-garance hover:bg-red-50" aria-label={`Retirer ${m.email}`}><Trash2 className="w-4 h-4" /></button>}
+               </li>
+@@ -45,11 +43,6 @@ export function AdminTeam() {
+           </ul>
+         )}
+         <form onSubmit={add} className="flex flex-wrap gap-3 items-end">
+-          <div className="min-w-56"><Field label="Accès">
+-            <select value={role} onChange={(e) => setRole(e.target.value as 'complet' | 'dz')} className="w-full px-3 py-3 border border-stone-300 rounded-md bg-white">
+-              <option value="complet">Accès complet</option>
+-              <option value="dz">Boutique Algérie uniquement (commandes, produits, livraison)</option>
+-            </select></Field></div>
+           <div className="flex-1 min-w-64"><Field label="Ajouter une personne"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="collaborateur@exemple.fr" /></Field></div>
+           <button disabled={busy} className="inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60"><UserPlus className="w-4 h-4" /> Donner l’accès</button>
+         </form>
+diff --git a/src/settings.ts b/src/settings.ts
+index 68e9888..927f018 100644
+--- a/src/settings.ts
++++ b/src/settings.ts
+@@ -39,8 +39,6 @@ Texte à personnaliser dans Espace vendeur → Réglages : racontez ici l’hist
+   preparation_days: 2,
+   marketplace_enabled: true,
+   marketplace_commission_percent: 15,
+-  dz_enabled: true,
+-  dz_phone: '',
+   mediator: '',
+ };
+ 
+diff --git a/src/shipping.ts b/src/shipping.ts
+index 9a71ed7..b6dc9bf 100644
+--- a/src/shipping.ts
++++ b/src/shipping.ts
+@@ -13,7 +13,7 @@ export const COUNTRIES: { code: string; name: string }[] = [
+   { code: 'IT', name: 'Italie' }, { code: 'PT', name: 'Portugal' }, { code: 'AT', name: 'Autriche' }, { code: 'IE', name: 'Irlande' },
+   { code: 'DK', name: 'Danemark' }, { code: 'SE', name: 'Suède' }, { code: 'FI', name: 'Finlande' }, { code: 'PL', name: 'Pologne' },
+   { code: 'GR', name: 'Grèce' }, { code: 'GB', name: 'Royaume-Uni' }, { code: 'NO', name: 'Norvège' }, { code: 'US', name: 'États-Unis' },
+-  { code: 'CA', name: 'Canada' }, { code: 'AE', name: 'Émirats arabes unis' }, { code: 'MA', name: 'Maroc' }, { code: 'DZ', name: 'Algérie' },
++  { code: 'CA', name: 'Canada' }, { code: 'AE', name: 'Émirats arabes unis' }, { code: 'MA', name: 'Maroc' },
+   { code: 'TN', name: 'Tunisie' }, { code: 'AU', name: 'Australie' }, { code: 'JP', name: 'Japon' },
+ ];
+ export const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code;
+diff --git a/src/types.ts b/src/types.ts
+index 1e0ade1..12c791b 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -1,7 +1,6 @@
+ import type { ShippingMethod, ShippingZone } from './shipping';
+ 
+ export interface Product {
+-  market?: 'fr' | 'dz';                    // boutique : France (euros) ou Algérie (dinars)
+   id: string;
+   name: string;
+   description: string;
+@@ -53,7 +52,7 @@ export interface Product {
+ 
+ export type ProductInput = Omit<Product, 'id' | 'created_at'>;
+ 
+-export type OrderStatus = 'to_confirm' | 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
++export type OrderStatus = 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+ 
+ export interface OrderItem {
+   id: number;
+@@ -75,10 +74,6 @@ export interface Address {
+ 
+ export interface Order {
+   id: string;
+-  market?: 'fr' | 'dz';
+-  payment_method?: 'card' | 'cod';
+-  wilaya?: string | null;
+-  delivery_type?: 'domicile' | 'bureau' | null;
+   stripe_session_id: string;
+   stripe_payment_id: string | null;
+   email: string | null;
+@@ -105,7 +100,6 @@ export interface Order {
+ }
+ 
+ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: string }> = {
+-  to_confirm: { label: 'À confirmer par téléphone', tone: 'bg-garance/15 text-garance' },
+   paid: { label: 'Payée — à préparer', tone: 'bg-safran/25 text-henne' },
+   check_stock: { label: 'Stock à vérifier', tone: 'bg-garance/15 text-garance' },
+   shipped: { label: 'Expédiée', tone: 'bg-nuit/10 text-nuit' },
+@@ -239,7 +233,6 @@ export interface CatalogRequest {
+ }
+ 
+ export interface AdminCounts {
+-  ordersToConfirm: number;
+   catalogsToSend: number;
+   sellersPending: number;
+   productsToReview: number;
+@@ -296,9 +289,6 @@ export interface ShopSettings {
+   // version 14 : place de marché
+   marketplace_enabled: boolean;
+   marketplace_commission_percent: number;
+-  // version 17 : boutique Algérie
+-  dz_enabled: boolean;
+-  dz_phone: string;                     // numéro affiché aux clients d'Algérie (appels, WhatsApp)
+   mediator: string;                     // médiateur de la consommation (obligatoire en France)
+ }
+ 
+diff --git a/supabase/schema.sql b/supabase/schema.sql
+index dd5f448..1d71512 100644
+--- a/supabase/schema.sql
++++ b/supabase/schema.sql
+@@ -97,8 +97,9 @@ alter table public.orders add column if not exists promo_code text;
+ alter table public.orders add column if not exists refunded_cents integer not null default 0;
+ alter table public.orders add column if not exists invoice_number bigint generated by default as identity;
+ alter table public.orders drop constraint if exists orders_status_check;
++-- 'to_confirm' : anciennes commandes à confirmer par téléphone (conservées, plus créées)
+ alter table public.orders add constraint orders_status_check
+-  check (status in ('paid','check_stock','shipped','delivered','cancelled','refunded'));
++  check (status in ('to_confirm','paid','check_stock','shipped','delivered','cancelled','refunded'));
+ 
+ -- ---------- Décrément de stock (appelé par le serveur uniquement) ----------
+ create or replace function public.decrement_stock(p_product_id uuid, p_quantity integer)
+@@ -648,7 +649,7 @@ create policy "admin gere catalogues" on public.catalog_requests
+   for all to authenticated using (public.is_admin()) with check (public.is_admin());
+ 
+ -- =====================================================================
+--- Version 17 : deux boutiques — France (paiement Stripe) et Algérie (paiement à la livraison)
++-- Version 17 : colonnes « boutique » (seule la boutique France 'fr' est utilisée depuis la version 19)
+ -- =====================================================================
+ 
+ -- Chaque produit et chaque commande appartiennent à une boutique : 'fr' (euros) ou 'dz' (dinars)
+@@ -677,116 +678,9 @@ returns boolean language sql stable security definer set search_path = public, a
+      );
+ $$;
+ 
+-/** Administrateur complet, ou gestionnaire de cette boutique. */
+-create or replace function public.is_market_admin(p_market text)
+-returns boolean language sql stable security definer set search_path = public, auth as $$
+-  select exists (select 1 from public.admins where user_id = auth.uid() and (market is null or market = p_market))
+-     and (
+-       coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
+-       or not exists (select 1 from auth.mfa_factors f where f.user_id = auth.uid() and f.status = 'verified')
+-     );
+-$$;
+-
+ drop policy if exists "chacun lit son acces" on public.admins;
+ create policy "chacun lit son acces" on public.admins for select to authenticated using (user_id = auth.uid());
+ 
+-drop policy if exists "gestionnaire boutique produits" on public.products;
+-create policy "gestionnaire boutique produits" on public.products
+-  for all to authenticated using (public.is_market_admin(market)) with check (public.is_market_admin(market) and seller_id is null);
+-
+-drop policy if exists "gestionnaire boutique commandes" on public.orders;
+-create policy "gestionnaire boutique commandes" on public.orders
+-  for select to authenticated using (public.is_market_admin(market));
+-drop policy if exists "gestionnaire boutique met a jour" on public.orders;
+-create policy "gestionnaire boutique met a jour" on public.orders
+-  for update to authenticated using (public.is_market_admin(market)) with check (public.is_market_admin(market));
+-
+-drop policy if exists "gestionnaire boutique lignes" on public.order_items;
+-create policy "gestionnaire boutique lignes" on public.order_items
+-  for select to authenticated using (exists (select 1 from public.orders o where o.id = order_id and public.is_market_admin(o.market)));
+-
+--- Photos des produits Algérie : dossier algerie/
+-drop policy if exists "gestionnaire algerie photos" on storage.objects;
+-create policy "gestionnaire algerie photos" on storage.objects
+-  for insert to authenticated with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = 'algerie' and public.is_market_admin('dz'));
+-
+--- Tarifs de livraison en Algérie, par wilaya (à domicile ou au bureau du transporteur), en centimes de dinar
+-create table if not exists public.dz_shipping_rates (
+-  code         integer primary key check (code between 1 and 99),
+-  name         text not null check (char_length(name) between 2 and 60),
+-  home_cents   integer check (home_cents is null or home_cents >= 0),
+-  desk_cents   integer check (desk_cents is null or desk_cents >= 0),
+-  active       boolean not null default true
+-);
+-alter table public.dz_shipping_rates enable row level security;
+-drop policy if exists "tarifs algerie publics" on public.dz_shipping_rates;
+-create policy "tarifs algerie publics" on public.dz_shipping_rates for select using (true);
+-drop policy if exists "gestionnaire algerie tarifs" on public.dz_shipping_rates;
+-create policy "gestionnaire algerie tarifs" on public.dz_shipping_rates
+-  for all to authenticated using (public.is_market_admin('dz')) with check (public.is_market_admin('dz'));
+-
+--- Les 58 wilayas avec des tarifs de départ (à ajuster selon votre transporteur ; jamais écrasés à la relance)
+-insert into public.dz_shipping_rates (code, name, home_cents, desk_cents) values
+-  (1, 'Adrar', 110000, 70000),
+-  (2, 'Chlef', 75000, 45000),
+-  (3, 'Laghouat', 75000, 45000),
+-  (4, 'Oum El Bouaghi', 75000, 45000),
+-  (5, 'Batna', 75000, 45000),
+-  (6, 'Béjaïa', 75000, 45000),
+-  (7, 'Biskra', 75000, 45000),
+-  (8, 'Béchar', 110000, 70000),
+-  (9, 'Blida', 60000, 40000),
+-  (10, 'Bouira', 60000, 40000),
+-  (11, 'Tamanrasset', 110000, 70000),
+-  (12, 'Tébessa', 75000, 45000),
+-  (13, 'Tlemcen', 75000, 45000),
+-  (14, 'Tiaret', 75000, 45000),
+-  (15, 'Tizi Ouzou', 60000, 40000),
+-  (16, 'Alger', 60000, 40000),
+-  (17, 'Djelfa', 75000, 45000),
+-  (18, 'Jijel', 75000, 45000),
+-  (19, 'Sétif', 75000, 45000),
+-  (20, 'Saïda', 75000, 45000),
+-  (21, 'Skikda', 75000, 45000),
+-  (22, 'Sidi Bel Abbès', 75000, 45000),
+-  (23, 'Annaba', 75000, 45000),
+-  (24, 'Guelma', 75000, 45000),
+-  (25, 'Constantine', 75000, 45000),
+-  (26, 'Médéa', 60000, 40000),
+-  (27, 'Mostaganem', 75000, 45000),
+-  (28, 'M''Sila', 75000, 45000),
+-  (29, 'Mascara', 75000, 45000),
+-  (30, 'Ouargla', 110000, 70000),
+-  (31, 'Oran', 75000, 45000),
+-  (32, 'El Bayadh', 110000, 70000),
+-  (33, 'Illizi', 110000, 70000),
+-  (34, 'Bordj Bou Arréridj', 75000, 45000),
+-  (35, 'Boumerdès', 60000, 40000),
+-  (36, 'El Tarf', 75000, 45000),
+-  (37, 'Tindouf', 110000, 70000),
+-  (38, 'Tissemsilt', 75000, 45000),
+-  (39, 'El Oued', 110000, 70000),
+-  (40, 'Khenchela', 75000, 45000),
+-  (41, 'Souk Ahras', 75000, 45000),
+-  (42, 'Tipaza', 60000, 40000),
+-  (43, 'Mila', 75000, 45000),
+-  (44, 'Aïn Defla', 60000, 40000),
+-  (45, 'Naâma', 75000, 45000),
+-  (46, 'Aïn Témouchent', 75000, 45000),
+-  (47, 'Ghardaïa', 110000, 70000),
+-  (48, 'Relizane', 75000, 45000),
+-  (49, 'Timimoun', 110000, 70000),
+-  (50, 'Bordj Badji Mokhtar', 110000, 70000),
+-  (51, 'Ouled Djellal', 110000, 70000),
+-  (52, 'Béni Abbès', 110000, 70000),
+-  (53, 'In Salah', 110000, 70000),
+-  (54, 'In Guezzam', 110000, 70000),
+-  (55, 'Touggourt', 110000, 70000),
+-  (56, 'Djanet', 110000, 70000),
+-  (57, 'El M''Ghair', 110000, 70000),
+-  (58, 'El Meniaa', 110000, 70000)
+-on conflict (code) do nothing;
+-
+ -- =====================================================================
+ -- Version 18 : paiement fiable
+ --   • commandes créées en une seule transaction (commande + lignes + stock + facture)
+@@ -1198,3 +1092,22 @@ begin
+     execute format('grant execute on function public.%s to service_role', f);
+   end loop;
+ end $$;
++
++-- =====================================================================
++-- Version 19 : boutique France uniquement
++-- La boutique Algérie est retirée du site. Aucune donnée n'est supprimée :
++-- les anciens produits et commandes « dz » restent en base mais ne sont plus affichés,
++-- et les anciens accès limités à l'Algérie n'ouvrent plus rien.
++-- =====================================================================
++drop policy if exists "gestionnaire boutique produits" on public.products;
++drop policy if exists "gestionnaire boutique commandes" on public.orders;
++drop policy if exists "gestionnaire boutique met a jour" on public.orders;
++drop policy if exists "gestionnaire boutique lignes" on public.order_items;
++drop policy if exists "gestionnaire algerie photos" on storage.objects;
++do $$ begin
++  if to_regclass('public.dz_shipping_rates') is not null then
++    execute 'drop policy if exists "gestionnaire algerie tarifs" on public.dz_shipping_rates';
++    execute 'drop policy if exists "tarifs algerie publics" on public.dz_shipping_rates';
++  end if;
++end $$;
++drop function if exists public.is_market_admin(text);
+diff --git a/supabase/tests/securite.mjs b/supabase/tests/securite.mjs
+index 186c26f..099e7cc 100644
+--- a/supabase/tests/securite.mjs
++++ b/supabase/tests/securite.mjs
+@@ -49,20 +49,17 @@ await as('authenticated', CLIENT, 'client@x.fr', "select count(*) from seller_pr
+ await as('anon', null, '', "select count(*) from settings", 1, 'réglages publics lisibles');
+ await as('anon', null, '', "update settings set data='{}'", 0, 'visiteur ne peut pas modifier les réglages');
+ await as('anon', null, '', "select public.decrement_stock((select id from products limit 1), 1)", 'refus', 'visiteur ne peut pas vider le stock');
+-// ---------- Deux boutiques : gestionnaire Algérie ----------
++// ---------- Boutique France uniquement : un ancien accès limité (market = 'dz') n'ouvre plus rien ----------
+ const DZ='44444444-4444-4444-4444-444444444444';
+-await db.exec(`insert into auth.users(id,email) values ('${DZ}','famille@x.dz'); insert into public.admins(user_id, market) values ('${DZ}','dz');
+-  insert into public.products(name,price_cents,market,stock) values ('Tapis Algérie',8500000,'dz',1);
++await db.exec(`insert into auth.users(id,email) values ('${DZ}','ancien@x.fr'); insert into public.admins(user_id, market) values ('${DZ}','dz');
++  insert into public.products(name,price_cents,market,stock) values ('Ancien produit',8500000,'dz',1);
+   insert into public.orders(stripe_session_id,email,total_cents,market,payment_method,status) values ('cod_1',null,9000000,'dz','cod','to_confirm');`);
+-await as('authenticated', DZ, 'famille@x.dz', "select count(*) from orders", 1, 'gestionnaire Algérie voit seulement les commandes Algérie');
+-await as('authenticated', DZ, 'famille@x.dz', "update orders set status='paid' where market='dz' returning status", 'paid', 'gestionnaire Algérie confirme une commande Algérie');
+-await as('authenticated', DZ, 'famille@x.dz', "update orders set status='cancelled' where market='fr'", 0, 'gestionnaire Algérie ne touche pas aux commandes France');
+-await as('authenticated', DZ, 'famille@x.dz', "update products set price_cents=1 where market='fr'", 0, 'gestionnaire Algérie ne change pas les prix France');
+-await as('authenticated', DZ, 'famille@x.dz', "update products set price_cents=8000000 where market='dz'", 1, 'gestionnaire Algérie modifie ses produits');
+-await as('authenticated', DZ, 'famille@x.dz', "insert into products(name,price_cents,market) values ('Pirate',1,'fr')", 'refus', 'gestionnaire Algérie ne crée pas de produit France');
+-await as('authenticated', DZ, 'famille@x.dz', "update settings set data='{}'", 0, 'gestionnaire Algérie ne modifie pas les réglages');
+-await as('authenticated', DZ, 'famille@x.dz', "update dz_shipping_rates set home_cents=50000 where code=16", 1, 'gestionnaire Algérie règle les tarifs des wilayas');
+-await as('anon', null, '', "update dz_shipping_rates set home_cents=0", 0, 'visiteur ne change pas les tarifs');
+-await as('anon', null, '', "select count(*) from dz_shipping_rates", 58, 'les 58 wilayas sont publiques');
++await as('authenticated', DZ, 'ancien@x.fr', "select count(*) from orders", 0, 'ancien accès limité : aucune commande visible');
++await as('authenticated', DZ, 'ancien@x.fr', "update orders set status='paid' returning status", 0, 'ancien accès limité : ne modifie aucune commande');
++await as('authenticated', DZ, 'ancien@x.fr', "update products set price_cents=1", 0, 'ancien accès limité : ne change aucun prix');
++await as('authenticated', DZ, 'ancien@x.fr', "insert into products(name,price_cents) values ('Pirate',1)", 'refus', 'ancien accès limité : ne crée pas de produit');
++await as('authenticated', DZ, 'ancien@x.fr', "update settings set data='{}'", 0, 'ancien accès limité : ne modifie pas les réglages');
++await as('anon', null, '', "select count(*) from products where market='dz'", 1, 'anciens produits conservés en base (données non supprimées)');
++await as('anon', null, '', "select count(*) from pg_proc where proname='is_market_admin'", 0, 'fonction des gestionnaires Algérie retirée');
+ console.log(`\n${ok} contrôles réussis, ${ko} échec(s)`);
+ if (ko) process.exit(1);
+-- 
+2.43.0
+
