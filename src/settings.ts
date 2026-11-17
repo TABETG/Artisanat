@@ -53,7 +53,7 @@ export function slugify(label: string): string {
 export function withDefaults(data: Partial<ShopSettings> | null | undefined): ShopSettings {
   const merged = { ...DEFAULT_SETTINGS, ...(data ?? {}) };
   // Catégories enregistrées avant l'ajout des types : type deviné, et nouvelles catégories Bijoux / Beauté ajoutées
-  merged.categories = merged.categories.map((c) => ({ ...c, kind: c.kind ?? guessKind(c.id) })).filter((c) => c.kind !== 'cosmetique');
+  merged.categories = merged.categories.map((c) => ({ ...c, kind: c.kind ?? guessKind(c.id) })).filter((c) => c.kind !== 'cosmetique').filter((c) => c.kind !== 'cosmetique');
   for (const extra of CATEGORIES.filter((c) => c.kind === 'bijou')) {
     if (!merged.categories.some((c) => c.id === extra.id || c.kind === extra.kind)) merged.categories.push({ ...extra });
   }
