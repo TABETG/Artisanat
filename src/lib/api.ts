@@ -5,7 +5,7 @@ import { demoAuth, demoDB, demoSave, wait } from './demoStore';
 import { DEMO_ADMIN, DEMO_DZ_MANAGER } from './demo';
 import { currentMarket, DzRate, Market } from '../market';
 import { imageToDataUrl, resizeImage } from './image';
-import { AdminCounts, CatalogRequest, ContactMessage, Campaign, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
+import { AdminCounts, CatalogRequest, ContactMessage, Campaign, Refund, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
 import { withDefaults } from '../settings';
 import { statsAllowed } from './privacy';
 import { adminListSellers } from './marketplace';
@@ -589,25 +589,51 @@ export async function deactivatePromoCode(id: string): Promise<void> {
 
 // =============== Remboursements ===============
 
-export async function refundOrder(orderId: string, amountCents: number, restock: boolean, reason: string): Promise<{ refunded_cents: number; full: boolean; note: string }> {
-  logActivity(`Remboursement de ${(amountCents / 100).toFixed(2).replace('.', ',')} € (commande #${orderId.replace(/^demo-/, '').slice(0, 8).toUpperCase()})`);
+export interface RefundRequest {
+  amountCents: number;
+  /** Part du montant correspondant aux frais de livraison (pour l'historique et les factures d'avoir). */
+  shippingCents?: number;
+  restock: boolean;
+  /** Articles à remettre en stock (retour partiel) ; absent = toute la commande. */
+  restockItems?: { product_id: string; quantity: number }[];
+  reason: string;
+  returnId?: number;
+}
+
+export async function refundOrder(orderId: string, r: RefundRequest): Promise<{ refund_id: number; status: Refund['status']; refunded_cents: number; full: boolean; note: string }> {
+  logActivity(`Remboursement de ${(r.amountCents / 100).toFixed(2).replace('.', ',')} € (commande #${orderId.replace(/^demo-/, '').slice(0, 8).toUpperCase()})`);
   if (DEMO_MODE) {
     await wait(600);
     const d = demoDB();
     const o = d.orders.find((x) => x.id === orderId);
     if (!o) throw new Error('Commande introuvable');
+    d.refunds ??= [];
+    if (r.returnId != null && d.refunds.some((x) => x.return_id === r.returnId && x.status !== 'failed')) throw new Error('Ce retour a déjà été remboursé.');
     const remaining = o.total_cents - (o.refunded_cents ?? 0);
-    if (!(amountCents > 0) || amountCents > remaining) throw new Error(`Montant invalide (maximum ${(remaining / 100).toFixed(2).replace('.', ',')} €).`);
-    o.refunded_cents = (o.refunded_cents ?? 0) + amountCents;
+    if (!(r.amountCents > 0) || r.amountCents > remaining) throw new Error(`Montant invalide (maximum ${(remaining / 100).toFixed(2).replace('.', ',')} €).`);
+    const id = d.refunds.length + 1;
+    d.refunds.push({ id, order_id: orderId, return_id: r.returnId ?? null, amount_cents: r.amountCents, shipping_cents: r.shippingCents ?? 0, reason: r.reason || null,
+      restock: r.restock, status: 'succeeded', source: 'admin', stripe_refund_id: `re_demo_${id}`, error: null, created_by: 'demo@exemple.fr', created_at: new Date().toISOString() });
+    o.refunded_cents = (o.refunded_cents ?? 0) + r.amountCents;
     const full = o.refunded_cents >= o.total_cents;
     if (full) o.status = 'refunded';
-    const note = `Remboursé ${(amountCents / 100).toFixed(2).replace('.', ',')} € le ${new Date().toLocaleDateString('fr-FR')}${reason ? ` : ${reason}` : ''}`;
-    o.note = [o.note, note].filter(Boolean).join('\n');
-    if (restock) o.order_items?.forEach((i) => { const p = d.products.find((x) => x.id === i.product_id); if (p) p.stock += i.quantity; });
+    const note = `Remboursé ${(r.amountCents / 100).toFixed(2).replace('.', ',')} € le ${new Date().toLocaleDateString('fr-FR')}${r.reason ? ` : ${r.reason}` : ''}`;
+    if (r.restock) (r.restockItems ?? o.order_items?.map((i) => ({ product_id: i.product_id!, quantity: i.quantity })) ?? [])
+      .forEach((i) => { const p = d.products.find((x) => x.id === i.product_id); if (p) p.stock += i.quantity; });
+    if (r.returnId != null) { const ret = d.returns.find((x) => x.id === r.returnId); if (ret) ret.status = 'refunded'; }
     demoSave();
-    return { refunded_cents: o.refunded_cents, full, note };
+    return { refund_id: id, status: 'succeeded', refunded_cents: o.refunded_cents, full, note };
   }
-  return callAdminFunction({ orderId, amountCents, restock, reason }, 'admin-refund');
+  return callAdminFunction({ orderId, amountCents: r.amountCents, shippingCents: r.shippingCents ?? 0, restock: r.restock,
+    restockItems: r.restockItems, reason: r.reason, returnId: r.returnId }, 'admin-refund');
+}
+
+/** Historique des remboursements d'une commande (le plus récent d'abord). */
+export async function adminListRefunds(orderId: string): Promise<Refund[]> {
+  if (DEMO_MODE) return [...(demoDB().refunds ?? [])].filter((x) => x.order_id === orderId).reverse();
+  const { data, error } = await db().from('refunds').select('*').eq('order_id', orderId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Refund[];
 }
 
 // =============== Double authentification (application d'authentification) ===============

@@ -1,6 +1,7 @@
 // Crée une page de paiement Stripe à partir du panier.
 // Les prix sont TOUJOURS relus en base : le navigateur n'envoie que des identifiants et des quantités.
 import Stripe from 'stripe';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { quoteShipping, type ShippingQuote } from '../../src/shipping';
 import { loadSettings } from '../shared/settings';
@@ -65,8 +66,8 @@ export default async (req: Request) => {
   }
 
   const settings = await loadSettings(supabase);
-  // Frais de livraison recalculés ici, à partir des réglages et des dimensions réelles des produits
-  const country = typeof body.country === 'string' && /^[A-Z]{2}$/.test(body.country) ? body.country : 'FR';
+  // Boutique française : livraison en France métropolitaine uniquement (le pays envoyé par le navigateur est ignoré)
+  const country = 'FR';
   const priced = lines.map((l) => ({ line: l, p: applyPromoExpiry(products.find((x) => x.id === l.id)!) }));
   const own = priced.filter((x) => !x.p.seller_id);
   const bySeller = new Map<string, typeof priced>();
@@ -99,6 +100,23 @@ export default async (req: Request) => {
   const origin = process.env.URL ?? new URL(req.url).origin;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+  // Réservation du stock pendant le paiement : deux clients ne peuvent pas payer la même pièce unique.
+  // Verrou ligne par ligne dans PostgreSQL ; la réservation expire seule si le client abandonne.
+  const reservationRef = randomUUID();
+  const { error: reserveError } = await supabase.rpc('reserve_stock', {
+    p_ref: reservationRef, p_items: lines.map((l) => ({ product_id: l.id, quantity: l.quantity })), p_minutes: 35,
+  });
+  if (reserveError) {
+    const m = /STOCK:([0-9a-f-]{36}):(\d+)/i.exec(reserveError.message);
+    if (!m) { console.error('Réservation du stock impossible', { error: reserveError.message }); return json({ error: 'Service momentanément indisponible.' }, 500); }
+    const name = products.find((x) => x.id === m[1])?.name ?? 'Un article';
+    const left = Number(m[2]);
+    return json({ error: left === 0
+      ? `« ${name} » est en cours d’achat ou vient d’être vendu. Retirez-le du panier ou réessayez dans quelques minutes.`
+      : `« ${name} » : il n’en reste que ${left} de disponible.` }, 409);
+  }
+  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -124,13 +142,21 @@ export default async (req: Request) => {
       } : {}),
       shipping_options: shippingOptions,
       // La page de paiement expire vite : limite le risque de vendre deux fois une pièce unique
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      expires_at: expiresAt,
+      metadata: { reservation_ref: reservationRef },
+      payment_intent_data: { metadata: { reservation_ref: reservationRef } },
       success_url: `${origin}/merci?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/commande-annulee`,
     });
+    // Marge de 5 minutes après l'expiration Stripe pour laisser le temps au webhook d'arriver
+    const { error: attachError } = await supabase.rpc('attach_reservation', {
+      p_ref: reservationRef, p_session_id: session.id, p_expires_at: new Date((expiresAt + 5 * 60) * 1000).toISOString(),
+    });
+    if (attachError) console.error('Réservation non rattachée (elle expirera seule)', { session: session.id, error: attachError.message });
     return json({ url: session.url });
   } catch (e) {
-    console.error('Stripe checkout error', e);
+    await supabase.rpc('release_reservation', { p_ref: reservationRef, p_session_id: null });
+    console.error('Stripe checkout error', { error: e instanceof Error ? e.message : String(e) });
     return json({ error: 'Le paiement n’a pas pu démarrer. Réessayez dans un instant.' }, 502);
   }
 };

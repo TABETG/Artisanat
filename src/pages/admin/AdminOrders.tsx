@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronDown, Download, ExternalLink, FileText, Mail, Phone, Printer, RotateCcw, Search, Truck } from 'lucide-react';
-import { adminListOrders, downloadFile, getAdminScope, notifyShipped, ordersToCsv, refundOrder, restockOrder, updateOrder } from '../../lib/api';
+import { adminListOrders, adminListRefunds, downloadFile, getAdminScope, notifyShipped, ordersToCsv, refundOrder, restockOrder, updateOrder } from '../../lib/api';
 import { Market } from '../../market';
 import { useAsync } from '../../lib/useAsync';
 import { formatDate, formatPrice } from '../../lib/format';
-import { Order, ORDER_STATUS, OrderStatus } from '../../types';
+import { Order, ORDER_STATUS, OrderStatus, REFUND_STATUS, type Refund } from '../../types';
 import { CARRIERS, DZ_CARRIERS, SHOP, trackingUrl } from '../../config';
 import { Field, Input, Modal, Select, Textarea, Toast, UnitInput } from './ui';
 import { centsToInput, parsePriceToCents } from '../../lib/format';
@@ -118,6 +118,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   const [sendEmail, setSendEmail] = useState(!order.shipped_email_sent_at);
   const [saving, setSaving] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const [refundsVersion, setRefundsVersion] = useState(0);
   const { settings } = useSettings();
   const isCod = order.payment_method === 'cod';
   const money = (c: number) => formatPrice(c, order.market ?? 'fr');
@@ -167,7 +168,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   return (
     <div className="border-t border-stone-200 p-4 sm:p-5 grid gap-6 md:grid-cols-2">
       {refunding && <RefundModal order={order} onClose={() => setRefunding(false)} onError={onError}
-        onDone={(o, m) => { setRefunding(false); setStatus(o.status); setNote(o.note ?? ''); onSaved(o, m); }} />}
+        onDone={(o, m) => { setRefunding(false); setStatus(o.status); setRefundsVersion((v) => v + 1); onSaved(o, m); }} />}
       <div className="space-y-5 text-[15px]">
         {isCod && order.status === 'to_confirm' && (
           <div className="bg-garance/10 border border-garance/30 rounded-md p-4 space-y-3">
@@ -209,6 +210,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
             {!!order.refunded_cents && <li className="flex justify-between text-violet-800"><span>Déjà remboursé</span><span>−{money(order.refunded_cents)}</span></li>}
           </ul>
         </Info>
+        {!isCod && <RefundHistory orderId={order.id} version={refundsVersion} money={money} />}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => printSlip(order, settings.email, settings.phone)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
             <Printer className="w-4 h-4" /> Bon de livraison
@@ -284,17 +286,21 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
   const [amount, setAmount] = useState(centsToInput(remaining));
   const [restock, setRestock] = useState(true);
   const [reason, setReason] = useState('');
+  // Part « frais de livraison » du montant (pour l'historique) : par défaut, la livraison payée si on rembourse tout
+  const [shippingInput, setShippingInput] = useState(centsToInput(remaining >= order.total_cents ? order.shipping_cents : 0));
+  const shipping = shippingInput.trim() ? parsePriceToCents(shippingInput) : 0;
   const [busy, setBusy] = useState(false);
   const cents = parsePriceToCents(amount);
-  const valid = cents !== null && cents > 0 && cents <= remaining;
+  const valid = cents !== null && cents > 0 && cents <= remaining && shipping !== null && shipping >= 0 && shipping <= cents;
 
   async function go() {
     if (!valid) return;
     setBusy(true);
     try {
-      const r = await refundOrder(order.id, cents!, restock, reason.trim());
-      onDone({ ...order, refunded_cents: r.refunded_cents, status: r.full ? 'refunded' : order.status, note: [order.note, r.note].filter(Boolean).join('\n') },
-        `${formatPrice(cents!)} remboursés${restock ? ', articles remis en stock' : ''}. Le client reçoit un email de Stripe.`);
+      const r = await refundOrder(order.id, { amountCents: cents!, shippingCents: Math.min(shipping ?? 0, cents!), restock, reason: reason.trim() });
+      onDone({ ...order, refunded_cents: r.refunded_cents, status: r.full ? 'refunded' : order.status },
+        r.status === 'pending' ? `Remboursement de ${formatPrice(cents!)} en cours chez Stripe : le statut se mettra à jour seul.`
+          : `${formatPrice(cents!)} remboursés${restock ? ', articles remis en stock' : ''}.`);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Remboursement impossible');
       setBusy(false);
@@ -309,6 +315,11 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
           error={amount && !valid ? 'Montant invalide.' : undefined}>
           <UnitInput unit="€" inputMode="decimal" value={amount} invalid={!!amount && !valid} onChange={(e) => setAmount(e.target.value)} />
         </Field>
+        {order.shipping_cents > 0 && (
+          <Field label="Dont frais de livraison" optional hint={`Payés par le client : ${formatPrice(order.shipping_cents)}. En cas de rétractation, la loi impose de rembourser la livraison standard (pas le supplément d’une livraison express).`}>
+            <UnitInput unit="€" inputMode="decimal" value={shippingInput} onChange={(e) => setShippingInput(e.target.value)} />
+          </Field>
+        )}
         <label className="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
           <span><span className="font-medium">Remettre les articles en stock</span><span className="block text-sm text-stone-500">Si la pièce vous a été retournée et peut être revendue.</span></span>
@@ -324,6 +335,32 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Historique des remboursements, avec le statut réel (mis à jour par Stripe). */
+function RefundHistory({ orderId, version, money }: { orderId: string; version: number; money: (c: number) => string }) {
+  const [refunds, setRefunds] = useState<Refund[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    adminListRefunds(orderId).then((r) => alive && setRefunds(r)).catch(() => alive && setRefunds([]));
+    return () => { alive = false; };
+  }, [orderId, version]);
+  if (!refunds?.length) return null;
+  return (
+    <Info title="Remboursements">
+      <ul className="space-y-2">
+        {refunds.map((r) => (
+          <li key={r.id} className="text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>{formatDate(r.created_at)} — {money(r.amount_cents)}{r.shipping_cents ? ` (dont ${money(r.shipping_cents)} de livraison)` : ''}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${REFUND_STATUS[r.status].tone}`}>{REFUND_STATUS[r.status].label}</span>
+            </div>
+            <p className="text-stone-500">{r.source === 'stripe' ? 'Fait depuis Stripe' : r.created_by ?? 'Administration'}{r.reason ? ` · ${r.reason}` : ''}{r.error ? ` · ${r.error}` : ''}</p>
+          </li>
+        ))}
+      </ul>
+    </Info>
   );
 }
 

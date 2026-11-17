@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { ChevronDown, Mail, RotateCcw } from 'lucide-react';
 import { adminListOrders, adminListReturns, refundOrder, updateReturn } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
-import { formatDate, formatPrice } from '../../lib/format';
+import { centsToInput, formatDate, formatPrice, parsePriceToCents } from '../../lib/format';
 import { Order, RETURN_STATUS, ReturnRequest, ReturnStatus } from '../../types';
-import { Field, Select, Textarea, Toast } from './ui';
+import { Field, Select, Textarea, Toast, UnitInput } from './ui';
 import { orderNumber } from './AdminOrders';
 import { useSettings } from '../../context/SettingsContext';
 import { SHOP } from '../../config';
@@ -68,10 +68,31 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
   const [status, setStatus] = useState<ReturnStatus>(ret.status);
   const [note, setNote] = useState(ret.note ?? '');
   const [busy, setBusy] = useState(false);
-  // Montant des articles retournés (hors frais de port, qui restent à la charge du client)
-  const amount = ret.items.reduce((n, i) => n + (order?.order_items?.find((x) => x.name === i.name)?.unit_price_cents ?? 0) * i.quantity, 0);
+  // Calcul légal par défaut (articles L221-23 et L221-24 du Code de la consommation) :
+  //  • articles retournés au prix réellement payé (remise répartie au prorata) ;
+  //  • retour de TOUTE la commande → frais de livraison initiaux remboursés en plus
+  //    (seul le supplément d'une livraison plus chère que la livraison standard peut être conservé) ;
+  //  • retour partiel → articles seulement ;
+  //  • les frais de renvoi du colis restent à la charge du client s'il en a été informé (CGV).
+  // Les montants restent modifiables avant validation.
+  const items = order?.order_items ?? [];
+  const lines = ret.items.map((i) => ({ ...i, item: items.find((x) => x.name === i.name) }));
+  const itemsGross = lines.reduce((n, l) => n + (l.item?.unit_price_cents ?? 0) * l.quantity, 0);
+  const subtotal = order?.subtotal_cents || items.reduce((n, i) => n + i.unit_price_cents * i.quantity, 0);
+  const discountShare = subtotal > 0 ? Math.round(((order?.discount_cents ?? 0) * itemsGross) / subtotal) : 0;
+  const itemsPaid = Math.max(0, itemsGross - discountShare);
+  const orderedQty = items.reduce((n, i) => n + i.quantity, 0);
+  const returnedQty = lines.reduce((n, l) => n + (l.item ? l.quantity : 0), 0);
+  const fullReturn = orderedQty > 0 && returnedQty >= orderedQty;
   const remaining = order ? order.total_cents - (order.refunded_cents ?? 0) : 0;
-  const refundable = Math.min(amount, remaining);
+  const isExpress = /express|chronopost|24\s*h/i.test(order?.shipping_method ?? '');
+  const [shippingInput, setShippingInput] = useState(centsToInput(fullReturn ? order?.shipping_cents ?? 0 : 0));
+  const shippingCents = shippingInput.trim() ? parsePriceToCents(shippingInput) : 0;
+  const [itemsInput, setItemsInput] = useState(centsToInput(itemsPaid));
+  const itemsCents = itemsInput.trim() ? parsePriceToCents(itemsInput) : 0;
+  const refundable = itemsCents !== null && shippingCents !== null ? Math.min(itemsCents + shippingCents, remaining) : 0;
+  const amountsValid = itemsCents !== null && shippingCents !== null && itemsCents >= 0 && shippingCents >= 0 && itemsCents + shippingCents <= remaining && refundable > 0;
+  const restockItems = lines.filter((l) => l.item?.product_id).map((l) => ({ product_id: l.item!.product_id!, quantity: l.quantity }));
 
   const subject = encodeURIComponent('Votre demande de retour');
   const body = encodeURIComponent(`Bonjour,\n\nNous acceptons votre retour. Merci de renvoyer l’article, bien emballé, à l’adresse suivante :\n\n${settings.address}\n\nDès réception, nous vous remboursons ${formatPrice(refundable)} sur votre carte.\n\n${SHOP.name}`);
@@ -84,13 +105,18 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
   }
 
   async function refund() {
-    if (!order || !confirm(`Rembourser ${formatPrice(refundable)} au client et remettre les articles en stock ?`)) return;
+    if (!order || !amountsValid || !confirm(`Rembourser ${formatPrice(refundable)} au client et remettre les articles retournés en stock ?`)) return;
     setBusy(true);
     try {
-      await refundOrder(order.id, refundable, true, `Retour : ${ret.reason}`);
-      setStatus('refunded');
-      await updateReturn(ret.id, { status: 'refunded', note: note.trim() || null });
-      onSaved({ ...ret, status: 'refunded' }, `${formatPrice(refundable)} remboursés, articles remis en stock`);
+      // Le statut du retour passe à « Remboursé » côté serveur, une fois Stripe confirmé (un retour ne peut être remboursé qu'une fois)
+      const r = await refundOrder(order.id, { amountCents: refundable, shippingCents: Math.min(shippingCents ?? 0, refundable), restock: true, restockItems,
+        reason: `Retour : ${ret.reason}`, returnId: ret.id });
+      if (note.trim() !== (ret.note ?? '')) await updateReturn(ret.id, { status: r.status === 'succeeded' ? 'refunded' : status, note: note.trim() || null });
+      const next: ReturnStatus = r.status === 'succeeded' ? 'refunded' : status;
+      setStatus(next);
+      onSaved({ ...ret, status: next, note: note.trim() || null }, r.status === 'succeeded'
+        ? `${formatPrice(refundable)} remboursés, articles remis en stock`
+        : `Remboursement de ${formatPrice(refundable)} en cours chez Stripe`);
     } catch (e) { onError(e instanceof Error ? e.message : 'Remboursement impossible'); }
     finally { setBusy(false); }
   }
@@ -101,7 +127,8 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
         <dt className="text-stone-500">Motif</dt><dd>{ret.reason}</dd>
         {ret.comment && <><dt className="text-stone-500">Précisions</dt><dd className="whitespace-pre-line">{ret.comment}</dd></>}
         <dt className="text-stone-500">Articles</dt><dd>{ret.items.map((i) => `${i.quantity} × ${i.name}`).join(', ')}</dd>
-        <dt className="text-stone-500">À rembourser</dt><dd className="font-medium">{formatPrice(refundable)} <span className="text-sm text-stone-500 font-normal">(hors frais de port)</span></dd>
+        <dt className="text-stone-500">Type</dt><dd>{fullReturn ? 'Retour de toute la commande' : 'Retour partiel'}</dd>
+        <dt className="text-stone-500">À rembourser</dt><dd className="font-medium">{formatPrice(refundable)}</dd>
         <dt className="text-stone-500">Client</dt><dd><a href={`mailto:${ret.email}`} className="text-garance underline break-all">{ret.email}</a></dd>
       </dl>
       <div className="space-y-4">
@@ -110,6 +137,19 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
             {(Object.keys(RETURN_STATUS) as ReturnStatus[]).map((s) => <option key={s} value={s}>{RETURN_STATUS[s].label}</option>)}
           </Select>
         </Field>
+        {ret.status !== 'refunded' && ret.status !== 'declined' && order && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Articles" hint="Prix payé, remise déduite.">
+              <UnitInput unit="€" inputMode="decimal" value={itemsInput} invalid={itemsCents === null} onChange={(e) => setItemsInput(e.target.value)} />
+            </Field>
+            <Field label="Frais de livraison" hint={fullReturn
+              ? (isExpress ? 'Livraison express : remboursez au moins le prix de la livraison standard.' : 'Obligatoire : toute la commande est retournée.')
+              : 'Retour partiel : non obligatoire.'}>
+              <UnitInput unit="€" inputMode="decimal" value={shippingInput} invalid={shippingCents === null} onChange={(e) => setShippingInput(e.target.value)} />
+            </Field>
+            {!amountsValid && <p className="sm:col-span-2 text-sm text-garance">Montant invalide (maximum {formatPrice(remaining)}).</p>}
+          </div>
+        )}
         <Field label="Note interne" optional><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => save()} disabled={busy} className="bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60">Enregistrer</button>
@@ -118,7 +158,7 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
               className="inline-flex items-center gap-2 px-4 py-3 rounded-md border border-stone-300"><Mail className="w-4 h-4" /> Accepter et envoyer l’adresse</a>
           )}
           {ret.status !== 'refunded' && ret.status !== 'declined' && order && refundable > 0 && (
-            <button onClick={refund} disabled={busy} className="inline-flex items-center gap-2 px-4 py-3 rounded-md bg-violet-700 text-white hover:bg-violet-800 disabled:opacity-60">
+            <button onClick={refund} disabled={busy || !amountsValid} className="inline-flex items-center gap-2 px-4 py-3 rounded-md bg-violet-700 text-white hover:bg-violet-800 disabled:opacity-60">
               <RotateCcw className="w-4 h-4" /> Colis reçu : rembourser {formatPrice(refundable)}
             </button>
           )}

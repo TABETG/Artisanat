@@ -786,3 +786,413 @@ insert into public.dz_shipping_rates (code, name, home_cents, desk_cents) values
   (57, 'El M''Ghair', 110000, 70000),
   (58, 'El Meniaa', 110000, 70000)
 on conflict (code) do nothing;
+
+-- =====================================================================
+-- Version 18 : paiement fiable
+--   • commandes créées en une seule transaction (commande + lignes + stock + facture)
+--   • traitement idempotent des événements Stripe (aucun doublon, reprise après échec)
+--   • réservation temporaire du stock pendant le paiement (pièces uniques)
+--   • historique des remboursements, sans double remboursement, synchronisé avec Stripe
+-- =====================================================================
+
+alter table public.orders add column if not exists shipping_method_id text;
+alter table public.orders add column if not exists paid_at timestamptz;
+alter table public.orders add column if not exists confirmation_email_sent_at timestamptz;
+alter table public.orders add column if not exists owner_notified_at timestamptz;
+
+-- ---------- Journal des événements Stripe (idempotence + diagnostic) ----------
+create table if not exists public.stripe_events (
+  id            text primary key,                  -- evt_…
+  type          text not null,
+  object_id     text,                              -- cs_…, re_…, ch_…
+  status        text not null default 'processing' check (status in ('processing', 'done', 'failed', 'ignored')),
+  attempts      integer not null default 1,
+  last_error    text,                              -- message technique, jamais de données personnelles
+  received_at   timestamptz not null default now(),
+  processed_at  timestamptz
+);
+alter table public.stripe_events enable row level security;
+drop policy if exists "admin lit evenements stripe" on public.stripe_events;
+create policy "admin lit evenements stripe" on public.stripe_events for select to authenticated using (public.is_admin());
+
+/** Enregistre la réception d'un événement. Renvoie 'new', 'retry' (déjà reçu, pas terminé) ou 'done' (déjà traité). */
+create or replace function public.stripe_event_begin(p_id text, p_type text, p_object_id text)
+returns text language plpgsql security definer set search_path = public as $$
+declare v_status text;
+begin
+  insert into public.stripe_events (id, type, object_id) values (p_id, p_type, p_object_id)
+  on conflict (id) do nothing;
+  if found then return 'new'; end if;
+  select status into v_status from public.stripe_events where id = p_id for update;
+  if v_status in ('done', 'ignored') then return 'done'; end if;
+  update public.stripe_events set attempts = attempts + 1, status = 'processing' where id = p_id;
+  return 'retry';
+end $$;
+
+create or replace function public.stripe_event_finish(p_id text, p_status text, p_error text default null)
+returns void language sql security definer set search_path = public as $$
+  update public.stripe_events
+     set status = p_status, last_error = left(p_error, 500), processed_at = case when p_status in ('done', 'ignored') then now() else processed_at end
+   where id = p_id;
+$$;
+
+-- ---------- Réservation temporaire du stock ----------
+create table if not exists public.stock_reservations (
+  id                 bigint generated always as identity primary key,
+  checkout_ref       uuid not null,                -- créé avant la session Stripe, puis relié à elle
+  stripe_session_id  text,
+  product_id         uuid not null references public.products(id) on delete cascade,
+  quantity           integer not null check (quantity > 0),
+  status             text not null default 'active' check (status in ('active', 'converted', 'released')),
+  expires_at         timestamptz not null,
+  created_at         timestamptz not null default now()
+);
+create index if not exists stock_reservations_active_idx on public.stock_reservations (product_id) where status = 'active';
+create index if not exists stock_reservations_session_idx on public.stock_reservations (stripe_session_id);
+create index if not exists stock_reservations_ref_idx on public.stock_reservations (checkout_ref);
+alter table public.stock_reservations enable row level security;
+drop policy if exists "admin lit reservations" on public.stock_reservations;
+create policy "admin lit reservations" on public.stock_reservations for select to authenticated using (public.is_admin());
+
+/** Quantité réellement disponible : stock moins les réservations en cours (non expirées). */
+create or replace function public.available_stock(p_product_id uuid)
+returns integer language sql stable security definer set search_path = public as $$
+  select greatest(0, p.stock - coalesce((
+    select sum(r.quantity) from public.stock_reservations r
+     where r.product_id = p.id and r.status = 'active' and r.expires_at > now()), 0))::integer
+    from public.products p where p.id = p_product_id;
+$$;
+grant execute on function public.available_stock(uuid) to anon, authenticated;
+
+/**
+ * Réserve le stock d'un panier, tout ou rien. Les lignes produits sont verrouillées (FOR UPDATE)
+ * dans l'ordre des identifiants : deux clients ne peuvent pas réserver la même pièce unique, sans interblocage.
+ * Erreur 'STOCK:<id produit>:<disponible>' si une quantité n'est plus disponible.
+ */
+create or replace function public.reserve_stock(p_ref uuid, p_items jsonb, p_minutes integer default 35)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  it record;
+  v_stock integer;
+  v_reserved integer;
+begin
+  for it in
+    select (x ->> 'product_id')::uuid as product_id, sum((x ->> 'quantity')::integer)::integer as quantity
+      from jsonb_array_elements(p_items) x group by 1 order by 1
+  loop
+    select stock into v_stock from public.products where id = it.product_id for update;
+    if v_stock is null then raise exception 'STOCK:%:0', it.product_id; end if;
+    select coalesce(sum(quantity), 0) into v_reserved from public.stock_reservations
+     where product_id = it.product_id and status = 'active' and expires_at > now() and checkout_ref <> p_ref;
+    if v_stock - v_reserved < it.quantity then
+      raise exception 'STOCK:%:%', it.product_id, greatest(v_stock - v_reserved, 0);
+    end if;
+    insert into public.stock_reservations (checkout_ref, product_id, quantity, expires_at)
+    values (p_ref, it.product_id, it.quantity, now() + make_interval(mins => p_minutes));
+  end loop;
+end $$;
+
+/** Relie les réservations à la session Stripe et fixe leur échéance (prolongée pour un paiement différé). */
+create or replace function public.attach_reservation(p_ref uuid, p_session_id text, p_expires_at timestamptz)
+returns void language sql security definer set search_path = public as $$
+  update public.stock_reservations set stripe_session_id = p_session_id, expires_at = p_expires_at
+   where checkout_ref = p_ref and status = 'active';
+$$;
+
+create or replace function public.extend_reservation(p_session_id text, p_expires_at timestamptz)
+returns void language sql security definer set search_path = public as $$
+  update public.stock_reservations set expires_at = greatest(expires_at, p_expires_at)
+   where stripe_session_id = p_session_id and status = 'active';
+$$;
+
+/** Libère le stock réservé (paiement échoué, expiré ou session non créée). Sans effet sur une commande payée. */
+create or replace function public.release_reservation(p_ref uuid default null, p_session_id text default null)
+returns integer language plpgsql security definer set search_path = public as $$
+declare v_count integer;
+begin
+  update public.stock_reservations set status = 'released'
+   where status = 'active'
+     and ((p_ref is not null and checkout_ref = p_ref) or (p_session_id is not null and stripe_session_id = p_session_id));
+  get diagnostics v_count = row_count;
+  return v_count;
+end $$;
+
+-- ---------- Numérotation continue des factures (sans trou) ----------
+create table if not exists public.invoice_counter (
+  id          integer primary key default 1 check (id = 1),
+  last_value  bigint not null default 0
+);
+insert into public.invoice_counter (id, last_value)
+select 1, coalesce((select max(invoice_number) from public.orders), 0)
+on conflict (id) do nothing;
+alter table public.invoice_counter enable row level security;
+
+/** Attribue le numéro de facture suivant ; annulé avec la transaction en cas d'échec, donc jamais de trou. */
+create or replace function public.assign_invoice_number(p_order_id uuid)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare v_number bigint;
+begin
+  update public.invoice_counter set last_value = last_value + 1 where id = 1 returning last_value into v_number;
+  update public.orders set invoice_number = v_number where id = p_order_id;
+  return v_number;
+end $$;
+
+/**
+ * Crée la commande payée, ses lignes, la baisse de stock et le numéro de facture, EN UNE SEULE TRANSACTION.
+ * Idempotente : rappelée pour la même session Stripe, elle ne crée rien et renvoie la commande existante.
+ * Renvoie { order_id, created, stock_problem, sold_out: [noms des produits passés à 0] }.
+ */
+create or replace function public.create_order_from_checkout(p_order jsonb, p_items jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid;
+  v_session text := p_order ->> 'stripe_session_id';
+  it record;
+  v_stock integer;
+  v_problem boolean := false;
+  v_sold_out text[] := '{}';
+begin
+  if v_session is null or v_session = '' then raise exception 'SESSION_MANQUANTE'; end if;
+
+  insert into public.orders (
+    stripe_session_id, stripe_payment_id, email, customer_name, phone, shipping_name, shipping_address,
+    subtotal_cents, shipping_cents, discount_cents, total_cents, shipping_method, shipping_method_id,
+    promo_code, customer_message, status, paid_at, market, payment_method)
+  values (
+    v_session, p_order ->> 'stripe_payment_id', p_order ->> 'email', p_order ->> 'customer_name', p_order ->> 'phone',
+    p_order ->> 'shipping_name', p_order -> 'shipping_address',
+    coalesce((p_order ->> 'subtotal_cents')::integer, 0), coalesce((p_order ->> 'shipping_cents')::integer, 0),
+    coalesce((p_order ->> 'discount_cents')::integer, 0), coalesce((p_order ->> 'total_cents')::integer, 0),
+    p_order ->> 'shipping_method', p_order ->> 'shipping_method_id', p_order ->> 'promo_code', p_order ->> 'customer_message',
+    'paid', now(), 'fr', 'card')
+  on conflict (stripe_session_id) do nothing
+  returning id into v_id;
+
+  if v_id is null then
+    select id into v_id from public.orders where stripe_session_id = v_session;
+    return jsonb_build_object('order_id', v_id, 'created', false, 'stock_problem', false, 'sold_out', '[]'::jsonb);
+  end if;
+
+  insert into public.order_items (order_id, product_id, seller_id, name, unit_price_cents, quantity)
+  select v_id, (x ->> 'product_id')::uuid, (x ->> 'seller_id')::uuid, x ->> 'name',
+         (x ->> 'unit_price_cents')::integer, (x ->> 'quantity')::integer
+    from jsonb_array_elements(p_items) x;
+
+  -- Stock : la réservation de cette session est convertie en vente (verrou de ligne, ordre fixe)
+  for it in
+    select (x ->> 'product_id')::uuid as product_id, sum((x ->> 'quantity')::integer)::integer as quantity
+      from jsonb_array_elements(p_items) x where x ->> 'product_id' is not null group by 1 order by 1
+  loop
+    select stock into v_stock from public.products where id = it.product_id for update;
+    if v_stock is null then continue; end if;          -- produit supprimé entre-temps
+    if v_stock < it.quantity then v_problem := true; end if;
+    update public.products set stock = greatest(stock - it.quantity, 0), sales_count = sales_count + it.quantity, updated_at = now()
+     where id = it.product_id
+    returning stock into v_stock;
+    if v_stock = 0 then v_sold_out := v_sold_out || (select name from public.products where id = it.product_id); end if;
+  end loop;
+  update public.stock_reservations set status = 'converted' where stripe_session_id = v_session and status = 'active';
+
+  perform public.assign_invoice_number(v_id);
+  if v_problem then
+    update public.orders set status = 'check_stock',
+      note = 'Stock insuffisant au moment du paiement : contactez le client (échange ou remboursement).'
+     where id = v_id;
+  end if;
+  return jsonb_build_object('order_id', v_id, 'created', true, 'stock_problem', v_problem, 'sold_out', to_jsonb(v_sold_out));
+end $$;
+
+/** Réserve une action unique sur une commande (email de confirmation, alerte vendeur…). Renvoie true une seule fois. */
+create or replace function public.claim_order_action(p_order_id uuid, p_action text)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare v_ok boolean;
+begin
+  if p_action = 'confirmation' then
+    update public.orders set confirmation_email_sent_at = now() where id = p_order_id and confirmation_email_sent_at is null returning true into v_ok;
+  elsif p_action = 'owner' then
+    update public.orders set owner_notified_at = now() where id = p_order_id and owner_notified_at is null returning true into v_ok;
+  else
+    raise exception 'ACTION_INCONNUE';
+  end if;
+  return coalesce(v_ok, false);
+end $$;
+
+/** Annule une réservation d'action quand l'envoi a échoué : elle sera retentée au prochain essai de Stripe. */
+create or replace function public.unclaim_order_action(p_order_id uuid, p_action text)
+returns void language sql security definer set search_path = public as $$
+  update public.orders set
+    confirmation_email_sent_at = case when p_action = 'confirmation' then null else confirmation_email_sent_at end,
+    owner_notified_at = case when p_action = 'owner' then null else owner_notified_at end
+   where id = p_order_id;
+$$;
+
+-- ---------- Remboursements : historique, anti-doublon, synchronisation Stripe ----------
+create table if not exists public.refunds (
+  id                bigint generated always as identity primary key,
+  order_id          uuid not null references public.orders(id) on delete cascade,
+  return_id         bigint references public.returns(id) on delete set null,
+  amount_cents      integer not null check (amount_cents > 0),
+  shipping_cents    integer not null default 0 check (shipping_cents >= 0),  -- part correspondant aux frais de livraison
+  reason            text,
+  restock           boolean not null default false,
+  restock_items     jsonb,                          -- [{product_id, quantity}] à remettre en stock (null = toute la commande)
+  restocked_at      timestamptz,
+  status            text not null default 'pending' check (status in ('pending', 'succeeded', 'failed', 'canceled')),
+  source            text not null default 'admin' check (source in ('admin', 'stripe')),
+  stripe_refund_id  text unique,
+  error             text,
+  created_by        text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index if not exists refunds_order_idx on public.refunds (order_id);
+alter table public.refunds enable row level security;
+drop policy if exists "admin lit remboursements" on public.refunds;
+create policy "admin lit remboursements" on public.refunds for select to authenticated using (public.is_admin());
+
+/** Recalcule le montant remboursé et le statut de la commande à partir de l'historique. */
+create or replace function public.refresh_order_refunds(p_order_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_total integer; v_refunded integer;
+begin
+  select total_cents into v_total from public.orders where id = p_order_id;
+  select coalesce(sum(amount_cents), 0) into v_refunded from public.refunds where order_id = p_order_id and status = 'succeeded';
+  update public.orders set refunded_cents = v_refunded,
+    status = case when v_refunded >= v_total and v_total > 0 then 'refunded'
+                  when status = 'refunded' and v_refunded < v_total then 'delivered' else status end
+   where id = p_order_id;
+end $$;
+
+/**
+ * Ouvre un remboursement (statut « en cours ») après avoir verrouillé la commande :
+ * deux clics ou deux administrateurs ne peuvent pas dépasser le montant payé.
+ */
+create or replace function public.begin_refund(p_order_id uuid, p_amount integer, p_shipping integer, p_reason text,
+  p_restock boolean, p_restock_items jsonb, p_return_id bigint, p_by text)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare v_total integer; v_engaged integer; v_id bigint;
+begin
+  select total_cents into v_total from public.orders where id = p_order_id for update;
+  if v_total is null then raise exception 'COMMANDE_INTROUVABLE'; end if;
+  select coalesce(sum(amount_cents), 0) into v_engaged from public.refunds where order_id = p_order_id and status in ('pending', 'succeeded');
+  if p_amount <= 0 or p_amount > v_total - v_engaged then
+    raise exception 'MONTANT_INVALIDE:%', greatest(v_total - v_engaged, 0);
+  end if;
+  if p_shipping < 0 or p_shipping > p_amount then raise exception 'FRAIS_INVALIDES'; end if;
+  if p_return_id is not null and exists (select 1 from public.refunds where return_id = p_return_id and status in ('pending', 'succeeded')) then
+    raise exception 'RETOUR_DEJA_REMBOURSE';
+  end if;
+  insert into public.refunds (order_id, return_id, amount_cents, shipping_cents, reason, restock, restock_items, created_by)
+  values (p_order_id, p_return_id, p_amount, coalesce(p_shipping, 0), left(p_reason, 300), coalesce(p_restock, false), p_restock_items, left(p_by, 200))
+  returning id into v_id;
+  return v_id;
+end $$;
+
+/** Termine un remboursement : statut Stripe, remise en stock (une seule fois), montant de la commande recalculé. */
+create or replace function public.finish_refund(p_refund_id bigint, p_status text, p_stripe_refund_id text, p_error text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare r record; it record;
+begin
+  update public.refunds set status = p_status, stripe_refund_id = coalesce(p_stripe_refund_id, stripe_refund_id),
+         error = left(p_error, 500), updated_at = now()
+   where id = p_refund_id returning * into r;
+  if r.id is null then raise exception 'REMBOURSEMENT_INTROUVABLE'; end if;
+
+  if r.status = 'succeeded' and r.restock and r.restocked_at is null then
+    for it in
+      select (x ->> 'product_id')::uuid as product_id, (x ->> 'quantity')::integer as quantity
+        from jsonb_array_elements(coalesce(r.restock_items,
+          (select jsonb_agg(jsonb_build_object('product_id', product_id, 'quantity', quantity)) from public.order_items where order_id = r.order_id))) x
+       where x ->> 'product_id' is not null
+    loop
+      update public.products set stock = stock + it.quantity, updated_at = now() where id = it.product_id;
+    end loop;
+    update public.refunds set restocked_at = now() where id = r.id;
+  end if;
+  if r.return_id is not null and r.status = 'succeeded' then
+    update public.returns set status = 'refunded' where id = r.return_id;
+  end if;
+  perform public.refresh_order_refunds(r.order_id);
+end $$;
+
+/**
+ * Synchronise un remboursement vu par Stripe (webhook) : met à jour celui lancé depuis l'espace vendeur,
+ * ou enregistre celui fait directement dans le tableau de bord Stripe. Rejouable sans effet de bord.
+ */
+create or replace function public.sync_stripe_refund(p_stripe_refund_id text, p_payment_intent text, p_amount integer, p_status text, p_refund_id bigint default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_order uuid; v_id bigint; v_status text;
+begin
+  v_status := case p_status when 'succeeded' then 'succeeded' when 'failed' then 'failed' when 'canceled' then 'canceled' else 'pending' end;
+  select id into v_id from public.refunds where stripe_refund_id = p_stripe_refund_id;
+  if v_id is null and p_refund_id is not null then
+    select id into v_id from public.refunds where id = p_refund_id;
+  end if;
+  if v_id is not null then
+    perform public.finish_refund(v_id, v_status, p_stripe_refund_id);
+    return;
+  end if;
+  select id into v_order from public.orders where stripe_payment_id = p_payment_intent;
+  if v_order is null then return; end if;                   -- paiement inconnu (carte cadeau, autre site)
+  insert into public.refunds (order_id, amount_cents, status, source, stripe_refund_id, reason)
+  values (v_order, p_amount, v_status, 'stripe', p_stripe_refund_id, 'Remboursement fait depuis le tableau de bord Stripe')
+  on conflict (stripe_refund_id) do nothing;
+  perform public.refresh_order_refunds(v_order);
+end $$;
+
+-- ---------- Cartes cadeaux : enregistrement idempotent ----------
+create or replace function public.record_gift_card(p_card jsonb)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.gift_cards (code, amount_cents, stripe_session_id, promotion_code_id, expires_at, buyer_name, buyer_email, recipient_name, recipient_email, message)
+  values (p_card ->> 'code', (p_card ->> 'amount_cents')::integer, p_card ->> 'stripe_session_id', p_card ->> 'promotion_code_id',
+          (p_card ->> 'expires_at')::timestamptz, p_card ->> 'buyer_name', p_card ->> 'buyer_email', p_card ->> 'recipient_name',
+          p_card ->> 'recipient_email', p_card ->> 'message')
+  on conflict (stripe_session_id) do nothing;
+  return found;
+end $$;
+
+-- Historique : les remboursements faits avant cette version sont repris (sinon le total remboursé serait remis à zéro)
+insert into public.refunds (order_id, amount_cents, status, source, reason, restocked_at, created_at)
+select o.id, o.refunded_cents, 'succeeded', 'admin', 'Remboursement antérieur (repris de l’ancienne version)', now(), now()
+  from public.orders o
+ where coalesce(o.refunded_cents, 0) > 0 and not exists (select 1 from public.refunds r where r.order_id = o.id);
+
+-- Un retour ne peut être remboursé qu'une fois
+create unique index if not exists refunds_un_par_retour on public.refunds(return_id)
+  where return_id is not null and status in ('pending', 'succeeded');
+
+-- Email de carte cadeau envoyé une seule fois
+alter table public.gift_cards add column if not exists email_sent_at timestamptz;
+create or replace function public.claim_gift_card_email(p_session_id text)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  update public.gift_cards set email_sent_at = now() where stripe_session_id = p_session_id and email_sent_at is null;
+  return found;
+end $$;
+create or replace function public.unclaim_gift_card_email(p_session_id text)
+returns void language sql security definer set search_path = public as $$
+  update public.gift_cards set email_sent_at = null where stripe_session_id = p_session_id;
+$$;
+
+-- Un seul reversement par artisan et par commande (anciens doublons éventuels conservés : on dédoublonne avant)
+delete from public.seller_transfers a using public.seller_transfers b
+  where a.order_id = b.order_id and a.seller_id = b.seller_id and a.id > b.id and a.stripe_transfer_id is null;
+create unique index if not exists seller_transfers_unique on public.seller_transfers(order_id, seller_id);
+
+-- Les fonctions de paiement ne sont appelables que par le serveur (clé de service)
+do $$
+declare f text;
+begin
+  foreach f in array array[
+    'stripe_event_begin(text,text,text)', 'stripe_event_finish(text,text,text)',
+    'reserve_stock(uuid,jsonb,integer)', 'attach_reservation(uuid,text,timestamptz)', 'extend_reservation(text,timestamptz)',
+    'release_reservation(uuid,text)', 'assign_invoice_number(uuid)', 'create_order_from_checkout(jsonb,jsonb)',
+    'claim_order_action(uuid,text)', 'unclaim_order_action(uuid,text)', 'refresh_order_refunds(uuid)',
+    'begin_refund(uuid,integer,integer,text,boolean,jsonb,bigint,text)', 'finish_refund(bigint,text,text,text)',
+    'sync_stripe_refund(text,text,integer,text,bigint)', 'record_gift_card(jsonb)', 'claim_gift_card_email(text)', 'unclaim_gift_card_email(text)']
+  loop
+    execute format('revoke execute on function public.%s from public, anon, authenticated', f);
+    execute format('grant execute on function public.%s to service_role', f);
+  end loop;
+end $$;

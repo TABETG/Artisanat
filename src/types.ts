@@ -175,6 +175,30 @@ export interface GiftCardOrder {
   message: string;
 }
 
+/** Opération de remboursement (historique conservé, statut réel côté Stripe). */
+export interface Refund {
+  id: number;
+  order_id: string;
+  return_id: number | null;
+  amount_cents: number;
+  shipping_cents: number;
+  reason: string | null;
+  restock: boolean;
+  status: 'pending' | 'succeeded' | 'failed' | 'canceled';
+  source: 'admin' | 'stripe';
+  stripe_refund_id: string | null;
+  error: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export const REFUND_STATUS: Record<Refund['status'], { label: string; tone: string }> = {
+  pending: { label: 'En cours', tone: 'bg-safran/25 text-henne' },
+  succeeded: { label: 'Effectué', tone: 'bg-emerald-100 text-emerald-800' },
+  failed: { label: 'Échoué', tone: 'bg-garance/15 text-garance' },
+  canceled: { label: 'Annulé', tone: 'bg-stone-200 text-stone-600' },
+};
+
 export type ReturnStatus = 'new' | 'accepted' | 'received' | 'refunded' | 'declined';
 
 export const RETURN_STATUS: Record<ReturnStatus, { label: string; tone: string }> = {

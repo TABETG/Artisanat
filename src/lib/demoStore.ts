@@ -15,7 +15,7 @@ export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAle
   transfers: SellerTransfer[];
   catalogs?: import('../types').CatalogRequest[];
   dzRates: DzRate[];
-  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: 'fr' | 'dz' | null }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[] }
+  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: 'fr' | 'dz' | null }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[]; refunds?: import('../types').Refund[] }
 
 let cache: DemoDB | null = null;
 
