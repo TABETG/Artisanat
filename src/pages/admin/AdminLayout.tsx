@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Bell, BookOpen, Gift, Inbox, LayoutDashboard, LogOut, Menu, MessageSquare, Package, RotateCcw, Ruler, Send, Settings, ShoppingBag, Store, Ticket, Truck, Undo2, UserCog, Users, X } from 'lucide-react';
 import { DEMO_MODE } from '../../lib/supabase';
-import { adminCounts, AdminStatus, getAdminScope, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
+import { adminCounts, AdminStatus, getAdminStatus, onSignedOut, signOut } from '../../lib/api';
 import { demoReset } from '../../lib/demoStore';
 import { AdminCounts } from '../../types';
 import { SHOP } from '../../config';
@@ -47,21 +47,10 @@ export function AdminLayout() {
   }
 
   const alertTotal = (counts?.outOfStock ?? 0) + (counts?.alertsPending ?? 0);
-  // Gestionnaire de la boutique Algérie (la famille) : seulement ses commandes, ses produits et ses tarifs
-  const scope = getAdminScope();
-  if (scope === 'dz' && !['/admin/commandes', '/admin/produits', '/admin/livraison-algerie'].some((p) => pathname.startsWith(p))) {
-    return <Navigate to="/admin/commandes" replace />;
-  }
-  const groups: { title: string; items: { to: string; label: string; icon: ReactNode; badge?: number; end?: boolean }[] }[] = scope === 'dz' ? [
-    { title: 'Boutique Algérie', items: [
-      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: counts?.ordersToConfirm },
-      { to: '/admin/produits', label: 'Produits', icon: <Package className="w-4 h-4" /> },
-      { to: '/admin/livraison-algerie', label: 'Livraison par wilaya', icon: <Truck className="w-4 h-4" /> },
-    ] },
-  ] : [
+  const groups: { title: string; items: { to: string; label: string; icon: ReactNode; badge?: number; end?: boolean }[] }[] = [
     { title: 'Ventes', items: [
       { to: '/admin', label: 'Tableau de bord', icon: <LayoutDashboard className="w-4 h-4" />, end: true },
-      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: (counts?.ordersToPrepare ?? 0) + (counts?.ordersToConfirm ?? 0) },
+      { to: '/admin/commandes', label: 'Commandes', icon: <ShoppingBag className="w-4 h-4" />, badge: counts?.ordersToPrepare },
       { to: '/admin/messages', label: 'Messages', icon: <Inbox className="w-4 h-4" />, badge: counts?.messagesNew },
       { to: '/admin/clients', label: 'Clients', icon: <Users className="w-4 h-4" /> },
       { to: '/admin/retours', label: 'Retours', icon: <Undo2 className="w-4 h-4" />, badge: counts?.returnsNew },
@@ -80,8 +69,7 @@ export function AdminLayout() {
       { to: '/admin/catalogues', label: 'Catalogues papier', icon: <BookOpen className="w-4 h-4" />, badge: counts?.catalogsToSend },
     ] },
     { title: 'Boutique', items: [
-      { to: '/admin/livraison', label: 'Livraison France', icon: <Truck className="w-4 h-4" /> },
-      { to: '/admin/livraison-algerie', label: 'Livraison Algérie', icon: <Truck className="w-4 h-4" /> },
+      { to: '/admin/livraison', label: 'Livraison', icon: <Truck className="w-4 h-4" /> },
       { to: '/admin/reglages', label: 'Réglages', icon: <Settings className="w-4 h-4" /> },
       { to: '/admin/equipe', label: 'Équipe et journal', icon: <UserCog className="w-4 h-4" /> },
     ] },

@@ -1,12 +1,10 @@
 // Mode démonstration : une fausse base de données enregistrée dans le navigateur.
 // Permet de tester la boutique ET l'espace vendeur sans rien configurer.
 import { Seller, SellerPrivate, SellerTransfer, ContactMessage, Campaign, ReturnRequest, CustomRequest, GiftCard, Order, Product, PromoCode, Review, ShopSettings, StockAlert, Subscriber } from '../types';
-import { DEMO_ALERTS, DEMO_EXTRA_ORDERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_REVIEWS, DEMO_SELLERS, DEMO_SELLER_PRIVATE, DEMO_SELLER_PRODUCTS, DEMO_SELLER_ORDER, DEMO_DZ_PRODUCTS, DEMO_DZ_ORDER } from './demo';
-import { DEFAULT_DZ_RATES } from '../data/wilayas';
-import type { DzRate } from '../market';
+import { DEMO_ALERTS, DEMO_EXTRA_ORDERS, DEMO_ORDERS, DEMO_PRODUCTS, DEMO_REVIEWS, DEMO_SELLERS, DEMO_SELLER_PRIVATE, DEMO_SELLER_PRODUCTS, DEMO_SELLER_ORDER } from './demo';
 import { DEFAULT_SETTINGS } from '../settings';
 
-const KEY = 'artisanat-demo-v17';
+const KEY = 'artisanat-demo-v18';
 const AUTH_KEY = 'artisanat-demo-connecte';
 
 export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAlert[]; reviews: Review[]; settings: ShopSettings; subscribers: Subscriber[]; promoCodes: PromoCode[]; customRequests: CustomRequest[]; giftCards: GiftCard[]; returns: ReturnRequest[]; campaigns: Campaign[]; messages: ContactMessage[];
@@ -14,13 +12,12 @@ export interface DemoDB { products: Product[]; orders: Order[]; alerts: StockAle
   shipments: { order_id: string; seller_id: string; shipping_cents: number; status: 'to_ship' | 'shipped' | 'delivered'; carrier: string | null; tracking_number: string | null; shipped_at: string | null }[];
   transfers: SellerTransfer[];
   catalogs?: import('../types').CatalogRequest[];
-  dzRates: DzRate[];
-  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: 'fr' | 'dz' | null }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[]; refunds?: import('../types').Refund[] }
+  team?: { user_id: string; email: string; last_sign_in_at: string | null; me: boolean }[]; activity?: { id: number; user_email: string | null; action: string; created_at: string }[]; refunds?: import('../types').Refund[] }
 
 let cache: DemoDB | null = null;
 
 function seed(): DemoDB {
-  return structuredClone({ products: [...DEMO_PRODUCTS, ...DEMO_SELLER_PRODUCTS, ...DEMO_DZ_PRODUCTS], dzRates: DEFAULT_DZ_RATES, orders: [DEMO_DZ_ORDER, DEMO_SELLER_ORDER, ...DEMO_ORDERS, ...DEMO_EXTRA_ORDERS],
+  return structuredClone({ products: [...DEMO_PRODUCTS, ...DEMO_SELLER_PRODUCTS], orders: [DEMO_SELLER_ORDER, ...DEMO_ORDERS, ...DEMO_EXTRA_ORDERS],
     sellers: DEMO_SELLERS, sellerPrivate: DEMO_SELLER_PRIVATE,
     shipments: [{ order_id: DEMO_SELLER_ORDER.id, seller_id: 'seller-fatima', shipping_cents: 900, status: 'to_ship' as const, carrier: null, tracking_number: null, shipped_at: null }],
     transfers: [{ id: 1, order_id: DEMO_SELLER_ORDER.id, seller_id: 'seller-fatima', sales_cents: 7800, shipping_cents: 900, commission_cents: 1170, amount_cents: 7530, stripe_transfer_id: 'tr_demo', created_at: DEMO_SELLER_ORDER.created_at }], alerts: DEMO_ALERTS, reviews: DEMO_REVIEWS,
@@ -75,10 +72,8 @@ export function demoReset(): void {
 
 export const demoAuth = {
   isLoggedIn: () => { try { return !!sessionStorage.getItem(AUTH_KEY); } catch { return false; } },
-  /** Démonstration : '1' = accès complet, 'dz' = gestionnaire de la boutique Algérie. */
-  scope: (): 'dz' | null => { try { return sessionStorage.getItem(AUTH_KEY) === 'dz' ? 'dz' : null; } catch { return null; } },
-  set: (value: boolean, scope: 'dz' | null = null) => {
-    try { if (value) sessionStorage.setItem(AUTH_KEY, scope ?? '1'); else sessionStorage.removeItem(AUTH_KEY); } catch { /* ignoré */ }
+  set: (value: boolean) => {
+    try { if (value) sessionStorage.setItem(AUTH_KEY, '1'); else sessionStorage.removeItem(AUTH_KEY); } catch { /* ignoré */ }
     window.dispatchEvent(new Event('artisanat-demo-auth'));
   },
 };

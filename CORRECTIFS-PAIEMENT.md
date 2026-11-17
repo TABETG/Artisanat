@@ -31,3 +31,11 @@ Branche de travail : `correctifs-paiement` (sauvegarde de départ : branche `sau
 ```bash
 docker compose -f docker-compose.tests.yml run --rm tests
 ```
+
+## Boutique France uniquement (version 19)
+
+- Retirés du site : choix du pays à l’arrivée, boutique Algérie, prix en dinars, paiement à la livraison, page de commande Algérie, tarifs par wilaya, accès « famille », pays de livraison au choix.
+- Livraison : France métropolitaine uniquement (panier, fiche produit et serveur).
+- Aucune donnée supprimée : les anciens produits et commandes « Algérie » restent en base mais ne sont plus affichés ; les anciens accès limités n’ouvrent plus rien.
+- Le code de la boutique Algérie reste disponible dans la branche `sauvegarde-avant-correctifs` (réutilisable pour l’autre site).
+- Après mise à jour : exécuter à nouveau `supabase/schema.sql` dans Supabase.

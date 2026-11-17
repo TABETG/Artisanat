@@ -43,7 +43,7 @@ export default async (req: Request) => {
     const found = products.find((x) => x.id === line.id);
     // Promotion terminée : on facture le prix d'origine
     const p = found ? applyPromoExpiry(found) : undefined;
-    // Les produits de la boutique Algérie (en dinars) se paient à la livraison, jamais par Stripe
+    // Seuls les produits de la boutique française (euros) peuvent être payés
     if (!p || !p.active || p.moderation !== 'approved' || (p.market ?? 'fr') !== 'fr') return json({ error: 'Un article de votre panier n’est plus en vente. Retirez-le pour continuer.' }, 409);
     if (p.stock < line.quantity) {
       return json({ error: p.stock === 0

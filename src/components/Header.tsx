@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Heart, Menu, Search, ShoppingBag, User } from 'lucide-react';
 import { useCustomer } from '../context/CustomerContext';
-import { MarketSwitch } from './MarketChooser';
-import { useMarket } from '../context/MarketContext';
 import { SearchOverlay } from './SearchOverlay';
 import { usePanels } from '../context/PanelsContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -24,7 +22,6 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const { openMenu } = usePanels();
   const { customer } = useCustomer();
-  const { market } = useMarket();
   const icon = 'relative p-1.5 sm:p-2.5 text-nuit hover:text-garance';
 
   return (
@@ -42,13 +39,12 @@ export function Header() {
         </Link>
 
         <nav className="hidden lg:flex items-center gap-5 xl:gap-7 ml-2 xl:ml-6" aria-label="Navigation principale">
-          {links.filter((l) => market === 'fr' || (l.to !== '/carte-cadeau' && l.to !== '/artisans')).map((l) => (
+          {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={`lien-tisse text-[15px] text-nuit pb-0.5 whitespace-nowrap ${l.to === '/carte-cadeau' ? 'hidden xl:inline' : ''}`}>{l.label}</NavLink>
           ))}
         </nav>
 
         <div className="ml-auto flex items-center shrink-0">
-          <span className="hidden sm:block"><MarketSwitch /></span><span className="sm:hidden"><MarketSwitch compact /></span>
           <button onClick={() => setSearchOpen(true)} className={icon} aria-label="Rechercher"><Search className="w-[22px] h-[22px]" /></button>
           <Link to="/compte" className={icon} aria-label={customer ? 'Mon compte (connecté)' : 'Mon compte'}>
             <User className="w-[22px] h-[22px]" />

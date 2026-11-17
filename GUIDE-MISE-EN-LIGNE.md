@@ -183,15 +183,7 @@ Le client choisit son pays et son mode dans le panier, voit la date de livraison
 
 **Équipe et journal** : onglet *Équipe et journal* pour donner l’accès vendeur à un associé (il reçoit une invitation) et voir l’historique des actions (produits, commandes, remboursements, réglages).
 
-**Deux boutiques : France et Algérie**
-- À la première visite, le client choisit son pays ; il peut changer depuis l’en-tête. Chaque boutique a ses propres produits, prix et panier.
-- *France* : prix en euros, paiement par Stripe, livraison selon l’onglet *Livraison France*.
-- *Algérie* : prix en dinars, **paiement à la livraison** (pas de paiement en ligne), livraison dans les 58 wilayas à domicile ou au bureau du transporteur. Tarifs dans *Livraison Algérie*.
-- Dans la fiche produit, choisissez la boutique (France ou Algérie). Un produit appartient à une seule boutique : le stock est séparé.
-- **Compte de la famille** : *Équipe et journal → Ajouter une personne → Accès : Boutique Algérie uniquement*. Cette personne ne voit que les commandes et les produits d’Algérie et les tarifs des wilayas ; elle n’a accès ni aux réglages, ni aux paiements Stripe, ni aux clients France (règles appliquées par la base de données).
-- Chaque commande Algérie arrive « À confirmer par téléphone » : la famille appelle (bouton Appeler ou WhatsApp), puis clique *Client joint : confirmée* ou *Annuler* (les articles reviennent en stock).
-- Variable facultative `DZ_OWNER_EMAIL` dans Netlify : l’email qui reçoit les commandes d’Algérie.
-- Important : l’argent encaissé en dinars reste en Algérie ; l’activité là-bas doit être déclarée sur place (registre du commerce de la personne qui vend).
+**Une seule boutique : la France** — prix en euros, paiement par carte (Stripe), livraison en France métropolitaine selon l’onglet *Livraison*.
 
 **Types de produits** : chaque catégorie a un type (*Réglages → Catégories*) qui décide des champs de la fiche :
 - *Textile* (tapis, coussins, plaids) : dimensions, surface, hauteur des poils, guide des tailles.

@@ -20,7 +20,6 @@ import { AccountPage } from './pages/AccountPage';
 import { SellPage } from './pages/SellPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { UniversePage } from './pages/UniversePage';
-import { DzCheckoutPage } from './pages/DzCheckoutPage';
 import { ArtisanProfilePage, ArtisansPage } from './pages/ArtisansPage';
 
 // L'espace vendeur est chargé à part : les clients ne téléchargent pas son code.
@@ -44,7 +43,6 @@ const AdminShipping = lazy(() => import('./pages/admin/AdminShipping').then((m) 
 const AdminTeam = lazy(() => import('./pages/admin/AdminTeam').then((m) => ({ default: m.AdminTeam })));
 const AdminArtisans = lazy(() => import('./pages/admin/AdminArtisans').then((m) => ({ default: m.AdminArtisans })));
 const AdminCatalogs = lazy(() => import('./pages/admin/AdminCatalogs').then((m) => ({ default: m.AdminCatalogs })));
-const AdminDzShipping = lazy(() => import('./pages/admin/AdminDzShipping').then((m) => ({ default: m.AdminDzShipping })));
 const AdminStockAlerts = lazy(() => import('./pages/admin/AdminStockAlerts').then((m) => ({ default: m.AdminStockAlerts })));
 
 const Loading = () => <p className="p-8 text-stone-500">Chargement…</p>;
@@ -70,7 +68,6 @@ export default function App() {
         <Route path="compte" element={<AccountPage />} />
         <Route path="vendre" element={<SellPage />} />
         <Route path="catalogue" element={<CatalogPage />} />
-        <Route path="commande-algerie" element={<DzCheckoutPage />} />
         <Route path="univers/:univers" element={<UniversePage />} />
         <Route path="artisans" element={<ArtisansPage />} />
         <Route path="artisans/:slug" element={<ArtisanProfilePage />} />
@@ -102,7 +99,6 @@ export default function App() {
         <Route path="lettre" element={<AdminNewsletter />} />
         <Route path="messages" element={<AdminMessages />} />
         <Route path="livraison" element={<AdminShipping />} />
-        <Route path="livraison-algerie" element={<AdminDzShipping />} />
         <Route path="equipe" element={<AdminTeam />} />
         <Route path="artisans" element={<AdminArtisans />} />
         <Route path="catalogues" element={<AdminCatalogs />} />

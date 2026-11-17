@@ -1,8 +1,7 @@
-import { Flag } from '../components/Flag';
 import type { ReactNode } from 'react';
 import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, Truck, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Hand, Lock, Minus, Plus, RotateCcw, Ruler, Share2, X } from 'lucide-react';
 import { getProduct, listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { useCart } from '../context/CartContext';
@@ -14,9 +13,7 @@ import { discountPercent, Price } from '../components/Price';
 import { BadgePill, BadgeStack } from '../components/ProductBadges';
 import { useBadges } from '../context/BadgesContext';
 import { SizeGuide } from '../components/SizeGuide';
-import { DeliveryEstimate, DzDelivery } from '../components/DeliveryEstimate';
-import { useMarket } from '../context/MarketContext';
-import { MARKETS, setCurrentMarket } from '../market';
+import { DeliveryEstimate } from '../components/DeliveryEstimate';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { formatPrice as fp } from '../lib/format';
 import { recentlyViewed, rememberViewed } from '../lib/recentlyViewed';
@@ -45,7 +42,6 @@ export function ProductPage() {
   const { label: categoryLabel, kindOf } = useCategories();
   const { badgesFor } = useBadges();
   const { sellerOf } = useMarketplace();
-  const { market } = useMarket();
   const [photo, setPhoto] = useState(0);
   const [zoom, setZoom] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -91,24 +87,7 @@ export function ProductPage() {
     );
   }
 
-  // Fiche d'une autre boutique (lien partagé depuis l'autre pays) : on propose de changer de boutique
-  if ((product.market ?? 'fr') !== market) {
-    const other = MARKETS[product.market ?? 'fr'];
-    return (
-      <div className="max-w-2xl mx-auto px-5 pt-16 text-center">
-        <Flag market={product.market ?? 'fr'} className="w-16 h-auto mx-auto" />
-        <h1 className="mt-4 font-display text-[2.4rem] sm:text-5xl text-nuit">{product.name}</h1>
-        <p className="lecture mt-3 text-henne">Cette pièce est vendue dans la boutique {other.label}.</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button onClick={() => { setCurrentMarket(product.market ?? 'fr'); window.location.reload(); }} className="bg-nuit text-laine px-6 py-3.5 hover:bg-garance">Voir la boutique {other.label}</button>
-          <Link to="/boutique" className="px-6 py-3.5 border border-nuit/25 text-nuit hover:border-nuit">Rester sur la boutique {MARKETS[market].label}</Link>
-        </div>
-      </div>
-    );
-  }
-
   const soldOut = product.stock === 0;
-  const isDz = market === 'dz';
   const inCart = lines.find((l) => l.id === product.id)?.quantity ?? 0;
   const canAdd = !soldOut && inCart < product.stock;
   const dims = formatDimensions(product.width_cm, product.length_cm);
@@ -185,7 +164,7 @@ export function ProductPage() {
               {product.promo_ends_at && <> · offre valable jusqu’au {new Date(product.promo_ends_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</>}
             </p>
           )}
-          {!isDz && settings.installments_enabled && !soldOut && product.price_cents >= settings.installments_min_cents && (
+          {settings.installments_enabled && !soldOut && product.price_cents >= settings.installments_min_cents && (
             <p className="text-sm mt-2">ou <strong>3 × {formatPrice(Math.ceil(product.price_cents / 3))}</strong> sans frais avec Klarna</p>
           )}
           {(() => {
@@ -255,7 +234,7 @@ export function ProductPage() {
 
           {(() => {
             const seller = sellerOf(product.seller_id);
-            if (!seller) return !soldOut && <div className="mt-6">{isDz ? <DzDelivery /> : <DeliveryEstimate product={product} />}</div>;
+            if (!seller) return !soldOut && <div className="mt-6"><DeliveryEstimate product={product} /></div>;
             return (
               <div className="mt-6 border border-laine-fonce bg-white/60 p-4 text-[15px]">
                 <p className="text-sm text-henne">Créé et expédié par</p>
@@ -273,12 +252,8 @@ export function ProductPage() {
           })()}
 
           <ul className="mt-7 grid gap-3 text-sm border-y border-laine-fonce py-5">
-            {isDz ? (
-              <li className="flex gap-3"><Truck className="w-5 h-5 text-garance shrink-0" />Paiement en espèces à la livraison, après confirmation par téléphone</li>
-            ) : <>
             <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />{kind === 'cosmetique' ? '14 jours pour changer d’avis, si l’emballage n’a pas été ouvert (hygiène)' : '14 jours pour changer d’avis'}</li>
             <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay{settings.installments_enabled ? ', Klarna' : ''}</li>
-            </>}
             <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Fait à la main : chaque pièce est unique</li>
           </ul>
 

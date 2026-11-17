@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Copy, Download, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   adminListProducts, adminListStockAlerts, deleteProduct, discountPatch, duplicateProduct, removeDiscountPatch,
-  setProductActive, setProductStock, updateProductFields, downloadFile, productsToCsv, getAdminScope,
+  setProductActive, setProductStock, updateProductFields, downloadFile, productsToCsv,
 } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatPrice } from '../../lib/format';
@@ -46,8 +46,7 @@ export function AdminProducts() {
     if (msg) { flash(msg); navigate(location.pathname, { replace: true, state: null }); }
   }, [location, navigate]);
 
-  const [shop, setShop] = useState<'tout' | 'fr' | 'dz'>('tout');
-  const all = (data ?? []).filter((p) => shop === 'tout' || (p.market ?? 'fr') === shop);
+  const all = data ?? [];
   const waitingFor = (id: string) => (alerts.data ?? []).filter((a) => a.product_id === id && !a.notified).length;
   const counts: Record<Filter, number> = {
     tous: all.length,
@@ -177,13 +176,6 @@ export function AdminProducts() {
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <Input className="pl-10" placeholder="Rechercher par nom ou référence" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
-        {!getAdminScope() && (
-          <Select value={shop} onChange={(e) => setShop(e.target.value as 'tout' | 'fr' | 'dz')} aria-label="Boutique">
-            <option value="tout">Toutes les boutiques</option>
-            <option value="fr">France</option>
-            <option value="dz">Algérie</option>
-          </Select>
-        )}
         <Select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Catégorie">
           <option value="tout">Toutes les catégories</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -233,11 +225,10 @@ export function AdminProducts() {
                   {categoryLabel(p.category)}{p.reference && ` · ${p.reference}`}
                 </p>
                 <p className="text-sm mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium">{formatPrice(p.price_cents, p.market ?? 'fr')}</span>
-                  {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!, p.market ?? 'fr')}</span>}
+                  <span className="font-medium">{formatPrice(p.price_cents)}</span>
+                  {promo && <span className="text-stone-400 line-through">{formatPrice(p.compare_at_price_cents!)}</span>}
                   {!p.active && <Tag tone="stone">Masqué</Tag>}
                   {p.seller_id && <Tag tone="blue">Artisan partenaire</Tag>}
-                  {p.market === 'dz' && !getAdminScope() && <Tag tone="green">Algérie</Tag>}
                   {p.moderation === 'pending' && <Tag tone="amber">À valider</Tag>}
                   {p.active && p.publish_at && new Date(p.publish_at) > new Date() && <Tag tone="blue">En ligne le {new Date(p.publish_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Tag>}
                   {p.stock === 0 && <Tag tone="red">Rupture</Tag>}

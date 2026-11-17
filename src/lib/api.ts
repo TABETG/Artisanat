@@ -2,8 +2,7 @@
 // En mode démonstration → base simulée dans le navigateur ; sinon → Supabase.
 import { db, DEMO_MODE } from './supabase';
 import { demoAuth, demoDB, demoSave, wait } from './demoStore';
-import { DEMO_ADMIN, DEMO_DZ_MANAGER } from './demo';
-import { currentMarket, DzRate, Market } from '../market';
+import { DEMO_ADMIN } from './demo';
 import { imageToDataUrl, resizeImage } from './image';
 import { AdminCounts, CatalogRequest, ContactMessage, Campaign, Refund, ReturnRequest, ReturnStatus, CustomRequest, CustomRequestInput, CustomStatus, GiftCard, GiftCardOrder, NotifyResult, Order, OrderStatus, Product, ProductInput, PromoCode, PromoCodeInput, Review, ShopSettings, StockAlert, Subscriber, TrackedOrder } from '../types';
 import { withDefaults } from '../settings';
@@ -18,18 +17,17 @@ const PRODUCT_FIELDS =
   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
   'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold,' +
   'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count,seller_id,moderation,moderation_note,' +
-  'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref,market';
+  'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref';
 
 const byNewest = <T extends { created_at: string }>(a: T, b: T) => b.created_at.localeCompare(a.created_at);
 
 // =============== Boutique (public) ===============
 
 export async function listProducts(): Promise<Product[]> {
-  const market = currentMarket();
-  if (DEMO_MODE) { await wait(150); const d = demoDB(); return d.products.filter((p) => p.active && (p.market ?? 'fr') === market && isPublished(p) && isSellable(p, d.sellers)).map(normalize).sort(byNewest); }
-  // Seuls les produits de la boutique choisie (France ou Algérie)
+  if (DEMO_MODE) { await wait(150); const d = demoDB(); return d.products.filter((p) => p.active && isPublished(p) && isSellable(p, d.sellers)).map(normalize).sort(byNewest); }
+  // Boutique française uniquement (les anciens produits « Algérie » éventuels restent en base mais ne sont jamais affichés)
   const { data, error } = await db()
-    .from('products').select(PRODUCT_FIELDS).eq('active', true).eq('market', market)
+    .from('products').select(PRODUCT_FIELDS).eq('active', true).eq('market', 'fr')
     .order('created_at', { ascending: false });
   if (error) throw error;
   // Un artisan connecté voit aussi ses produits en relecture : on ne garde que les produits validés
@@ -38,7 +36,7 @@ export async function listProducts(): Promise<Product[]> {
 
 export async function getProduct(id: string): Promise<Product | null> {
   if (DEMO_MODE) { await wait(100); const d = demoDB(); const p = d.products.find((x) => x.id === id && x.active && isPublished(x) && isSellable(x, d.sellers)); return p ? normalize(p) : null; }
-  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).maybeSingle();
+  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('id', id).eq('market', 'fr').maybeSingle();
   if (error) throw error;
   return data ? normalize(data as unknown as Product) : null;
 }
@@ -46,7 +44,7 @@ export async function getProduct(id: string): Promise<Product | null> {
 /** Valeurs par défaut des champs récents + fin de promotion appliquée (côté boutique). */
 function normalize(p: Product): Product {
   return applyPromoExpiry({ ...p, badges: p.badges ?? [], promo_ends_at: p.promo_ends_at ?? null, sales_count: p.sales_count ?? 0,
-    publish_at: p.publish_at ?? null, views_count: p.views_count ?? 0, cart_adds_count: p.cart_adds_count ?? 0, market: p.market ?? 'fr' });
+    publish_at: p.publish_at ?? null, views_count: p.views_count ?? 0, cart_adds_count: p.cart_adds_count ?? 0 });
 }
 
 export const isPublished = (p: Pick<Product, 'publish_at'>) => !p.publish_at || new Date(p.publish_at).getTime() <= Date.now();
@@ -154,20 +152,15 @@ export async function getAdminStatus(): Promise<AdminStatus> {
   if (!session.session) return 'anonymous';
   const { data: aal } = await db().auth.mfa.getAuthenticatorAssuranceLevel();
   if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') return 'mfa';
+  // Seuls les administrateurs à accès complet (les anciens accès « boutique Algérie » sont refusés)
   const { data } = await db().from('admins').select('user_id,market').eq('user_id', session.session.user.id).maybeSingle();
-  adminScope = (data?.market as Market | null) ?? null;
-  return data ? 'ok' : 'forbidden';
+  return data && !data.market ? 'ok' : 'forbidden';
 }
-
-/** Périmètre du compte vendeur connecté : null = accès complet, 'dz' = boutique Algérie uniquement. */
-let adminScope: Market | null = null;
-export const getAdminScope = (): Market | null => (DEMO_MODE ? demoAuth.scope() : adminScope);
 
 export async function signIn(email: string, password: string): Promise<void> {
   if (DEMO_MODE) {
     await wait();
     const mail = email.trim().toLowerCase();
-    if (mail === DEMO_DZ_MANAGER.email && password === DEMO_DZ_MANAGER.password) { demoAuth.set(true, 'dz'); return; }
     if (mail !== DEMO_ADMIN.email || password !== DEMO_ADMIN.password) {
       throw new Error('Email ou mot de passe incorrect.');
     }
@@ -206,12 +199,10 @@ export async function updatePassword(password: string): Promise<void> {
 // =============== Espace vendeur : produits ===============
 
 export async function adminListProducts(): Promise<Product[]> {
-  const scope = getAdminScope();
-  const mine = (p: Product) => !scope || (p.market ?? 'fr') === scope;
-  if (DEMO_MODE) { await wait(150); return demoDB().products.filter(mine).sort(byNewest); }
-  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).order('created_at', { ascending: false });
+  if (DEMO_MODE) { await wait(150); return [...demoDB().products].sort(byNewest); }
+  const { data, error } = await db().from('products').select(PRODUCT_FIELDS).eq('market', 'fr').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data as unknown as Product[]).filter(mine);
+  return data as unknown as Product[];
 }
 
 export async function saveProduct(input: ProductInput, id?: string): Promise<Product> {
@@ -270,7 +261,7 @@ export async function deleteProduct(product: Product): Promise<void> {
 export async function uploadProductImage(file: File): Promise<string> {
   if (DEMO_MODE) return imageToDataUrl(file);
   const blob = await resizeImage(file);
-  const path = `${getAdminScope() === 'dz' ? 'algerie' : new Date().getFullYear()}/${crypto.randomUUID()}.jpg`;
+  const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.jpg`;
   const { error } = await db().storage.from('product-images').upload(path, blob, {
     contentType: 'image/jpeg', cacheControl: '31536000',
   });
@@ -287,10 +278,9 @@ function storagePath(url: string): string | null {
 // =============== Espace vendeur : commandes ===============
 
 export async function adminListOrders(): Promise<Order[]> {
-  const scope = getAdminScope();
-  if (DEMO_MODE) { await wait(150); return demoDB().orders.filter((o) => !scope || (o.market ?? 'fr') === scope).sort(byNewest); }
+  if (DEMO_MODE) { await wait(150); return [...demoDB().orders].sort(byNewest); }
   const { data, error } = await db()
-    .from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(500);
+    .from('orders').select('*, order_items(*)').eq('market', 'fr').order('created_at', { ascending: false }).limit(500);
   if (error) throw error;
   return data as Order[];
 }
@@ -341,7 +331,6 @@ export async function adminCounts(): Promise<AdminCounts> {
   const catalogs = await adminListCatalogRequests().catch(() => [] as CatalogRequest[]);
   return {
     catalogsToSend: catalogs.filter((c) => c.status === 'new').length,
-    ordersToConfirm: orders.filter((o) => o.status === 'to_confirm').length,
     sellersPending: sellers.filter((s) => s.status === 'pending').length,
     productsToReview: products.filter((p) => p.moderation === 'pending').length,
     messagesNew: messages.filter((m) => !m.handled).length,
@@ -883,17 +872,17 @@ export async function setMessageHandled(id: number, handled: boolean): Promise<v
 
 // =============== Équipe et journal d'activité ===============
 
-export interface TeamMember { user_id: string; email: string; last_sign_in_at: string | null; me: boolean; market?: Market | null }
+export interface TeamMember { user_id: string; email: string; last_sign_in_at: string | null; me: boolean }
 
 export async function listTeam(): Promise<TeamMember[]> {
   if (DEMO_MODE) return [{ user_id: 'demo', email: DEMO_ADMIN.email, last_sign_in_at: new Date().toISOString(), me: true }, ...(demoDB().team ?? [])];
   return (await callAdminFunction<{ members: TeamMember[] }>({ action: 'list' }, 'admin-team')).members;
 }
 
-export async function addTeamMember(email: string, market: Market | null = null): Promise<void> {
-  if (DEMO_MODE) { await wait(); const d = demoDB(); d.team = [...(d.team ?? []), { user_id: `demo-${Date.now()}`, email: email.trim().toLowerCase(), last_sign_in_at: null, me: false, market }]; demoSave(); return; }
-  await callAdminFunction({ action: 'add', email, market }, 'admin-team');
-  logActivity(`Accès vendeur donné à ${email}${market === 'dz' ? ' (boutique Algérie)' : ''}`);
+export async function addTeamMember(email: string): Promise<void> {
+  if (DEMO_MODE) { await wait(); const d = demoDB(); d.team = [...(d.team ?? []), { user_id: `demo-${Date.now()}`, email: email.trim().toLowerCase(), last_sign_in_at: null, me: false }]; demoSave(); return; }
+  await callAdminFunction({ action: 'add', email }, 'admin-team');
+  logActivity(`Accès vendeur donné à ${email}`);
 }
 
 export async function removeTeamMember(userId: string): Promise<void> {
@@ -961,69 +950,3 @@ export async function markCatalogsSent(ids: number[]): Promise<void> {
   if (error) throw error;
 }
 
-// =============== Boutique Algérie : paiement à la livraison ===============
-
-export interface CodOrderInput {
-  items: { id: string; quantity: number }[];
-  name: string; phone: string; email: string; wilaya: number; commune: string; address: string; delivery: 'domicile' | 'bureau'; note: string;
-}
-
-export async function listDzRates(): Promise<DzRate[]> {
-  if (DEMO_MODE) return demoDB().dzRates;
-  const { data, error } = await db().from('dz_shipping_rates').select('*').order('code');
-  if (error) throw error;
-  return data as DzRate[];
-}
-
-export async function saveDzRates(rates: DzRate[]): Promise<void> {
-  logActivity('Tarifs de livraison Algérie modifiés');
-  if (DEMO_MODE) { demoDB().dzRates = rates; demoSave(); return; }
-  const { error } = await db().from('dz_shipping_rates').upsert(rates);
-  if (error) throw new Error('Enregistrement impossible.');
-}
-
-/** Commande Algérie : enregistrée sans paiement en ligne ; la famille appelle le client pour confirmer. */
-export async function createCodOrder(input: CodOrderInput): Promise<{ number: string; total_cents: number }> {
-  if (DEMO_MODE) {
-    await wait(600);
-    const d = demoDB();
-    const rate = d.dzRates.find((r) => r.code === input.wilaya);
-    const shipping = rate?.active ? (input.delivery === 'bureau' ? rate.desk_cents : rate.home_cents) : null;
-    if (!rate || shipping == null) throw new Error('Cette wilaya ou ce mode de livraison n’est pas encore desservi.');
-    const lines = input.items.map((it, i) => {
-      const p = d.products.find((x) => x.id === it.id && x.market === 'dz');
-      if (!p || p.stock < it.quantity) throw new Error('Un article de votre panier n’est plus disponible.');
-      p.stock -= it.quantity; p.sales_count = (p.sales_count ?? 0) + it.quantity;
-      return { id: Date.now() + i, product_id: p.id, name: p.name, unit_price_cents: p.price_cents, quantity: it.quantity };
-    });
-    const subtotal = lines.reduce((n, l) => n + l.unit_price_cents * l.quantity, 0);
-    const id = `demo-dz-${Date.now()}`;
-    d.orders.unshift({
-      id, stripe_session_id: id, stripe_payment_id: null, market: 'dz', payment_method: 'cod', status: 'to_confirm',
-      email: input.email || null, customer_name: input.name, phone: input.phone, shipping_name: input.name,
-      wilaya: `${String(rate.code).padStart(2, '0')} - ${rate.name}`, delivery_type: input.delivery,
-      shipping_address: { line1: input.delivery === 'bureau' ? `Bureau du transporteur, ${input.commune}` : input.address, city: input.commune, state: rate.name, country: 'DZ' },
-      subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping, customer_message: input.note || null,
-      shipping_method: input.delivery === 'bureau' ? 'Retrait au bureau du transporteur' : 'Livraison à domicile',
-      tracking_number: null, tracking_carrier: null, shipped_email_sent_at: null, note: null, created_at: new Date().toISOString(), order_items: lines,
-      invoice_number: Math.max(0, ...d.orders.map((o) => o.invoice_number ?? 0)) + 1,
-    } as Order);
-    demoSave();
-    return { number: id.slice(-8).toUpperCase(), total_cents: subtotal + shipping };
-  }
-  const res = await fetch('/.netlify/functions/create-cod-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? 'La commande n’a pas pu être envoyée. Réessayez.');
-  return body;
-}
-
-/** Annulation d'une commande Algérie : les articles reviennent en stock. */
-export async function restockOrder(order: Order): Promise<void> {
-  for (const it of order.order_items ?? []) {
-    if (!it.product_id) continue;
-    if (DEMO_MODE) { const p = demoDB().products.find((x) => x.id === it.product_id); if (p) p.stock += it.quantity; continue; }
-    const { data } = await db().from('products').select('stock').eq('id', it.product_id).maybeSingle();
-    if (data) await db().from('products').update({ stock: (data.stock as number) + it.quantity }).eq('id', it.product_id);
-  }
-  if (DEMO_MODE) demoSave();
-}

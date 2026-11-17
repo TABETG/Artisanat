@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-import { useMarket } from '../context/MarketContext';
 import { FormEvent, useState } from 'react';
 import { Gift, Lock } from 'lucide-react';
 import { GIFT_AMOUNTS, startGiftCardCheckout } from '../lib/api';
@@ -7,21 +5,6 @@ import { formatPrice, parsePriceToCents } from '../lib/format';
 import { SHOP } from '../config';
 
 export function GiftCardPage() {
-  const { market } = useMarket();
-  return market === 'dz' ? <GiftCardUnavailable /> : <GiftCardShop />;
-}
-
-function GiftCardUnavailable() {
-  return (
-    <div className="max-w-2xl mx-auto px-5 pt-16">
-      <h1 className="font-display text-[2.6rem] sm:text-5xl text-nuit">Carte cadeau</h1>
-      <p className="lecture mt-4 text-henne">Les cartes cadeaux sont disponibles dans la boutique France uniquement, car elles se paient en ligne par carte bancaire.</p>
-      <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 hover:bg-garance">Voir la boutique Algérie</Link>
-    </div>
-  );
-}
-
-function GiftCardShop() {
   const [amount, setAmount] = useState(10000);
   const [custom, setCustom] = useState('');
   const [buyer, setBuyer] = useState('');

@@ -146,13 +146,6 @@ export function AdminSettings() {
           </Field>
         </Section>
 
-        <Section title="Boutique Algérie" description="Une seconde boutique en dinars, payée à la livraison, gérée par la famille depuis son propre compte (Équipe et journal).">
-          <Toggle checked={form.dz_enabled} onChange={(v) => set('dz_enabled', v)} title="Ouvrir la boutique Algérie" description="Les visiteurs choisissent leur pays à l’arrivée et peuvent changer depuis l’en-tête." />
-          <Field label="Téléphone ou WhatsApp pour l’Algérie" optional hint="Affiché aux clients d’Algérie après leur commande.">
-            <Input value={form.dz_phone} maxLength={30} onChange={(e) => set('dz_phone', e.target.value)} placeholder="0550 12 34 56" />
-          </Field>
-        </Section>
-
         <Section title="Place de marché" description="D’autres artisans peuvent candidater pour vendre leurs créations sur la boutique.">
           <Toggle checked={form.marketplace_enabled} onChange={(v) => set('marketplace_enabled', v)} title="Accepter les candidatures d’artisans" description="Page « Vendre mes créations » ouverte au public." />
           <Field label="Commission par défaut" hint="Prélevée sur le prix des articles vendus par les artisans (hors frais d’envoi). Modifiable artisan par artisan.">

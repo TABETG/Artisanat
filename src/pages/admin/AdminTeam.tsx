@@ -9,7 +9,6 @@ export function AdminTeam() {
   const team = useAsync(listTeam, []);
   const activity = useAsync(listActivity, []);
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'complet' | 'dz'>('complet');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
   const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3500); };
@@ -17,7 +16,7 @@ export function AdminTeam() {
   async function add(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    try { await addTeamMember(email, role === 'dz' ? 'dz' : null); setEmail(''); team.reload(); flash('Accès donné. Si la personne n’a pas encore de compte, elle reçoit une invitation par email.'); }
+    try { await addTeamMember(email); setEmail(''); team.reload(); flash('Accès donné. Si la personne n’a pas encore de compte, elle reçoit une invitation par email.'); }
     catch (err) { flash(err instanceof Error ? err.message : 'Erreur', 'error'); }
     finally { setBusy(false); }
   }
@@ -37,7 +36,6 @@ export function AdminTeam() {
               <li key={m.user_id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="font-medium">{m.email}</span>
                 {m.me && <span className="text-xs px-2 py-0.5 rounded bg-nuit/10 text-nuit">Vous</span>}
-                <span className={`text-xs px-2 py-0.5 rounded ${m.market === 'dz' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>{m.market === 'dz' ? 'Boutique Algérie uniquement' : 'Accès complet'}</span>
                 <span className="text-sm text-stone-500">{m.last_sign_in_at ? `Dernière connexion : ${formatDate(m.last_sign_in_at)}` : 'Invitation envoyée, pas encore connecté'}</span>
                 {!m.me && <button onClick={() => remove(m.user_id, m.email)} className="ml-auto p-2.5 rounded-md text-garance hover:bg-red-50" aria-label={`Retirer ${m.email}`}><Trash2 className="w-4 h-4" /></button>}
               </li>
@@ -45,11 +43,6 @@ export function AdminTeam() {
           </ul>
         )}
         <form onSubmit={add} className="flex flex-wrap gap-3 items-end">
-          <div className="min-w-56"><Field label="Accès">
-            <select value={role} onChange={(e) => setRole(e.target.value as 'complet' | 'dz')} className="w-full px-3 py-3 border border-stone-300 rounded-md bg-white">
-              <option value="complet">Accès complet</option>
-              <option value="dz">Boutique Algérie uniquement (commandes, produits, livraison)</option>
-            </select></Field></div>
           <div className="flex-1 min-w-64"><Field label="Ajouter une personne"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="collaborateur@exemple.fr" /></Field></div>
           <button disabled={busy} className="inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60"><UserPlus className="w-4 h-4" /> Donner l’accès</button>
         </form>

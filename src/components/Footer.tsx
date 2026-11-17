@@ -3,12 +3,10 @@ import { SHOP } from '../config';
 import { useSettings } from '../context/SettingsContext';
 import { Mark } from './Header';
 import { usePanels } from '../context/PanelsContext';
-import { useMarket } from '../context/MarketContext';
 
 export function Footer() {
   const { settings } = useSettings();
   const { openContact } = usePanels();
-  const { market } = useMarket();
   const col = 'space-y-2.5 text-laine/80';
   const a = 'hover:text-safran';
   return (
@@ -52,7 +50,7 @@ export function Footer() {
 
         <div className="mt-14 pt-6 border-t border-laine/15 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-x-6 gap-y-3 text-sm text-laine/55">
           <span className="flex items-center gap-2"><Mark className="w-6 h-6" /> © {new Date().getFullYear()} {SHOP.name}</span>
-          <span>{market === 'dz' ? 'Algérie : paiement à la livraison dans les 58 wilayas' : 'Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay'}</span>
+          <span>Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</span>
           <span className="flex flex-wrap gap-x-4 gap-y-2 lg:ml-auto">
             <Link className="hover:text-laine" to="/conditions-generales-de-vente">Conditions de vente</Link>
             <Link className="hover:text-laine" to="/mentions-legales">Mentions légales</Link>

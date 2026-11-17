@@ -1,7 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { Product } from '../types';
 import { trackProduct } from '../lib/api';
-import { currentMarket, Market } from '../market';
 
 export interface CartLine {
   id: string;
@@ -36,12 +35,11 @@ interface CartValue {
 }
 
 const CartContext = createContext<CartValue | null>(null);
-// Un panier par boutique : les articles de France et d'Algérie ne se mélangent pas
-const storageKey = (m: Market) => (m === 'fr' ? 'artisanat-panier' : `artisanat-panier-${m}`);
+const STORAGE_KEY = 'artisanat-panier';
 
-function load(m: Market = currentMarket()): CartLine[] {
+function load(): CartLine[] {
   try {
-    const raw = localStorage.getItem(storageKey(m));
+    const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as CartLine[]) : [];
   } catch {
     return [];
@@ -49,22 +47,16 @@ function load(m: Market = currentMarket()): CartLine[] {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [market, setMarket] = useState<Market>(currentMarket);
   const [lines, setLines] = useState<CartLine[]>(() => load());
-  useEffect(() => {
-    const h = () => { const m = currentMarket(); setMarket(m); setLines(load(m)); };
-    window.addEventListener('artisanat-boutique', h);
-    return () => window.removeEventListener('artisanat-boutique', h);
-  }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
-  const [country, setCountry] = useState<string>(() => { try { return localStorage.getItem('artisanat-pays') ?? 'FR'; } catch { return 'FR'; } });
+  // Boutique française : livraison en France uniquement
+  const [country, setCountry] = useState<string>('FR');
   const [methodId, setMethodId] = useState<string | null>(null);
-  useEffect(() => { try { localStorage.setItem('artisanat-pays', country); } catch { /* ignoré */ } }, [country]);
 
   useEffect(() => {
-    try { localStorage.setItem(storageKey(market), JSON.stringify(lines)); } catch { /* navigation privée */ }
-  }, [lines, market]);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch { /* navigation privée */ }
+  }, [lines]);
 
   const value = useMemo<CartValue>(() => ({
     lines,

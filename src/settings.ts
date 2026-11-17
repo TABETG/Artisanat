@@ -39,8 +39,6 @@ Texte à personnaliser dans Espace vendeur → Réglages : racontez ici l’hist
   preparation_days: 2,
   marketplace_enabled: true,
   marketplace_commission_percent: 15,
-  dz_enabled: true,
-  dz_phone: '',
   mediator: '',
 };
 

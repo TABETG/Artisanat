@@ -7,7 +7,6 @@ import { SectionHeading } from '../components/SectionHeading';
 import { SHOP } from '../config';
 import { useCategories, useSettings } from '../context/SettingsContext';
 import { useBadges } from '../context/BadgesContext';
-import { useMarket } from '../context/MarketContext';
 import { discountOf } from '../badges';
 import { formatPrice } from '../lib/format';
 import { freeShippingThreshold } from '../settings';
@@ -16,7 +15,6 @@ import { Product } from '../types';
 export function HomePage() {
   const { data: products, loading, error } = useAsync(listProducts, []);
   const { settings } = useSettings();
-  const { market } = useMarket();
   const { categories } = useCategories();
   const { bestSellerIds } = useBadges();
   const all = products ?? [];
@@ -139,15 +137,9 @@ export function HomePage() {
         <div className="md:col-span-6 lg:col-start-7 order-1 md:order-2">
           <p className="font-display text-[6rem] sm:text-[9rem] lg:text-[13rem] leading-[0.8] text-laine-fonce select-none" aria-hidden>{SHOP.since}</p>
           <ul className="mt-8 grid grid-cols-1 min-[420px]:grid-cols-2 gap-x-8 gap-y-5 max-w-xl lecture text-base border-t border-laine-fonce pt-6">
-            {market === 'dz' ? <>
-            <li><strong className="block font-sans text-nuit">58 wilayas</strong>à domicile ou au bureau</li>
-            <li><strong className="block font-sans text-nuit">Paiement à la livraison</strong>en espèces, au livreur</li>
-            <li><strong className="block font-sans text-nuit">Confirmation</strong>par téléphone avant l’envoi</li>
-            </> : <>
             <li><strong className="block font-sans text-nuit">Livraison suivie</strong>{freeShippingThreshold(settings) ? `offerte dès ${formatPrice(freeShippingThreshold(settings)!)}` : 'avec numéro de suivi'}</li>
             <li><strong className="block font-sans text-nuit">14 jours</strong>pour changer d’avis</li>
             <li><strong className="block font-sans text-nuit">Paiement sécurisé</strong>carte, Apple Pay, Google Pay</li>
-            </>}
             <li><strong className="block font-sans text-nuit">Sur mesure</strong>vos dimensions, vos couleurs</li>
           </ul>
         </div>

@@ -1,7 +1,6 @@
 import type { ShippingMethod, ShippingZone } from './shipping';
 
 export interface Product {
-  market?: 'fr' | 'dz';                    // boutique : France (euros) ou Algérie (dinars)
   id: string;
   name: string;
   description: string;
@@ -53,7 +52,7 @@ export interface Product {
 
 export type ProductInput = Omit<Product, 'id' | 'created_at'>;
 
-export type OrderStatus = 'to_confirm' | 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type OrderStatus = 'paid' | 'check_stock' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 
 export interface OrderItem {
   id: number;
@@ -75,10 +74,6 @@ export interface Address {
 
 export interface Order {
   id: string;
-  market?: 'fr' | 'dz';
-  payment_method?: 'card' | 'cod';
-  wilaya?: string | null;
-  delivery_type?: 'domicile' | 'bureau' | null;
   stripe_session_id: string;
   stripe_payment_id: string | null;
   email: string | null;
@@ -105,7 +100,6 @@ export interface Order {
 }
 
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: string }> = {
-  to_confirm: { label: 'À confirmer par téléphone', tone: 'bg-garance/15 text-garance' },
   paid: { label: 'Payée — à préparer', tone: 'bg-safran/25 text-henne' },
   check_stock: { label: 'Stock à vérifier', tone: 'bg-garance/15 text-garance' },
   shipped: { label: 'Expédiée', tone: 'bg-nuit/10 text-nuit' },
@@ -239,7 +233,6 @@ export interface CatalogRequest {
 }
 
 export interface AdminCounts {
-  ordersToConfirm: number;
   catalogsToSend: number;
   sellersPending: number;
   productsToReview: number;
@@ -296,9 +289,6 @@ export interface ShopSettings {
   // version 14 : place de marché
   marketplace_enabled: boolean;
   marketplace_commission_percent: number;
-  // version 17 : boutique Algérie
-  dz_enabled: boolean;
-  dz_phone: string;                     // numéro affiché aux clients d'Algérie (appels, WhatsApp)
   mediator: string;                     // médiateur de la consommation (obligatoire en France)
 }
 
