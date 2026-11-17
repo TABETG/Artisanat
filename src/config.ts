@@ -89,15 +89,6 @@ export const CARRIERS: { id: string; label: string; url: (code: string) => strin
   { id: 'autre', label: 'Autre transporteur', url: () => '' },
 ];
 
-/** Transporteurs de la boutique Algérie (suivi sur leur propre site ou application). */
-export const DZ_CARRIERS: { id: string; label: string; url: (code: string) => string }[] = [
-  { id: 'yalidine', label: 'Yalidine', url: () => '' },
-  { id: 'zr-express', label: 'ZR Express', url: () => '' },
-  { id: 'maystro', label: 'Maystro Delivery', url: () => '' },
-  { id: 'livraison-famille', label: 'Livraison par nos soins', url: () => '' },
-  { id: 'autre', label: 'Autre transporteur', url: () => '' },
-];
-
 export function trackingUrl(carrier: string | null, code: string | null): string | null {
   if (!code) return null;
   const c = CARRIERS.find((x) => x.id === (carrier ?? 'colissimo'));

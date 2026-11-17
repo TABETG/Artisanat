@@ -17,7 +17,7 @@ export async function requireAdmin(req: Request): Promise<Response | null> {
   const { data: auth } = await supabase.auth.getUser(token);
   if (!auth.user) return json({ error: 'Session expirée : reconnectez-vous.' }, 401);
   const { data: admin } = await supabase.from('admins').select('user_id,market').eq('user_id', auth.user.id).maybeSingle();
-  // Les gestionnaires d'une seule boutique (Algérie) n'ont pas accès aux fonctions serveur (paiements, équipe, emails)
+  // Anciens accès limités à une boutique (colonne market renseignée) : refusés
   if (!admin || admin.market) return json({ error: 'Accès refusé' }, 403);
 
   // Double authentification activée → le jeton doit être de niveau aal2

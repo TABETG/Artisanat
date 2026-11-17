@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronDown, Download, ExternalLink, FileText, Mail, Phone, Printer, RotateCcw, Search, Truck } from 'lucide-react';
-import { adminListOrders, adminListRefunds, downloadFile, getAdminScope, notifyShipped, ordersToCsv, refundOrder, restockOrder, updateOrder } from '../../lib/api';
-import { Market } from '../../market';
+import { ChevronDown, Download, ExternalLink, FileText, Mail, Printer, RotateCcw, Search, Truck } from 'lucide-react';
+import { adminListOrders, adminListRefunds, downloadFile, notifyShipped, ordersToCsv, refundOrder, updateOrder } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatDate, formatPrice } from '../../lib/format';
 import { Order, ORDER_STATUS, OrderStatus, REFUND_STATUS, type Refund } from '../../types';
-import { CARRIERS, DZ_CARRIERS, SHOP, trackingUrl } from '../../config';
+import { CARRIERS, SHOP, trackingUrl } from '../../config';
 import { Field, Input, Modal, Select, Textarea, Toast, UnitInput } from './ui';
 import { centsToInput, parsePriceToCents } from '../../lib/format';
 import { useSettings } from '../../context/SettingsContext';
@@ -24,17 +23,15 @@ export function AdminOrders() {
   const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' } | null>(null);
   const flash = (msg: string, tone: 'ok' | 'error' = 'ok') => { setToast({ msg, tone }); setTimeout(() => setToast(null), 3500); };
 
-  const scope = getAdminScope();
-  const [market, setMarket] = useState<'tout' | Market>(scope ?? 'tout');
-  const all = (data ?? []).filter((o) => market === 'tout' || (o.market ?? 'fr') === market);
-  const isTodo = (o: Order) => o.status === 'to_confirm' || o.status === 'paid' || o.status === 'check_stock';
+  const all = data ?? [];
+  const isTodo = (o: Order) => o.status === 'paid' || o.status === 'check_stock';
   const orders = useMemo(() => {
     const q = search.trim().toLowerCase();
     return all.filter((o) =>
       (filter === 'all' || (filter === 'todo' ? isTodo(o) : o.status === filter)) &&
-      (!q || `${o.shipping_name} ${o.customer_name} ${o.email} ${o.phone} ${o.wilaya} ${orderNumber(o)} ${o.tracking_number}`.toLowerCase().includes(q)));
+      (!q || `${o.shipping_name} ${o.customer_name} ${o.email} ${o.phone} ${orderNumber(o)} ${o.tracking_number}`.toLowerCase().includes(q)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, market, filter, search]);
+  }, [data, filter, search]);
   const count = (f: Filter) => all.filter((o) => f === 'all' || (f === 'todo' ? isTodo(o) : o.status === f)).length;
 
   function onSaved(updated: Order, message: string) {
@@ -54,15 +51,8 @@ export function AdminOrders() {
           <Download className="w-4 h-4" /> Exporter pour la comptabilité (Excel)
         </button>
       </div>
-      {!scope && (
-        <div className="mt-4 inline-flex rounded-md border border-stone-300 bg-white overflow-hidden" role="group" aria-label="Boutique">
-          {([['tout', 'Toutes les boutiques'], ['fr', 'France'], ['dz', 'Algérie']] as const).map(([id, l]) => (
-            <button key={id} onClick={() => setMarket(id)} aria-pressed={market === id} className={`px-3.5 py-2 text-sm ${market === id ? 'bg-nuit text-laine' : 'hover:bg-stone-50'}`}>{l}</button>
-          ))}
-        </div>
-      )}
       <div className="mt-5 flex flex-wrap gap-2">
-        {([['todo', 'À traiter'], ['to_confirm', 'À confirmer'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['refunded', 'Remboursées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
+        {([['todo', 'À traiter'], ['shipped', 'Expédiées'], ['delivered', 'Livrées'], ['refunded', 'Remboursées'], ['cancelled', 'Annulées'], ['all', 'Toutes']] as [Filter, string][]).map(([f, label]) => (
           <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
             className={`px-3.5 py-2 rounded-md text-sm ${filter === f ? 'bg-nuit text-laine' : 'bg-white border border-stone-200 hover:border-stone-400'}`}>
             {label} <span className="opacity-60">{count(f)}</span>
@@ -94,8 +84,7 @@ export function AdminOrders() {
               {o.shipping_method?.startsWith('Retrait') && <span className="text-xs px-2 py-0.5 rounded bg-nuit/10 text-nuit">Retrait atelier</span>}
               {/express|chrono/i.test(o.shipping_method ?? '') && <span className="text-xs px-2 py-0.5 rounded bg-garance/10 text-garance">Express</span>}
               {/relais/i.test(o.shipping_method ?? '') && <span className="text-xs px-2 py-0.5 rounded bg-safran/25 text-henne">Point relais à confirmer</span>}
-              {o.market === 'dz' && <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Algérie · {o.wilaya ?? ''} · paiement à la livraison</span>}
-              <span className="ml-auto font-medium">{formatPrice(o.total_cents, o.market ?? 'fr')}</span>
+              <span className="ml-auto font-medium">{formatPrice(o.total_cents)}</span>
               <ChevronDown className={`w-5 h-5 transition-transform ${openId === o.id ? 'rotate-180' : ''}`} />
               <span className="w-full text-sm text-stone-500">
                 {formatDate(o.created_at)} · {(o.order_items ?? []).reduce((n, i) => n + i.quantity, 0)} article(s)
@@ -112,7 +101,7 @@ export function AdminOrders() {
 
 function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: Order, message: string) => void; onError: (m: string) => void }) {
   const [status, setStatus] = useState<OrderStatus>(order.status);
-  const [carrier, setCarrier] = useState(order.tracking_carrier ?? (order.market === 'dz' ? 'yalidine' : 'colissimo'));
+  const [carrier, setCarrier] = useState(order.tracking_carrier ?? 'colissimo');
   const [tracking, setTracking] = useState(order.tracking_number ?? '');
   const [note, setNote] = useState(order.note ?? '');
   const [sendEmail, setSendEmail] = useState(!order.shipped_email_sent_at);
@@ -120,25 +109,12 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   const [refunding, setRefunding] = useState(false);
   const [refundsVersion, setRefundsVersion] = useState(0);
   const { settings } = useSettings();
-  const isCod = order.payment_method === 'cod';
-  const money = (c: number) => formatPrice(c, order.market ?? 'fr');
-  const carriers = order.market === 'dz' ? DZ_CARRIERS : CARRIERS;
+  const money = (c: number) => formatPrice(c);
+  const carriers = CARRIERS;
   const { sellerOf } = useMarketplace();
   const a = order.shipping_address;
   const link = trackingUrl(carrier, tracking.trim() || null);
   const becomesShipped = status === 'shipped' && order.status !== 'shipped';
-
-  /** Boutique Algérie : confirmation ou annulation en un clic (l'annulation remet le stock). */
-  async function quick(next: OrderStatus, message: string) {
-    setSaving(true);
-    try {
-      await updateOrder(order.id, { status: next });
-      if (next === 'cancelled') await restockOrder(order);
-      setStatus(next);
-      onSaved({ ...order, status: next }, message);
-    } catch (e) { onError(e instanceof Error ? e.message : 'Erreur'); }
-    finally { setSaving(false); }
-  }
 
   async function save() {
     setSaving(true);
@@ -170,21 +146,8 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
       {refunding && <RefundModal order={order} onClose={() => setRefunding(false)} onError={onError}
         onDone={(o, m) => { setRefunding(false); setStatus(o.status); setRefundsVersion((v) => v + 1); onSaved(o, m); }} />}
       <div className="space-y-5 text-[15px]">
-        {isCod && order.status === 'to_confirm' && (
-          <div className="bg-garance/10 border border-garance/30 rounded-md p-4 space-y-3">
-            <p className="font-medium text-garance">Appelez le client pour confirmer avant de préparer le colis.</p>
-            <div className="flex flex-wrap gap-2">
-              {order.phone && <a href={`tel:${order.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 bg-nuit text-laine px-4 py-2.5 rounded-md"><Phone className="w-4 h-4" /> Appeler</a>}
-              {order.phone && <a href={`https://wa.me/${dzWhatsapp(order.phone)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-emerald-700 text-white px-4 py-2.5 rounded-md">WhatsApp</a>}
-              <button onClick={() => quick('paid', 'Commande confirmée : à préparer')} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-emerald-700 text-emerald-800 hover:bg-emerald-50">Client joint : confirmée</button>
-              <button onClick={() => { if (confirm('Annuler cette commande et remettre les articles en stock ?')) quick('cancelled', 'Commande annulée, articles remis en stock'); }} disabled={saving}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-stone-300 hover:border-garance hover:text-garance">Annuler (injoignable ou refus)</button>
-            </div>
-          </div>
-        )}
         <Info title="Livraison">
           <p className="font-medium">{order.shipping_name}</p>
-          {isCod && <p className="text-sm text-emerald-800">Wilaya {order.wilaya} · {order.delivery_type === 'bureau' ? 'au bureau du transporteur' : 'à domicile'} · <strong>{money(order.total_cents)} à encaisser</strong></p>}
           {a && <p className="whitespace-pre-line">{[a.line1, a.line2, `${a.postal_code ?? ''} ${a.city ?? ''}`, a.country].filter(Boolean).join('\n')}</p>}
         </Info>
         {order.customer_message && (
@@ -206,11 +169,11 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
               <li className="flex justify-between text-garance"><span>Remise{order.promo_code ? ` (code ${order.promo_code})` : ''}</span><span>−{money(order.discount_cents)}</span></li>
             )}
             <li className="flex justify-between text-stone-500"><span>{order.shipping_method ?? 'Livraison'}</span><span>{order.shipping_cents ? money(order.shipping_cents) : 'Offerte'}</span></li>
-            <li className="flex justify-between font-medium border-t mt-1 pt-1"><span>{isCod ? 'À encaisser à la livraison' : 'Total payé'}</span><span>{money(order.total_cents)}</span></li>
+            <li className="flex justify-between font-medium border-t mt-1 pt-1"><span>Total payé</span><span>{money(order.total_cents)}</span></li>
             {!!order.refunded_cents && <li className="flex justify-between text-violet-800"><span>Déjà remboursé</span><span>−{money(order.refunded_cents)}</span></li>}
           </ul>
         </Info>
-        {!isCod && <RefundHistory orderId={order.id} version={refundsVersion} money={money} />}
+        <RefundHistory orderId={order.id} version={refundsVersion} money={money} />
         <div className="flex flex-wrap gap-2">
           <button onClick={() => printSlip(order, settings.email, settings.phone)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
             <Printer className="w-4 h-4" /> Bon de livraison
@@ -218,7 +181,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
           <button onClick={() => printInvoice(order)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-stone-300">
             <FileText className="w-4 h-4" /> Facture
           </button>
-          {!isCod && (order.refunded_cents ?? 0) < order.total_cents && (order.stripe_payment_id || order.id.startsWith('demo')) && (
+          {(order.refunded_cents ?? 0) < order.total_cents && (order.stripe_payment_id || order.id.startsWith('demo')) && (
             <button onClick={() => setRefunding(true)} className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-md border border-violet-300 text-violet-800 hover:bg-violet-50">
               <RotateCcw className="w-4 h-4" /> Rembourser
             </button>
@@ -240,7 +203,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
         )}
         <Field label="Étape de la commande">
           <Select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}>
-            {(Object.keys(ORDER_STATUS) as OrderStatus[]).filter((s) => isCod ? s !== 'refunded' && s !== 'check_stock' : s !== 'to_confirm').map((s) => <option key={s} value={s}>{ORDER_STATUS[s].label}</option>)}
+            {(Object.keys(ORDER_STATUS) as OrderStatus[]).map((s) => <option key={s} value={s}>{ORDER_STATUS[s].label}</option>)}
           </Select>
         </Field>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -250,7 +213,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
             </Select>
           </Field>
           <Field label="Numéro de suivi" optional>
-            <Input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder={order.market === 'dz' ? 'Numéro du transporteur' : '6A123456789FR'} />
+            <Input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="6A123456789FR" />
           </Field>
         </div>
         {link && <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-garance underline"><Truck className="w-4 h-4" /> Vérifier le suivi</a>}
@@ -398,9 +361,3 @@ function printSlip(o: Order, email: string, phone: string) {
   setTimeout(() => w.print(), 300);
 }
 
-
-/** 0550 12 34 56 → 213550123456 (format international pour WhatsApp). */
-function dzWhatsapp(phone: string): string {
-  const d = phone.replace(/\D/g, '');
-  return d.startsWith('213') ? d : d.startsWith('00213') ? d.slice(2) : `213${d.replace(/^0/, '')}`;
-}

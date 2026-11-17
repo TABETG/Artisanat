@@ -7,7 +7,6 @@ import { FavoritesProvider } from './context/FavoritesContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { CustomerProvider } from './context/CustomerContext';
 import { MarketplaceProvider } from './context/MarketplaceContext';
-import { MarketProvider } from './context/MarketContext';
 import { ReviewsProvider } from './context/ReviewsContext';
 import { BadgesProvider } from './context/BadgesContext';
 // Polices hébergées avec le site : rien n'est chargé depuis Google (plus rapide, et conforme au RGPD)
@@ -20,7 +19,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <SettingsProvider>
-        <MarketProvider>
         <CustomerProvider>
         <MarketplaceProvider>
         <CartProvider>
@@ -34,7 +32,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </CartProvider>
         </MarketplaceProvider>
         </CustomerProvider>
-        </MarketProvider>
       </SettingsProvider>
     </BrowserRouter>
   </React.StrictMode>,

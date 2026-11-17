@@ -1,18 +1,15 @@
-import { currentMarket, Market } from '../market';
-
 const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-const dinar = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
-/** Prix affiché dans la monnaie de la boutique : « 1 240,00 € » ou « 85 000 DA ». */
-export function formatPrice(cents: number, market: Market = currentMarket()): string {
-  return market === 'dz' ? `${dinar.format(Math.round(cents / 100))} DA` : euro.format(cents / 100);
+/** Prix affiché en euros : « 1 240,00 € ». */
+export function formatPrice(cents: number): string {
+  return euro.format(cents / 100);
 }
 
-export const currencySymbol = (market: Market = currentMarket()) => (market === 'dz' ? 'DA' : '€');
+export const currencySymbol = () => '€';
 
 /** "1 250,50" ou "1250.5" → 125050 centimes. Renvoie null si invalide. */
 export function parsePriceToCents(input: string): number | null {
-  const clean = input.replace(/\s/g, '').replace('€', '').replace(/DA$/i, '').replace(',', '.');
+  const clean = input.replace(/\s/g, '').replace('€', '').replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
   return Math.round(parseFloat(clean) * 100);
 }

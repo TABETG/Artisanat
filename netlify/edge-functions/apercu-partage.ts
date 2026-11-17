@@ -14,7 +14,7 @@ export default async (request: Request, context: { next: () => Promise<Response>
   if (!match || !base || !key || !(response.headers.get('content-type') ?? '').includes('text/html')) return response;
 
   try {
-    const res = await fetch(`${base}/rest/v1/products?id=eq.${match[1]}&active=eq.true&select=name,description,price_cents,images`, {
+    const res = await fetch(`${base}/rest/v1/products?id=eq.${match[1]}&active=eq.true&market=eq.fr&select=name,description,price_cents,images`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
     });
     const [product] = (await res.json()) as { name: string; description: string; price_cents: number; images: string[] }[];

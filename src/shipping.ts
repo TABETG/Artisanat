@@ -13,7 +13,7 @@ export const COUNTRIES: { code: string; name: string }[] = [
   { code: 'IT', name: 'Italie' }, { code: 'PT', name: 'Portugal' }, { code: 'AT', name: 'Autriche' }, { code: 'IE', name: 'Irlande' },
   { code: 'DK', name: 'Danemark' }, { code: 'SE', name: 'Suède' }, { code: 'FI', name: 'Finlande' }, { code: 'PL', name: 'Pologne' },
   { code: 'GR', name: 'Grèce' }, { code: 'GB', name: 'Royaume-Uni' }, { code: 'NO', name: 'Norvège' }, { code: 'US', name: 'États-Unis' },
-  { code: 'CA', name: 'Canada' }, { code: 'AE', name: 'Émirats arabes unis' }, { code: 'MA', name: 'Maroc' }, { code: 'DZ', name: 'Algérie' },
+  { code: 'CA', name: 'Canada' }, { code: 'AE', name: 'Émirats arabes unis' }, { code: 'MA', name: 'Maroc' },
   { code: 'TN', name: 'Tunisie' }, { code: 'AU', name: 'Australie' }, { code: 'JP', name: 'Japon' },
 ];
 export const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code;

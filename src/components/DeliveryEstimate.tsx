@@ -1,19 +1,16 @@
 import { Truck } from 'lucide-react';
-import { listDzRates } from '../lib/api';
-import { useAsync } from '../lib/useAsync';
 import { useCart } from '../context/CartContext';
 import { useSettings } from '../context/SettingsContext';
-import { COUNTRIES, KIND_LABELS, addBusinessDays, quoteShipping, servedCountries } from '../shipping';
+import { KIND_LABELS, addBusinessDays, quoteShipping } from '../shipping';
 import { formatPrice } from '../lib/format';
 import { Product } from '../types';
 
 const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-/** Fiche produit : date de livraison estimée et modes disponibles pour le pays choisi. */
+/** Fiche produit : date de livraison estimée et modes disponibles en France. */
 export function DeliveryEstimate({ product }: { product: Product }) {
   const { settings } = useSettings();
-  const { country, setCountry } = useCart();
-  const served = servedCountries(settings.shipping_zones, settings.shipping_methods);
+  const { country } = useCart();
   const quotes = quoteShipping(country, [{ quantity: 1, price_cents: product.price_cents, width_cm: product.width_cm, length_cm: product.length_cm }],
     settings.shipping_zones, settings.shipping_methods).filter((q) => q.method.kind !== 'retrait');
   const pickup = settings.shipping_methods.find((m) => m.active && m.kind === 'retrait' && m.prices[settings.shipping_zones.find((z) => z.countries.includes(country))?.id ?? ''] != null);
@@ -31,14 +28,9 @@ export function DeliveryEstimate({ product }: { product: Product }) {
               le <strong>{fmt(addBusinessDays(now, settings.preparation_days + fastest.method.max_days))}</strong>
             </p>
           ) : (
-            <p className="text-[15px]">Livraison vers ce pays sur demande : écrivez-nous.</p>
+            <p className="text-[15px]">Livraison sur demande : écrivez-nous.</p>
           )}
-          <label className="mt-1 inline-flex items-center gap-1.5 text-sm text-henne">
-            vers
-            <select value={country} onChange={(e) => setCountry(e.target.value)} className="bg-transparent underline underline-offset-2 text-nuit cursor-pointer" aria-label="Pays de livraison">
-              {COUNTRIES.filter((c) => served.includes(c.code) || c.code === country).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-            </select>
-          </label>
+          <p className="mt-1 text-sm text-henne">en France métropolitaine</p>
           {quotes.length > 0 && (
             <ul className="mt-3 space-y-1 text-sm">
               {quotes.map((q) => (
@@ -54,24 +46,6 @@ export function DeliveryEstimate({ product }: { product: Product }) {
             <p className="mt-2 text-xs text-henne">Grand tapis : supplément de transport inclus dans les prix ci-dessus.</p>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** Boutique Algérie : prix de livraison selon la wilaya, paiement à la livraison. */
-export function DzDelivery() {
-  const { data: rates } = useAsync(listDzRates, []);
-  const active = (rates ?? []).filter((r) => r.active);
-  const home = active.map((r) => r.home_cents).filter((c): c is number => c != null);
-  const desk = active.map((r) => r.desk_cents).filter((c): c is number => c != null);
-  return (
-    <div className="border border-laine-fonce bg-white/60 p-4 flex gap-3">
-      <Truck className="w-5 h-5 text-garance shrink-0 mt-0.5" />
-      <div className="text-[15px]">
-        <p>Livraison dans <strong>{active.length || 58} wilayas</strong>, en 2 à 5 jours.</p>
-        {home.length > 0 && <p className="text-sm text-henne mt-1">À domicile dès {formatPrice(Math.min(...home))} · au bureau du transporteur dès {desk.length ? formatPrice(Math.min(...desk)) : '—'}</p>}
-        <p className="text-sm text-henne mt-1">Vous payez en espèces au livreur, à la réception.</p>
       </div>
     </div>
   );

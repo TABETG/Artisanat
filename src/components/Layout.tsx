@@ -9,7 +9,6 @@ import { useSettings } from '../context/SettingsContext';
 import { SHOP } from '../config';
 import { CartReminder } from './CartReminder';
 import { NewsletterCatalogBand } from './NewsletterCatalogBand';
-import { FirstVisitMarket } from './MarketChooser';
 import { Countdown } from './Countdown';
 import { MenuDrawer } from './MenuDrawer';
 import { ContactSidebar } from './ContactSidebar';
@@ -82,7 +81,6 @@ export function Layout() {
 
       {menu && <MenuDrawer onClose={closeMenu} onContact={() => setContact('contact')} />}
       {contact && <ContactSidebar initialTab={contact} onClose={closeContact} />}
-      <FirstVisitMarket />
       <PrivacyBanner onDetails={() => setContact('donnees')} />
     </div>
     </PanelsContext.Provider>

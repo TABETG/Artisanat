@@ -1,10 +1,9 @@
-import { useMarket } from '../context/MarketContext';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, Truck, X } from 'lucide-react';
+import { ArrowLeft, Check, Lock, Minus, Plus, Trash2, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/format';
-import { COUNTRIES, KIND_LABELS, quoteShipping, servedCountries, addBusinessDays } from '../shipping';
+import { KIND_LABELS, quoteShipping, addBusinessDays } from '../shipping';
 import { useSettings } from '../context/SettingsContext';
 import { listProducts, startCheckout } from '../lib/api';
 import { useMarketplace } from '../context/MarketplaceContext';
@@ -13,8 +12,7 @@ import { Product } from '../types';
 import { ProductImage } from './ProductImage';
 
 export function CartDrawer() {
-  const isDz = useMarket().market === 'dz';
-  const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded, add, country, setCountry, methodId, setMethodId } = useCart();
+  const { lines, subtotal, isOpen, close, setQuantity, remove, lastAdded, add, country, methodId, setMethodId } = useCart();
   const [catalog, setCatalog] = useState<Product[]>([]);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -35,7 +33,6 @@ export function CartDrawer() {
 
   if (!isOpen) return null;
 
-  const served = servedCountries(settings.shipping_zones, settings.shipping_methods);
   // Pièces de l'atelier : modes de livraison de la boutique. Pièces d'artisans : chaque artisan expédie à son tarif.
   const { sellerOf } = useMarketplace();
   const ownLines = lines.filter((l) => !l.seller_id);
@@ -153,22 +150,11 @@ export function CartDrawer() {
               </div>
             )}
 
-            {/* ---------- Livraison : pays et mode (boutique France) ---------- */}
-            {isDz ? (
-              <section className="px-6 pb-5" aria-label="Livraison en Algérie">
-                <p className="font-display text-2xl text-nuit">Livraison</p>
-                <p className="mt-2 text-sm text-henne">Dans les 58 wilayas, à domicile ou au bureau du transporteur. Le prix dépend de votre wilaya : il s’affiche à l’étape suivante.</p>
-              </section>
-            ) : (
+            {/* ---------- Livraison en France : mode ---------- */}
             <section className="px-6 pb-5" aria-label="Livraison">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="font-display text-2xl text-nuit">Livraison</p>
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="text-henne">vers</span>
-                  <select value={country} onChange={(e) => { setCountry(e.target.value); setMethodId(null); }} className="py-1.5 px-2 bg-white border border-laine-fonce" aria-label="Pays de livraison">
-                    {COUNTRIES.filter((c) => served.includes(c.code) || c.code === country).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-                  </select>
-                </label>
+                <span className="text-sm text-henne">en France métropolitaine</span>
               </div>
               {sellerGroups.length > 0 && (
                 <ul className="mb-3 space-y-2">
@@ -211,39 +197,31 @@ export function CartDrawer() {
                 </div>
               )}
             </section>
-            )}
             </div>
 
             <div className="border-t border-laine-fonce px-6 py-5 space-y-2 shrink-0">
               <div className="flex justify-between"><span>Sous-total</span><span>{formatPrice(subtotal)}</span></div>
-              {!isDz && <div className="flex justify-between text-henne">
+              <div className="flex justify-between text-henne">
                 <span>Livraison{sellerGroups.length && ownLines.length ? ' (atelier + artisans)' : ''}</span><span>{!canShip ? '—' : shipping === 0 ? 'Offerte' : formatPrice(shipping)}</span>
-              </div>}
-              {!isDz && missingForFree > 0 && (
+              </div>
+              {missingForFree > 0 && (
                 <p className="text-sm text-henne">Plus que {formatPrice(missingForFree)} pour la livraison offerte.</p>
               )}
               <div className="flex justify-between font-display text-xl text-nuit pt-2">
-                <span>{isDz ? 'Total des articles' : 'Total'}</span><span>{formatPrice(isDz ? subtotal : subtotal + shipping)}</span>
+                <span>Total</span><span>{formatPrice(subtotal + shipping)}</span>
               </div>
               {error && <p className="text-sm text-garance bg-garance/10 p-3 rounded-sm" role="alert">{error}</p>}
-              {isDz ? (
-                <button onClick={() => { close(); navigate('/commande-algerie'); }}
-                  className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit">
-                  <Truck className="w-5 h-5" /> Commander — paiement à la livraison
-                </button>
-              ) : (
               <button onClick={pay} disabled={paying || !canShip}
                 className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit disabled:opacity-60">
                 <Lock className="w-4 h-4" />
                 {paying ? 'Ouverture du paiement…' : 'Payer ma commande'}
               </button>
-              )}
               <button onClick={continueShopping}
                 className="w-full py-3.5 rounded-sm border border-nuit/25 text-nuit flex items-center justify-center gap-2 hover:border-nuit">
                 <ArrowLeft className="w-4 h-4" /> Continuer mes achats
               </button>
               <p className="text-xs text-center text-henne">
-                {isDz ? 'Vous payez en espèces au livreur, à la réception du colis. Nous vous appelons d’abord pour confirmer.' : 'Paiement par carte (Visa, Mastercard, CB), Apple Pay ou Google Pay, sur la page sécurisée de Stripe.'}
+                Paiement par carte (Visa, Mastercard, CB), Apple Pay ou Google Pay, sur la page sécurisée de Stripe.
               </p>
             </div>
           </>

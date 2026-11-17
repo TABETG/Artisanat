@@ -49,20 +49,17 @@ await as('authenticated', CLIENT, 'client@x.fr', "select count(*) from seller_pr
 await as('anon', null, '', "select count(*) from settings", 1, 'réglages publics lisibles');
 await as('anon', null, '', "update settings set data='{}'", 0, 'visiteur ne peut pas modifier les réglages');
 await as('anon', null, '', "select public.decrement_stock((select id from products limit 1), 1)", 'refus', 'visiteur ne peut pas vider le stock');
-// ---------- Deux boutiques : gestionnaire Algérie ----------
+// ---------- Boutique France uniquement : un ancien accès limité (market = 'dz') n'ouvre plus rien ----------
 const DZ='44444444-4444-4444-4444-444444444444';
-await db.exec(`insert into auth.users(id,email) values ('${DZ}','famille@x.dz'); insert into public.admins(user_id, market) values ('${DZ}','dz');
-  insert into public.products(name,price_cents,market,stock) values ('Tapis Algérie',8500000,'dz',1);
+await db.exec(`insert into auth.users(id,email) values ('${DZ}','ancien@x.fr'); insert into public.admins(user_id, market) values ('${DZ}','dz');
+  insert into public.products(name,price_cents,market,stock) values ('Ancien produit',8500000,'dz',1);
   insert into public.orders(stripe_session_id,email,total_cents,market,payment_method,status) values ('cod_1',null,9000000,'dz','cod','to_confirm');`);
-await as('authenticated', DZ, 'famille@x.dz', "select count(*) from orders", 1, 'gestionnaire Algérie voit seulement les commandes Algérie');
-await as('authenticated', DZ, 'famille@x.dz', "update orders set status='paid' where market='dz' returning status", 'paid', 'gestionnaire Algérie confirme une commande Algérie');
-await as('authenticated', DZ, 'famille@x.dz', "update orders set status='cancelled' where market='fr'", 0, 'gestionnaire Algérie ne touche pas aux commandes France');
-await as('authenticated', DZ, 'famille@x.dz', "update products set price_cents=1 where market='fr'", 0, 'gestionnaire Algérie ne change pas les prix France');
-await as('authenticated', DZ, 'famille@x.dz', "update products set price_cents=8000000 where market='dz'", 1, 'gestionnaire Algérie modifie ses produits');
-await as('authenticated', DZ, 'famille@x.dz', "insert into products(name,price_cents,market) values ('Pirate',1,'fr')", 'refus', 'gestionnaire Algérie ne crée pas de produit France');
-await as('authenticated', DZ, 'famille@x.dz', "update settings set data='{}'", 0, 'gestionnaire Algérie ne modifie pas les réglages');
-await as('authenticated', DZ, 'famille@x.dz', "update dz_shipping_rates set home_cents=50000 where code=16", 1, 'gestionnaire Algérie règle les tarifs des wilayas');
-await as('anon', null, '', "update dz_shipping_rates set home_cents=0", 0, 'visiteur ne change pas les tarifs');
-await as('anon', null, '', "select count(*) from dz_shipping_rates", 58, 'les 58 wilayas sont publiques');
+await as('authenticated', DZ, 'ancien@x.fr', "select count(*) from orders", 0, 'ancien accès limité : aucune commande visible');
+await as('authenticated', DZ, 'ancien@x.fr', "update orders set status='paid' returning status", 0, 'ancien accès limité : ne modifie aucune commande');
+await as('authenticated', DZ, 'ancien@x.fr', "update products set price_cents=1", 0, 'ancien accès limité : ne change aucun prix');
+await as('authenticated', DZ, 'ancien@x.fr', "insert into products(name,price_cents) values ('Pirate',1)", 'refus', 'ancien accès limité : ne crée pas de produit');
+await as('authenticated', DZ, 'ancien@x.fr', "update settings set data='{}'", 0, 'ancien accès limité : ne modifie pas les réglages');
+await as('anon', null, '', "select count(*) from products where market='dz'", 1, 'anciens produits conservés en base (données non supprimées)');
+await as('anon', null, '', "select count(*) from pg_proc where proname='is_market_admin'", 0, 'fonction des gestionnaires Algérie retirée');
 console.log(`\n${ok} contrôles réussis, ${ko} échec(s)`);
 if (ko) process.exit(1);

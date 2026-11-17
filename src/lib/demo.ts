@@ -88,8 +88,6 @@ export const DEMO_ALERTS: StockAlert[] = [
 ];
 
 export const DEMO_ADMIN = { email: 'demo@artisanat.fr', password: 'demo' };
-/** Démonstration : compte de la famille qui gère uniquement la boutique Algérie. */
-export const DEMO_DZ_MANAGER = { email: 'algerie@artisanat.fr', password: 'demo' };
 
 export const DEMO_REVIEWS: Review[] = [
   { id: 1, product_id: 'demo-3', author_name: 'Nadia R.', email: 'nadia.r@exemple.fr', rating: 5, approved: true, verified: true, created_at: '2026-09-12T10:00:00Z',
@@ -142,30 +140,3 @@ export const DEMO_SELLER_ORDER: Order = {
   order_items: [{ id: 50, product_id: 'demo-art-2', name: 'Sac cabas en laine tissée', unit_price_cents: 7800, quantity: 1, seller_id: 'seller-fatima' }],
 };
 
-// ---------- Boutique Algérie (prix en centimes de dinar : 8 500 000 = 85 000 DA) ----------
-export const DEMO_DZ_PRODUCTS: Product[] = [
-  { ...base, id: 'demo-dz-1', market: 'dz', name: 'Tapis kabyle des Ath Hichem', category: 'tapis', price_cents: 8500000, stock: 1, width_cm: 150, length_cm: 220,
-    origin: 'Tizi Ouzou', featured: true, images: img('tapis-khenifra'), created_at: daysFromNow(-2), reference: 'DZ-TAP-001', colors: ['rouge', 'noir'],
-    description: 'Tapis noué en laine, motifs géométriques traditionnels. Disponible à Alger, livré dans les 58 wilayas.' },
-  { ...base, id: 'demo-dz-2', market: 'dz', name: 'Kilim des Aurès', category: 'tapis', price_cents: 4200000, stock: 2, width_cm: 120, length_cm: 180,
-    origin: 'Batna', featured: false, images: img('kilim-zanafi'), created_at: daysFromNow(-6), technique: 'Tissage plat (kilim)', colors: ['rouge', 'jaune', 'bleu'],
-    description: 'Kilim tissé à plat, réversible, couleurs vives.' },
-  { ...base, id: 'demo-dz-3', market: 'dz', name: 'Collier kabyle émaillé', category: 'bijoux', price_cents: 1500000, stock: 3, width_cm: null, length_cm: null,
-    technique: 'Émail cloisonné', material: 'Corail', origin: 'Ath Yenni', featured: true, images: img('collier-kabyle'), created_at: daysFromNow(-4),
-    metal: 'Argent', stones: 'Corail, émail', jewelry_size: 'Longueur 46 cm', colors: ['rouge', 'vert'], care: '',
-    description: 'Collier des Ath Yenni en argent émaillé et corail.' },
-  { ...base, id: 'demo-dz-4', market: 'dz', name: 'Khôl en poudre et sa mkahla', category: 'beaute', price_cents: 120000, stock: 20, width_cm: null, length_cm: null,
-    technique: 'Broyé et tamisé main', material: '', origin: 'Algérie', featured: false, images: img('khol-traditionnel'), created_at: daysFromNow(-1),
-    net_content: '3 g', ingredients: 'Carbon Black (CI 77266), Talc, Ricinus Communis Seed Oil. Sans plomb.', warnings: 'Usage externe. Ne pas appliquer à l’intérieur de l’œil.',
-    cpnp_ref: '', colors: ['noir'], care: '', description: 'Khôl noir intense sans plomb, flacon en laiton et bâtonnet.' },
-];
-
-export const DEMO_DZ_ORDER: Order = {
-  id: 'demo-dz-cmd-1', invoice_number: 6, stripe_session_id: 'cod_demo_1', stripe_payment_id: null, market: 'dz', payment_method: 'cod',
-  email: null, customer_name: 'Amina Belkacem', phone: '0550 12 34 56', shipping_name: 'Amina Belkacem',
-  wilaya: '16 - Alger', delivery_type: 'domicile', shipping_address: { line1: '12 rue Didouche Mourad', city: 'Alger Centre', state: 'Alger', country: 'DZ' },
-  subtotal_cents: 1500000, shipping_cents: 60000, total_cents: 1560000, status: 'to_confirm', tracking_number: null, tracking_carrier: null,
-  shipped_email_sent_at: null, note: null, customer_message: 'Appelez-moi après 17 h, s’il vous plaît.', shipping_method: 'Livraison à domicile',
-  created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-  order_items: [{ id: 60, product_id: 'demo-dz-3', name: 'Collier kabyle émaillé', unit_price_cents: 1500000, quantity: 1 }],
-};

@@ -1,12 +1,10 @@
-import { Flag } from '../../components/Flag';
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Copy, ExternalLink, ImagePlus, Star, Trash2, X } from 'lucide-react';
 import {
-  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, getAdminScope, saveProduct, uploadProductImage,
+  adminListProducts, adminListStockAlerts, deleteProduct, duplicateProduct, saveProduct, uploadProductImage,
 } from '../../lib/api';
 import { centsToInput, currencySymbol, formatPrice, parsePriceToCents } from '../../lib/format';
-import { MARKETS } from '../../market';
 import { COLORS, KIND_LABELS, ProductKind, TECHNIQUES_BY_KIND } from '../../config';
 import { useCategories } from '../../context/SettingsContext';
 import { Product, ProductInput } from '../../types';
@@ -68,7 +66,7 @@ export function AdminProductForm() {
 
   // Chargement du produit à modifier
   useEffect(() => {
-    if (isNew) { const start = { ...EMPTY, market: getAdminScope() ?? EMPTY.market }; setForm(start); setPrice(''); setOldPrice(''); setWeight(''); setOriginal(snapshot(start, '', '', '')); return; }
+    if (isNew) { const start = { ...EMPTY }; setForm(start); setPrice(''); setOldPrice(''); setWeight(''); setOriginal(snapshot(start, '', '', '')); return; }
     adminListProducts().then((list) => {
       const p = list.find((x) => x.id === id);
       if (!p) { navigate('/admin/produits', { replace: true }); return; }
@@ -306,18 +304,6 @@ export function AdminProductForm() {
 
           {/* ---------- Informations ---------- */}
           <Section title="Informations principales">
-            {!getAdminScope() && (
-              <Field label="Boutique" hint="Les produits de la boutique Algérie sont vendus en dinars, payés à la livraison et gérés par la famille.">
-                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Boutique">
-                  {(['fr', 'dz'] as const).map((m) => (
-                    <button key={m} type="button" role="radio" aria-checked={(form.market ?? 'fr') === m} onClick={() => set('market', m)}
-                      className={`px-4 py-3 rounded-md border-2 text-left ${(form.market ?? 'fr') === m ? 'border-nuit bg-nuit/5' : 'border-stone-200 bg-white'}`}>
-                      <Flag market={m} className="w-5 h-auto mr-2 align-[-2px]" />{MARKETS[m].label} <span className="text-sm text-stone-500">({MARKETS[m].currency === 'EUR' ? 'euros' : 'dinars'})</span>
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            )}
             <div id="champ-name">
               <Field label="Nom du produit" required error={errors.name} counter={{ value: form.name.length, max: NAME_MAX }}
                 hint="Soyez précis : type, motif, couleur. Ex. : Tapis Beni Ouarain écru à losanges bruns">
@@ -356,14 +342,14 @@ export function AdminProductForm() {
             <div className="grid sm:grid-cols-2 gap-5">
               <div id="champ-price">
                 <Field label="Prix de vente" required error={errors.price} hint="TTC, tel que le client le paiera.">
-                  <UnitInput unit={currencySymbol(form.market ?? 'fr')} inputMode="decimal" value={price} invalid={!!errors.price}
+                  <UnitInput unit={currencySymbol()} inputMode="decimal" value={price} invalid={!!errors.price}
                     onChange={(e) => { setPrice(e.target.value); setErrors((x) => ({ ...x, price: '' })); }} placeholder="450" />
                 </Field>
               </div>
               <div id="champ-oldPrice" className="space-y-4">
                 <Field label="Ancien prix (promotion)" optional error={errors.oldPrice}
                   hint={discount ? `Affiché barré, avec le badge « −${discount} % ».` : 'Laissez vide s’il n’y a pas de promotion.'}>
-                  <UnitInput unit={currencySymbol(form.market ?? 'fr')} inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
+                  <UnitInput unit={currencySymbol()} inputMode="decimal" value={oldPrice} invalid={!!errors.oldPrice}
                     onChange={(e) => { setOldPrice(e.target.value); setErrors((x) => ({ ...x, oldPrice: '' })); }} placeholder="520" />
                 </Field>
                 {oldPrice.trim() && (
@@ -568,8 +554,8 @@ export function AdminProductForm() {
           <div className="bg-white rounded-lg border border-stone-200 p-5">
             <p className="text-sm font-medium text-stone-500 mb-3">Aperçu dans la boutique</p>
             <div className="pointer-events-none"><ProductCard product={preview} /></div>
-            {(form.market ?? 'fr') === 'fr' && priceCents !== null && priceCents > 0 && (
-              <p className="text-xs text-stone-500 mt-3">Vous recevrez environ {formatPrice(Math.round(priceCents * 0.985 - 25), 'fr')} après la commission Stripe (carte européenne).</p>
+            {priceCents !== null && priceCents > 0 && (
+              <p className="text-xs text-stone-500 mt-3">Vous recevrez environ {formatPrice(Math.round(priceCents * 0.985 - 25))} après la commission Stripe (carte européenne).</p>
             )}
           </div>
         </aside>

@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 export default async (req: Request) => {
   const origin = process.env.URL ?? new URL(req.url).origin;
   const supabase = createClient(process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!, process.env.VITE_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
-  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).limit(5000);
+  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).eq('market', 'fr').limit(5000);
   const pages = ['/', '/boutique', '/univers/maison', '/univers/bijoux', '/univers/beaute', '/catalogue', '/artisans', '/sur-mesure', '/carte-cadeau', '/nos-realisations', '/notre-histoire', '/livraison-et-retours', '/questions-frequentes', '/contact'];
   const urls = [
     ...pages.map((p) => `<url><loc>${origin}${p}</loc></url>`),

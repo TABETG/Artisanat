@@ -9,14 +9,14 @@ export default async (req: Request) => {
   const token = req.headers.get('authorization')!.replace(/^Bearer\s+/i, '');
   const { data: me } = await supabase.auth.getUser(token);
 
-  let b: { action?: string; email?: string; userId?: string; market?: string | null };
+  let b: { action?: string; email?: string; userId?: string };
   try { b = await req.json(); } catch { return json({ error: 'Requête invalide' }, 400); }
 
   if (b.action === 'list') {
     const { data: rows } = await supabase.from('admins').select('user_id,market');
     const members = await Promise.all((rows ?? []).map(async (r) => {
       const { data } = await supabase.auth.admin.getUserById(r.user_id);
-      return { user_id: r.user_id, email: data.user?.email ?? '—', last_sign_in_at: data.user?.last_sign_in_at ?? null, me: r.user_id === me.user?.id, market: r.market ?? null };
+      return { user_id: r.user_id, email: data.user?.email ?? '—', last_sign_in_at: data.user?.last_sign_in_at ?? null, me: r.user_id === me.user?.id };
     }));
     return json({ members });
   }
@@ -37,8 +37,8 @@ export default async (req: Request) => {
       if (error || !data.user) return json({ error: 'Invitation impossible : vérifiez l’adresse.' }, 400);
       userId = data.user.id;
     }
-    // market 'dz' : la personne ne gère que la boutique Algérie (commandes, produits, tarifs des wilayas)
-    await supabase.from('admins').upsert({ user_id: userId, market: b.market === 'dz' ? 'dz' : null });
+    // Accès complet uniquement (market = null)
+    await supabase.from('admins').upsert({ user_id: userId, market: null });
     return json({ ok: true });
   }
 

@@ -20,7 +20,7 @@ export function ProductCard({ product }: { product: Product }) {
   const badges = useBadges().badgesFor(product);
   const { settings } = useSettings();
   const threshold = freeShippingThreshold(settings);
-  const freeShipping = (product.market ?? 'fr') === 'fr' && !soldOut && threshold !== null && product.price_cents >= threshold;
+  const freeShipping = !soldOut && threshold !== null && product.price_cents >= threshold;
 
   return (
     <Link to={`/produit/${product.id}`} className="group block">
@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
         <h3 className="font-display text-[1.1rem] sm:text-[1.35rem] leading-tight text-nuit group-hover:text-garance">{product.name}</h3>
         {seller && <p className="text-sm text-henne mt-0.5">par {seller.shop_name}</p>}
         <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} market={product.market} />
+          <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} />
           {dims && <span className="text-xs sm:text-sm text-henne">{dims}</span>}
         </div>
         {(review || freeShipping) && (

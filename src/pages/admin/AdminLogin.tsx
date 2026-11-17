@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { DEMO_MODE } from '../../lib/supabase';
 import { getAdminStatus, requestPasswordReset, signIn, signOut, verifyMfaCode } from '../../lib/api';
-import { DEMO_ADMIN, DEMO_DZ_MANAGER } from '../../lib/demo';
+import { DEMO_ADMIN } from '../../lib/demo';
 import { Field, Input } from './ui';
 import { SHOP } from '../../config';
 
@@ -83,7 +83,7 @@ export function AdminLogin() {
         </div>
         {DEMO_MODE && (
           <p className="bg-safran/20 text-encre text-sm p-3 rounded">
-            Démonstration : identifiants préremplis ({DEMO_ADMIN.email} / {DEMO_ADMIN.password}). Cliquez sur « Se connecter ». Compte de la famille (boutique Algérie seulement) : {DEMO_DZ_MANAGER.email} / {DEMO_DZ_MANAGER.password}.
+            Démonstration : identifiants préremplis ({DEMO_ADMIN.email} / {DEMO_ADMIN.password}). Cliquez sur « Se connecter ».
           </p>
         )}
         <Field label="Email">
