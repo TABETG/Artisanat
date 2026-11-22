@@ -129,7 +129,6 @@ export default async (req: Request) => {
       // Codes promo créés dans Stripe → Catalogue de produits → Coupons
       allow_promotion_codes: true,
       // Relance du panier abandonné : Stripe garde un lien de reprise ; l'email n'est envoyé qu'avec l'accord du client
-      consent_collection: { promotions: 'auto' },
       after_expiration: { recovery: { enabled: true, allow_promotion_codes: true } },
       ...(settings.gift_message_enabled ? {
         custom_fields: [{
