@@ -12,7 +12,7 @@ services:
       interval: 2s
       retries: 30
   tests:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
     volumes:
       - .:/app
