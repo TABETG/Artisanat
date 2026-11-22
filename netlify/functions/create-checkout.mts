@@ -115,7 +115,7 @@ export default async (req: Request) => {
       ? `« ${name} » est en cours d’achat ou vient d’être vendu. Retirez-le du panier ou réessayez dans quelques minutes.`
       : `« ${name} » : il n’en reste que ${left} de disponible.` }, 409);
   }
-  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+  const expiresAt = Math.floor(Date.now() / 1000) + 32 * 60;
 
   try {
     const session = await stripe.checkout.sessions.create({
