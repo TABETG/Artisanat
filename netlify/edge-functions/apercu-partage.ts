@@ -15,7 +15,7 @@ export default async (request: Request, context: { next: () => Promise<Response>
 
   try {
     const res = await fetch(`${base}/rest/v1/products?id=eq.${match[1]}&active=eq.true&market=eq.fr&select=name,description,price_cents,images`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: key.startsWith('eyJ') ? { apikey: key, Authorization: `Bearer ${key}` } : { apikey: key },
     });
     const [product] = (await res.json()) as { name: string; description: string; price_cents: number; images: string[] }[];
     if (!product) return response;
