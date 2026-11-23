@@ -101,10 +101,12 @@ export function TermsPage() {
       <h2>6. Livraison</h2>
       <p>
         Les produits sont livrés en France métropolitaine, en point relais ou à domicile, à l’adresse indiquée lors de la commande.
-        Le délai estimé est affiché avant le paiement ; à défaut, la livraison intervient au plus tard 30 jours après la commande.
+        La commande est expédiée sous {SHOP.settings.preparation_days} jour{SHOP.settings.preparation_days > 1 ? 's' : ''} ouvré{SHOP.settings.preparation_days > 1 ? 's' : ''} après le paiement ; le délai de livraison estimé est affiché avant
+        le paiement. À défaut, la livraison intervient au plus tard 30 jours après la commande.
         En cas de retard, le client peut, après mise en demeure restée sans effet, résoudre la vente et être remboursé
         (articles L216-1 et suivants du Code de la consommation). Les risques sont transférés au client lorsque celui-ci prend
-        physiquement possession des produits. Détails et tarifs : <Link to="/livraison-et-retours">Livraison et retours</Link>.
+        physiquement possession des produits : en cas de perte ou d’avarie pendant le transport, le vendeur renvoie le
+        produit ou rembourse le client, sans attendre l’indemnisation du transporteur. Détails et tarifs : <Link to="/livraison-et-retours">Livraison et retours</Link>.
       </p>
 
       <h2>7. Droit de rétractation</h2>
@@ -174,6 +176,7 @@ export function TermsPage() {
 
 // ---------------------------------------------------------------- Livraison et retours
 export function ShippingPage() {
+  const SHOP = useShop();
   return (
     <Prose title="Livraison et retours">
       <h2>Modes et tarifs</h2>
@@ -181,6 +184,7 @@ export function ShippingPage() {
         Nous livrons en France métropolitaine. Chaque pièce est emballée avec soin à l’atelier, puis confiée au transporteur
         que vous choisissez dans le panier ; le prix exact et la date estimée s’affichent avant le paiement.
       </p>
+      <p><strong>Votre commande est expédiée sous {SHOP.settings.preparation_days} jour{SHOP.settings.preparation_days > 1 ? 's' : ''} ouvré{SHOP.settings.preparation_days > 1 ? 's' : ''} après le paiement.</strong> En cas d’imprévu, nous vous prévenons par email.</p>
       <ShippingTable />
       <p>Vous recevez un email avec le numéro de suivi dès l’expédition, et pouvez suivre votre colis sur la page <Link to="/suivi-commande">Suivre ma commande</Link>.</p>
       <h2>Colis abîmé ou incomplet</h2>
@@ -188,6 +192,12 @@ export function ShippingPage() {
         Si le colis arrive endommagé, émettez si possible des réserves auprès du transporteur, prenez une photo et
         contactez-nous rapidement : nous trouvons une solution (remplacement ou remboursement). Vous conservez dans tous les
         cas le bénéfice des garanties légales.
+      </p>
+      <h2>Colis perdu</h2>
+      <p>
+        Si votre colis n’arrive pas, prévenez-nous : nous ouvrons l’enquête auprès du transporteur et, sans attendre son
+        résultat, nous vous renvoyons la pièce (si elle est encore disponible) ou vous remboursons intégralement.
+        Jusqu’à sa remise entre vos mains, le colis voyage sous notre responsabilité.
       </p>
       <h2>Retours sous 14 jours</h2>
       <p>
@@ -234,6 +244,7 @@ export function PrivacyPage() {
   const SHOP = useShop();
   return (
     <Prose title="Politique de confidentialité">
+      <p>Ce que le site collecte, pourquoi, combien de temps, et vos droits (RGPD).</p>
       <p><em>{updated}</em></p>
 
       <h2>Qui est responsable de vos données ?</h2>
