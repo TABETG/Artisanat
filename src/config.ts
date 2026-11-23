@@ -3,17 +3,22 @@
 // ============================================================
 export const SHOP = {
   name: 'Artisanat',
-  tagline: 'Tapis, bijoux et beauté berbères faits main',
+  tagline: 'Bijoux, accessoires et décoration faits main en France',
   since: 1982,
+  // Coordonnées affichées aux clients : modifiables sans code dans Espace vendeur → Réglages → Coordonnées
   email: 'contact@exemple.fr',
-  phone: '+33 6 00 00 00 00',
-  whatsapp: '33600000000', // numéro au format international, sans + ni espaces
-  address: 'Adresse de l’atelier à compléter',
-  legalName: 'Raison sociale à compléter',
-  legalForm: 'Entreprise individuelle',
-  siret: 'à compléter',
-  vat: 'TVA non applicable, art. 293 B du CGI (à adapter)',
-  host: 'Netlify, Inc. — 512 2nd Street, Suite 200, San Francisco, CA 94107, USA',
+  phone: '',
+  whatsapp: '', // numéro au format international, sans + ni espaces
+  address: '10 avenue du Général Leclerc, 77680 Roissy-en-Brie, France',
+  // Identité légale du vendeur (mentions légales, CGV, factures)
+  legalName: 'Djalal TABET',
+  legalForm: 'Entrepreneur individuel (EI), micro-entreprise',
+  siret: '952 798 098 00051',
+  register: 'Immatriculé au Registre national des entreprises (RNE)',
+  vat: 'TVA non applicable, article 293 B du Code général des impôts',
+  publicationDirector: 'Djalal TABET',
+  host: 'Netlify, Inc., 101 2nd Street, San Francisco, CA 94105, États-Unis (www.netlify.com)',
+  dataHost: 'Supabase Pte. Ltd. (Singapour) ; données stockées dans l’Union européenne (Francfort, Allemagne)',
   instagram: '',
   facebook: '',
 };

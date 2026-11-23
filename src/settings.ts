@@ -37,7 +37,7 @@ Texte à personnaliser dans Espace vendeur → Réglages : racontez ici l’hist
   shipping_zones: DEFAULT_ZONES,
   shipping_methods: DEFAULT_METHODS,
   preparation_days: 2,
-  marketplace_enabled: true,
+  marketplace_enabled: false,
   marketplace_commission_percent: 15,
   mediator: '',
 };

@@ -33,7 +33,7 @@ export function GiftCardPage() {
       <div className="md:sticky md:top-24">
         <div className="lisiere-fine w-16 mb-5" aria-hidden />
       <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Carte cadeau</h1>
-        <p className="lecture mt-5 text-[1.2rem] text-encre/80">Offrez un tapis tissé à la main, en laissant le plaisir du choix. Valable un an sur toute la boutique.</p>
+        <p className="lecture mt-5 text-[1.2rem] text-encre/80">Offrez une création faite main, en laissant le plaisir du choix. Valable un an sur toute la boutique.</p>
         <div className="mt-8 aspect-[1.6/1] rounded-lg bg-nuit text-laine p-6 sm:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden" aria-hidden>
           <div className="absolute inset-x-0 bottom-0 motif opacity-80" />
           <div className="flex justify-between items-start">

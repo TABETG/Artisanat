@@ -14,9 +14,9 @@ export function ContactPage() {
         Une question sur une pièce, une dimension sur mesure, le suivi d’une commande ? Nous répondons en général sous 24 heures.
       </p>
       <div className="mt-10 grid gap-4 sm:grid-cols-3">
-        <ContactCard href={`https://wa.me/${SHOP.whatsapp}`} icon={<MessageCircle className="w-6 h-6" />} title="WhatsApp" text="Écrire un message" />
+        {SHOP.whatsapp && <ContactCard href={`https://wa.me/${SHOP.whatsapp}`} icon={<MessageCircle className="w-6 h-6" />} title="WhatsApp" text="Écrire un message" />}
         <ContactCard href={`mailto:${SHOP.email}`} icon={<Mail className="w-6 h-6" />} title="Email" text={SHOP.email} />
-        <ContactCard href={`tel:${SHOP.phone.replace(/\s/g, '')}`} icon={<Phone className="w-6 h-6" />} title="Téléphone" text={SHOP.phone} />
+        {SHOP.phone && <ContactCard href={`tel:${SHOP.phone.replace(/\s/g, '')}`} icon={<Phone className="w-6 h-6" />} title="Téléphone" text={SHOP.phone} />}
       </div>
       <button onClick={() => openContact('contact')} className="mt-8 bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-garance">Écrire un message</button>
       <p className="mt-10 text-henne">{SHOP.address}</p>

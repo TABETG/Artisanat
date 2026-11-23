@@ -8,7 +8,7 @@ import { ThankYouPage, CancelledPage } from './pages/CheckoutResultPages';
 import { StoryPage } from './pages/StoryPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { ContactPage } from './pages/ContactPage';
-import { ShippingPage, TermsPage, LegalPage, PrivacyPage, SellerTermsPage } from './pages/LegalPages';
+import { ShippingPage, TermsPage, LegalPage, PrivacyPage, SellerTermsPage, CookiesPage, WithdrawalFormPage } from './pages/LegalPages';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrderTrackingPage } from './pages/OrderTrackingPage';
 import { FaqPage } from './pages/FaqPage';
@@ -77,6 +77,8 @@ export default function App() {
         <Route path="conditions-generales-de-vente" element={<TermsPage />} />
         <Route path="mentions-legales" element={<LegalPage />} />
         <Route path="confidentialite" element={<PrivacyPage />} />
+        <Route path="cookies" element={<CookiesPage />} />
+        <Route path="formulaire-de-retractation" element={<WithdrawalFormPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 

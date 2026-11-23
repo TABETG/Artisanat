@@ -22,7 +22,7 @@ export function ThankYouPage() {
     <div className="max-w-2xl mx-auto px-5 pt-20 text-center">
       <h1 className="font-display text-4xl md:text-5xl text-nuit">Merci pour votre commande</h1>
       <p className="mt-5 text-lg leading-relaxed">
-        Votre paiement est confirmé. Un reçu vient de vous être envoyé par email.
+        Votre paiement est confirmé. Vous recevrez la confirmation de commande par email.
         Nous préparons votre colis avec soin et vous enverrons le numéro de suivi dès l’expédition.
       </p>
       <p className="mt-4 text-henne">Une question ? <a className="text-garance underline" href={`mailto:${settings.email}`}>{settings.email}</a></p>

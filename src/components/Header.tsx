@@ -7,6 +7,7 @@ import { usePanels } from '../context/PanelsContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 import { SHOP } from '../config';
+import { useSettings } from '../context/SettingsContext';
 
 const links = [
   { to: '/boutique', label: 'Boutique' },
@@ -22,6 +23,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const { openMenu } = usePanels();
   const { customer } = useCustomer();
+  const { settings } = useSettings();
   const icon = 'relative p-1.5 sm:p-2.5 text-nuit hover:text-garance';
 
   return (
@@ -34,12 +36,12 @@ export function Header() {
           <Mark className="w-8 h-8 sm:w-10 sm:h-10 shrink-0" />
           <span className="leading-none">
             <span className="block font-display text-[1.45rem] sm:text-[1.7rem] text-nuit">{SHOP.name}</span>
-            <span className="hidden sm:block lg:hidden xl:block text-[11px] tracking-wide text-henne mt-0.5">tissé à la main depuis {SHOP.since}</span>
+            <span className="hidden sm:block lg:hidden xl:block text-[11px] tracking-wide text-henne mt-0.5">fait main en France</span>
           </span>
         </Link>
 
         <nav className="hidden lg:flex items-center gap-5 xl:gap-7 ml-2 xl:ml-6" aria-label="Navigation principale">
-          {links.map((l) => (
+          {links.filter((l) => l.to !== '/artisans' || settings.marketplace_enabled).map((l) => (
             <NavLink key={l.to} to={l.to} className={`lien-tisse text-[15px] text-nuit pb-0.5 whitespace-nowrap ${l.to === '/carte-cadeau' ? 'hidden xl:inline' : ''}`}>{l.label}</NavLink>
           ))}
         </nav>

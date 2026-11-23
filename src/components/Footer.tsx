@@ -29,8 +29,8 @@ export function Footer() {
                 <li><Link className={a} to="/univers/maison">Univers Maison</Link></li>
                 <li><Link className={a} to="/univers/bijoux">Univers Bijoux</Link></li>
                 <li><Link className={a} to="/nos-realisations">Nos réalisations</Link></li>
-                <li><Link className={a} to="/artisans">Nos artisans</Link></li>
-                <li><Link className={a} to="/vendre">Vendre mes créations</Link></li>
+                {settings.marketplace_enabled && <li><Link className={a} to="/artisans">Nos artisans</Link></li>}
+                {settings.marketplace_enabled && <li><Link className={a} to="/vendre">Vendre mes créations</Link></li>}
                 <li><Link className={a} to="/notre-histoire">L’atelier</Link></li>
               </ul>
             </div>
@@ -53,8 +53,10 @@ export function Footer() {
           <span className="flex flex-wrap gap-x-4 gap-y-2 lg:ml-auto">
             <Link className="hover:text-laine" to="/conditions-generales-de-vente">Conditions de vente</Link>
             <Link className="hover:text-laine" to="/mentions-legales">Mentions légales</Link>
-            <Link className="hover:text-laine" to="/conditions-vendeurs">Conditions vendeurs</Link>
+            {settings.marketplace_enabled && <Link className="hover:text-laine" to="/conditions-vendeurs">Conditions vendeurs</Link>}
             <Link className="hover:text-laine" to="/confidentialite">Confidentialité</Link>
+            <Link className="hover:text-laine" to="/cookies">Cookies</Link>
+            <Link className="hover:text-laine" to="/formulaire-de-retractation">Formulaire de rétractation</Link>
             <button className="hover:text-laine" onClick={() => openContact('donnees')}>Gérer mes données</button>
             <Link className="hover:text-laine" to="/admin">Espace vendeur</Link>
           </span>

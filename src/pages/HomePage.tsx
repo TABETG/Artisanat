@@ -129,7 +129,7 @@ export function HomePage() {
           <div className="lisiere-fine w-16 mb-5" aria-hidden />
           <h2 className="font-display text-nuit text-[2.6rem] sm:text-6xl">{years} ans de savoir-faire et de patience</h2>
           <p className="lecture mt-6 text-encre/80">
-            La laine est filée et teinte à la main, l’argent ciselé, les poudres broyées selon les recettes d’autrefois.
+            Le métal est ciselé, les perles enfilées, la laine tissée à la main, en France.
             Chaque pièce demande du temps : aucune n’est identique à une autre.
           </p>
           <Link to="/notre-histoire" className="inline-block mt-8 lien-tisse text-nuit text-lg font-medium pb-0.5">Découvrir l’atelier</Link>
