@@ -127,7 +127,7 @@ export function HomePage() {
       <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-20 md:pt-28 grid gap-10 md:gap-12 md:grid-cols-12 items-center">
         <div className="md:col-span-6 lg:col-span-5 order-2 md:order-1">
           <div className="lisiere-fine w-16 mb-5" aria-hidden />
-          <h2 className="font-display text-nuit text-[2.6rem] sm:text-6xl">{years} ans de savoir-faire et de patience</h2>
+          <h2 className="font-display text-nuit text-[2.6rem] sm:text-6xl">{years} ans de savoir-faire familial</h2>
           <p className="lecture mt-6 text-encre/80">
             Le métal est ciselé, les perles enfilées, la laine tissée à la main, en France.
             Chaque pièce demande du temps : aucune n’est identique à une autre.

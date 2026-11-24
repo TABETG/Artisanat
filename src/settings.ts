@@ -17,10 +17,10 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   facebook: SHOP.facebook,
   categories: CATEGORIES.map((c) => ({ ...c })),
   hero_title: 'L’artisanat fait main, pièce après pièce.',
-  hero_subtitle: `Bijoux, accessoires et objets de décoration fabriqués à la main en France depuis ${SHOP.since}, livrés chez vous.`,
-  story: `Tout commence en ${SHOP.since}, autour d’un métier à tisser familial. Depuis, le geste n’a pas changé : la laine de mouton est lavée, cardée, filée puis teinte avant d’être nouée fil à fil.
+  hero_subtitle: `Bijoux, accessoires et objets de décoration faits main en France, portés par un savoir-faire familial transmis depuis ${SHOP.since}.`,
+  story: `Tout commence en ${SHOP.since}, avec un savoir-faire familial transmis de génération en génération.
 
-Nos tapis reprennent les motifs transmis de génération en génération : losanges, chevrons, lignes brisées. Chaque tisserande y laisse sa marque, si bien qu’aucune pièce n’est la copie d’une autre.
+Aujourd’hui, l’atelier est installé en France. Bijoux, accessoires, objets de décoration et tapis y sont façonnés à la main, pièce par pièce, si bien qu’aucune n’est la copie d’une autre.
 
 Texte à personnaliser dans Espace vendeur → Réglages : racontez ici l’histoire de votre famille et de votre atelier.`,
   gift_message_enabled: true,

@@ -29,7 +29,7 @@ export function Layout() {
     el.type = 'application/ld+json';
     el.text = JSON.stringify([
       { '@context': 'https://schema.org', '@type': 'Organization', name: SHOP.name, url: window.location.origin, logo: `${window.location.origin}/icone-vendeur-512.png`,
-        email: settings.email, telephone: settings.phone || undefined, foundingDate: String(SHOP.since), sameAs: [settings.instagram, settings.facebook].filter(Boolean) },
+        email: settings.email, telephone: settings.phone || undefined, sameAs: [settings.instagram, settings.facebook].filter(Boolean) },
       { '@context': 'https://schema.org', '@type': 'WebSite', name: SHOP.name, url: window.location.origin,
         potentialAction: { '@type': 'SearchAction', target: `${window.location.origin}/boutique?recherche={search_term_string}`, 'query-input': 'required name=search_term_string' } },
     ]);

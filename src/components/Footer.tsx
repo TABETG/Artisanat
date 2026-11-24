@@ -16,7 +16,7 @@ export function Footer() {
         <div className="grid gap-12 md:grid-cols-[1.2fr_1fr]">
           <div>
             <p className="font-display text-[2.8rem] sm:text-[4.5rem] lg:text-[5.5rem] leading-[0.9]">Chaque pièce<br />a une histoire.</p>
-            <p className="lecture mt-5 text-laine/75 max-w-md">Bijoux, accessoires et décoration, fabriqués à la main en France depuis {SHOP.since}.</p>
+            <p className="lecture mt-5 text-laine/75 max-w-md">Bijoux, accessoires et décoration faits main en France. Un savoir-faire familial transmis depuis {SHOP.since}.</p>
           </div>
           <div className="grid grid-cols-2 gap-8 content-start">
             <div>
