@@ -1,137 +1,130 @@
 # Mettre la boutique en ligne — guide pas à pas
 
-Durée : environ 1 heure. Aucune installation sur votre ordinateur.
+Boutique unique : **France**, prix en **euros**, paiement par **carte** (Stripe), livraison en **France métropolitaine**.
+Aucune installation sur votre ordinateur : tout passe par Docker, GitHub et les sites des services.
 
-| Service | Rôle | Prix |
-|---|---|---|
-| **Netlify** | Héberge le site | Gratuit |
-| **Supabase** | Produits, photos, commandes, connexion vendeur | Gratuit |
-| **Stripe** | Paiement Visa, Mastercard, CB, Apple Pay, Google Pay | Aucun abonnement, commission par vente (≈ 1,5 % + 0,25 € par carte européenne — voir stripe.com/fr/pricing) |
-| Nom de domaine (ex. `artisanat.fr`) | Adresse du site | ≈ 10 € / an (OVH, Gandi, ou directement dans Netlify) |
+Coûts détaillés, avec les liens officiels : [COUTS.md](COUTS.md). Ordre de lancement : [CHECKLIST-LANCEMENT.md](CHECKLIST-LANCEMENT.md).
+
+> **Règles de sécurité**
+> - Une clé secrète ne va **jamais** dans une variable qui commence par `VITE_` (visible par les visiteurs). La construction du site s’arrête si c’est le cas.
+> - Les clés secrètes se saisissent **uniquement** dans Netlify (*Keys and secrets*), jamais dans le code, un email ou une discussion.
+> - Le passage de Stripe en paiement réel se fait en dernier, une fois tout vérifié en mode test.
 
 ---
 
-## 0. Voir le site tout de suite (mode démonstration)
+## 0. Voir le site sur votre ordinateur (mode démonstration)
 
 ```bash
-/c/Windows/System32/tar.exe -xf Artisanat.zip
-cd Artisanat
+cd /c/FORMATION/Artisanat
 docker compose up
 ```
 Ouvrir http://localhost:5173 — produits et photos d’exemple, paiement simulé.
-
 Espace vendeur de démonstration : http://localhost:5173/admin — identifiants préremplis `demo@artisanat.fr` / `demo`.
-Tout ce que vous ajoutez reste dans votre navigateur (bouton « Réinitialiser la démonstration » en haut).
+
+Lancer les tests automatiques (paiement, stock, remboursements, livraison, emails) :
+```bash
+docker compose -f docker-compose.tests.yml run --rm tests
+```
 
 ---
 
 ## 1. Supabase (base de données)
 
-1. Créer un compte sur https://supabase.com → **New project** (région : *Europe West — Paris* ou *Frankfurt*).
-2. **SQL Editor → New query** : coller tout le fichier `supabase/schema.sql` → **Run**.
-3. **Authentication → Users → Add user → Create new user** : email + mot de passe du propriétaire (cocher *Auto Confirm User*).
-   *Facultatif* : coller aussi `supabase/produits-exemple.sql` pour avoir 6 produits avec photos d’exemple.
+1. Compte sur https://supabase.com → **New project**, région **Europe (Frankfurt)** ou **Paris**.
+2. **SQL Editor → New query** : coller tout `supabase/schema.sql` → **Run**.
+   Ce fichier se relance sans risque : **après chaque mise à jour du site qui touche la base, relancez-le en entier**.
+3. **Authentication → Users → Add user → Create new user** : email + mot de passe du propriétaire (*Auto Confirm User*).
 4. Ouvrir `supabase/ajouter-proprietaire.sql`, remplacer l’email, le coller dans le SQL Editor → **Run**.
-5. **Authentication → Sign In / Providers** : laisser **Allow new users to sign up** activé et **Email** activé : c’est ce qui permet aux clients de créer leur compte par simple lien email. (L’espace vendeur reste protégé : seuls les comptes ajoutés dans *Équipe* y ont accès.)
-   **Authentication → Emails → SMTP Settings** : renseigner le serveur SMTP de Resend (`smtp.resend.com`, port 465, utilisateur `resend`, mot de passe = votre clé Resend) pour que les liens de connexion partent de votre adresse et sans limite.
-6. **Project Settings → API** : noter `Project URL`, la clé `anon public` et la clé `service_role` (secrète).
+5. **Authentication → Sign In / Providers** : laisser **Email** activé (les clients se connectent par lien email ; l’espace vendeur reste réservé aux comptes de l’onglet *Équipe*).
+6. **Authentication → URL Configuration** : *Site URL* = l’adresse du site ; *Redirect URLs* : `https://VOTRE-SITE/compte` et `https://VOTRE-SITE/admin/nouveau-mot-de-passe`.
+7. **Project Settings → API Keys** : noter l’adresse du projet (`https://xxxx.supabase.co`), la clé **publishable** (`sb_publishable_…`) et la clé **secret** (`sb_secret_…`).
+
+Le plan gratuit met le projet en pause après **7 jours sans activité**. Une boutique visitée chaque jour n’est pas concernée ; avant l’ouverture, ouvrez l’espace vendeur au moins une fois par semaine.
 
 ## 2. Stripe (paiement)
 
-1. Créer un compte sur https://stripe.com/fr et **activer le compte** (SIRET, IBAN, pièce d’identité).
-2. **Développeurs → Clés API** : noter la **clé secrète** (`sk_test_...` pour tester, `sk_live_...` pour vendre).
-3. **Paramètres → Moyens de paiement** : vérifier Cartes, Apple Pay, Google Pay (PayPal activable ici aussi).
-4. **Paramètres → Emails clients** : activer **Paiements réussis** (le client reçoit son reçu).
-5. **Paramètres → Notifications** : activer les emails de paiement réussi pour vous.
+1. Compte sur https://dashboard.stripe.com, en **mode test** (*sandbox*) pour commencer.
+2. **Développeurs → Clés API** : noter la **clé secrète** (`sk_test_…`).
+3. **Paramètres → Moyens de paiement** : Cartes, Apple Pay, Google Pay. Désactivez ce que vous ne voulez pas proposer (Klarna, Bancontact, Amazon Pay…).
+4. **Paramètres → Emails clients** : activer **Paiements réussis** (reçu Stripe).
+5. Activation du compte réel (SIRET, IBAN, pièce d’identité) : à faire, mais le passage en réel n’intervient qu’à l’étape 5.
 
 ## 3. Netlify (hébergement)
 
-1. Mettre le projet sur GitHub (dépôt privé) :
-   ```bash
-   cd Artisanat
-   git init && git add . && git commit -m "Boutique Artisanat"
-   git branch -M main
-   git remote add origin https://github.com/TABETG/Artisanat.git
-   git push -u origin main
-   ```
-2. https://app.netlify.com → **Add new site → Import an existing project → GitHub** → choisir le dépôt. Les réglages sont lus depuis `netlify.toml`.
-3. **Site configuration → Environment variables** : ajouter
+1. https://app.netlify.com → **Add new site → Import an existing project → GitHub** → dépôt `TABETG/Artisanat`, branche **`develop`**. Les réglages sont lus dans `netlify.toml` (Node 22).
+2. **Site configuration → Environment variables** (*Keys and secrets*) :
 
-   | Nom | Valeur |
-   |---|---|
-   | `VITE_SUPABASE_URL` | Project URL Supabase |
-   | `VITE_SUPABASE_ANON_KEY` | clé `anon public` |
-   | `SUPABASE_SERVICE_ROLE_KEY` | clé `service_role` |
-   | `STRIPE_SECRET_KEY` | clé secrète Stripe |
-   | `STRIPE_WEBHOOK_SECRET` | (étape 4) |
+   | Nom | Valeur | Visible par les visiteurs ? |
+   |---|---|---|
+   | `VITE_SUPABASE_URL` | adresse du projet Supabase | oui (normal) |
+   | `VITE_SUPABASE_ANON_KEY` | clé `sb_publishable_…` | oui (normal) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | clé `sb_secret_…` | **non, secrète** |
+   | `STRIPE_SECRET_KEY` | `sk_test_…` (puis `sk_live_…`) | **non, secrète** |
+   | `STRIPE_WEBHOOK_SECRET` | `whsec_…` (étape 4) | **non, secrète** |
+   | `AWS_LAMBDA_JS_RUNTIME` | `nodejs22.x` | non — **obligatoire**, sinon les fonctions échouent (« native WebSocket not found ») |
+   | `GIFT_CARD_SECRET` | longue phrase aléatoire | **non, secrète** — conseillé |
+   | `OWNER_EMAIL` | votre email (alertes de commande) | non — facultatif |
 
+3. **Site configuration → General → Visibility** : *Production* en **Public** (sinon ni les clients ni Stripe n’accèdent au site).
 4. **Deploys → Trigger deploy**. Le site est en ligne sur `https://xxx.netlify.app`.
-5. Retour dans Supabase → **Authentication → URL Configuration** : *Site URL* = l’adresse Netlify, et dans *Redirect URLs* ajouter `https://VOTRE-SITE/compte` et `https://VOTRE-SITE/admin/nouveau-mot-de-passe`.
+
+**Chaque `git push` sur `develop` publie le site.** Sur le plan gratuit, chaque publication consomme 15 crédits sur 300 par mois, soit environ 20 publications par mois : regroupez vos modifications. Si les crédits sont épuisés, le site affiche « Site not available » jusqu’au mois suivant. Suivi : Netlify → **Usage & billing**.
 
 ## 4. Relier Stripe au site (webhook)
 
 1. Stripe → **Développeurs → Webhooks → Ajouter une destination**.
-2. Événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded` et `checkout.session.expired` (relance des paniers abandonnés).
-3. URL : `https://VOTRE-SITE.netlify.app/.netlify/functions/stripe-webhook`
-4. Copier le **secret de signature** (`whsec_...`) dans Netlify → `STRIPE_WEBHOOK_SECRET` → redéployer.
+2. URL : `https://VOTRE-SITE/.netlify/functions/stripe-webhook`
+3. Événements (8) :
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`,
+   `charge.refunded`, `refund.created`, `refund.updated`, `refund.failed`.
+4. Copier le **secret de signature** (`whsec_…`) dans Netlify → `STRIPE_WEBHOOK_SECRET` → redéployer.
 
-## 4 bis. Emails automatiques (facultatif, gratuit jusqu’à 3 000 emails / mois)
+Ce que fait le webhook, une seule fois par événement même si Stripe le renvoie : enregistre la commande, décompte le stock, numérote la facture, envoie les emails ; libère la réservation des paiements abandonnés ; reprend les remboursements faits depuis le tableau de bord Stripe.
+
+## 4 bis. Emails automatiques (Resend — nécessite votre nom de domaine)
 
 Sans cette étape, tout fonctionne : l’espace vendeur ouvre votre messagerie avec le message déjà rédigé.
-Avec cette étape, les emails partent tout seuls :
 
 | Email | Destinataire | Quand |
 |---|---|---|
-| « Votre commande est en route » + lien de suivi | client | vous passez une commande en « Expédiée » |
-| « … est de nouveau disponible » + photo | clients inscrits | vous remettez en stock un produit en rupture |
-| « Commande n° … confirmée » | client | juste après le paiement |
-| « Nouvelle commande » | vous | à chaque paiement |
-| « Rupture de stock » | vous | une vente fait tomber un stock à 0 |
-| « Demande sur mesure » | vous | un client envoie une demande |
-| Code de la carte cadeau | acheteur et destinataire | après l’achat d’une carte |
+| « Commande n° … confirmée » (on la prépare) | client | juste après le paiement |
+| « Votre commande est en route » + lien de suivi | client | commande passée en *Expédiée* |
+| « Votre commande a été annulée » | client | commande passée en *Annulée* (case cochée) |
+| « Votre remboursement est effectué » | client | bouton *Rembourser* |
+| « … est de nouveau disponible » | clients inscrits | remise en stock |
+| Code de la carte cadeau | acheteur et destinataire | après l’achat |
+| « Nouvelle commande », « Rupture de stock », demandes et retours | vous | à chaque événement |
 
-1. Créer un compte sur https://resend.com.
-2. **Domains → Add domain** : votre nom de domaine, puis ajouter chez votre registraire les lignes DNS indiquées (10 minutes).
-3. **API Keys → Create API key**.
-4. Dans Netlify, ajouter puis redéployer :
+1. Acheter le nom de domaine, puis compte sur https://resend.com → **Domains → Add domain** → ajouter chez le registraire les lignes DNS indiquées.
+2. **API Keys → Create API key**.
+3. Netlify, puis redéployer :
 
    | Nom | Valeur |
    |---|---|
-   | `RESEND_API_KEY` | la clé Resend |
-   | `EMAIL_FROM` | `Artisanat <boutique@votre-domaine.fr>` |
-   | `OWNER_EMAIL` | votre email personnel |
+   | `RESEND_API_KEY` | la clé Resend (**secrète**) |
+   | `EMAIL_FROM` | `Nom de la boutique <commandes@votre-domaine.fr>` |
+   | `OWNER_EMAIL` | votre email |
 
-## 4 ter. Paiement en 3 fois avec Klarna (facultatif)
+4. Supabase → **Authentication → Emails → SMTP Settings** : `smtp.resend.com`, port 465, utilisateur `resend`, mot de passe = clé Resend (les liens de connexion des clients partent alors de votre domaine).
+5. Coordonnées affichées sur le site : *Espace vendeur → Réglages → Coordonnées* (email `contact@…`, téléphone, médiateur).
 
-Stripe → **Paramètres → Moyens de paiement → Klarna → Activer**. Puis dans l’espace vendeur, **Réglages → Paiement en plusieurs fois** pour afficher « ou 3 × … sans frais » sur les fiches produit. Vous êtes payé en une seule fois, Klarna prend le risque.
+## 5. Tester, puis passer en paiement réel
 
-## 4 quater. Place de marché : d’autres artisans vendent sur le site (facultatif)
+1. `/admin` → **Ajouter un produit** avec une photo.
+2. L’acheter avec la carte de test `4242 4242 4242 4242`, date future, code `123`.
+3. Vérifier : commande dans **Commandes**, stock baissé, facture numérotée ; puis tester *Expédiée*, *Rembourser* et un retour.
+4. **Passage en réel (avec votre accord explicite, en dernier)** : Stripe en mode réel → nouvelle clé `sk_live_…` dans `STRIPE_SECRET_KEY`, **nouveau webhook** créé en mode réel (mêmes 8 événements) et son `whsec_…` dans `STRIPE_WEBHOOK_SECRET`, redéployer, puis une vraie commande de quelques euros, remboursée ensuite.
 
-1. Stripe → **Connect → Commencer** : choisir « Plateforme » et le type de compte **Express**. Stripe vérifie l’identité de chaque artisan et lui verse l’argent : vous n’avez jamais à gérer les virements vous-même (et c’est obligatoire : encaisser pour le compte d’autrui sans passer par un prestataire agréé est interdit).
-2. Dans **Connect → Paramètres**, renseigner le nom de la boutique, le logo et l’adresse du site.
-3. Coût Stripe Connect Express : environ 2 € par mois et par artisan actif, plus environ 0,25 % + 0,10 € par virement (voir stripe.com/fr/connect/pricing). Votre commission (15 % par défaut) couvre largement ces frais.
-4. Dans l’espace vendeur, **Réglages → Place de marché** : ouvrir les candidatures et fixer la commission.
-5. À faire valider par un juriste avant l’ouverture : les *Conditions pour les vendeurs* (page `/conditions-vendeurs`) et la section « artisans partenaires » des CGV. Obligations principales : indiquer clairement qui vend (déjà affiché sur chaque fiche), vérifier l’identité des vendeurs (fait par Stripe), et déclarer chaque année les ventes des artisans à l’administration fiscale (directive **DAC7**, via impots.gouv.fr) dès qu’un artisan dépasse 30 ventes ou 2 000 € par an.
+## 6. Où se règle quoi
 
-Seuls les artisans résidant dans un pays pris en charge par Stripe Connect peuvent être payés (Union européenne, Royaume-Uni, Suisse, Norvège…).
-
-## 5. Tester avant d’ouvrir
-
-1. Aller sur `/admin`, se connecter, **Ajouter un produit** avec une photo.
-2. L’acheter sur le site avec la carte de test `4242 4242 4242 4242`, date future, code `123`.
-3. Vérifier : la commande apparaît dans **Commandes**, le stock a baissé, le reçu est arrivé.
-4. Passer en réel : remplacer les clés `sk_test` par `sk_live`, recréer le webhook en mode réel, redéployer.
-
-## 6. Personnaliser
-
-- Nom, email, téléphone, WhatsApp, SIRET, adresse : `src/config.ts`
-- Frais, délais et coordonnées : *Espace vendeur → Réglages* (sans toucher au code)
-- Liste des pays proposés : `src/shipping.ts` (zones et tarifs : onglet *Livraison*)
-- Photos d’exemple : dossier `public/exemples/` (illustrations générées, à remplacer par vos vraies photos)
-- Textes « Notre histoire » et pages légales : `src/pages/StoryPage.tsx`, `src/pages/LegalPages.tsx` (à faire relire)
-- Nom de domaine : Netlify → **Domain management → Add a domain**
-
-Chaque `git push` met le site à jour automatiquement.
+| Élément | Où |
+|---|---|
+| Nom, raison sociale, SIRET, adresse, TVA, hébergeurs | `src/config.ts` |
+| Email, téléphone, médiateur, réseaux sociaux | Espace vendeur → Réglages → Coordonnées |
+| Frais, délais, préparation | Espace vendeur → Livraison |
+| Accueil, « Notre histoire », catégories, bandeau | Espace vendeur → Réglages |
+| Pages légales | `src/pages/LegalPages.tsx` ; registre RGPD : `docs/registre-des-traitements.md` |
+| Nom de domaine | Netlify → Domain management → Add a domain |
 
 ---
 
@@ -155,11 +148,11 @@ Chaque `git push` met le site à jour automatiquement.
 
 **Codes promo** : onglet *Codes promo* → code, réduction en % ou en €, date de fin, nombre d’utilisations, montant minimum. Le client le saisit sur la page de paiement ; la remise et le code apparaissent dans la commande.
 
-**Livraison** (onglet *Livraison*) :
-- *Zones* : regroupez les pays qui ont les mêmes tarifs (France, Europe, Suisse et Royaume-Uni, reste du monde…).
-- *Modes* : point relais, Colissimo à domicile, Chronopost express, retrait à l’atelier, transporteur… Pour chacun : prix par zone (vide = non proposé), livraison offerte dès un montant, supplément grand tapis (plus de 3 m²), délais, et refus des grands tapis (utile pour les points relais).
-- *Préparation* : jours avant l’expédition, ajoutés aux délais.
-Le client choisit son pays et son mode dans le panier, voit la date de livraison estimée sur chaque fiche produit, et le prix est recalculé au paiement. Les tarifs sont publiés automatiquement sur la page *Livraison et retours*.
+**Livraison** (onglet *Livraison*, France métropolitaine uniquement) :
+- *Modes* : point relais (Mondial Relay), Colissimo à domicile, Chronopost express, retrait à l’atelier… Pour chacun : prix (vide = non proposé), livraison offerte dès un montant, supplément grand tapis (plus de 3 m²), délais, et refus des grands tapis (utile pour les points relais).
+- *Préparation* : jours avant l’expédition. Ce chiffre est repris partout : fiches produit, panier, page *Livraison et retours* et CGV.
+- *Point relais* : le client indique le point souhaité sur la page de paiement ; il apparaît dans la commande. S’il ne l’a pas fait, un rappel jaune vous invite à lui écrire avant d’expédier. Le bordereau se crée sur le site de Mondial Relay (aucune intégration payante).
+Le client choisit son mode dans le panier, voit la date de livraison estimée sur chaque fiche produit, et le prix est recalculé au paiement.
 
 **Clients** : tous vos acheteurs, avec leurs commandes, le total dépensé, les clients fidèles, l’inscription à la lettre et l’export Excel.
 
@@ -179,7 +172,7 @@ Le client choisit son pays et son mode dans le panier, voit la date de livraison
 
 **Mon compte (clients)** : connexion sans mot de passe, par lien envoyé par email. Le client y retrouve ses commandes (suivi, facture, retour, « Commander à nouveau »), ses favoris sur tous ses appareils, ses cartes cadeaux, son inscription à la lettre et l’export de ses données (RGPD).
 
-**Paniers abandonnés** : si un client quitte la page de paiement sans payer et a accepté les emails, il reçoit automatiquement « Votre panier vous attend » avec un lien pour reprendre sa commande.
+**Paniers abandonnés** : la pièce réservée est libérée automatiquement quand la page de paiement expire (32 minutes). Aucun email de relance n’est envoyé : Stripe ne permet pas de recueillir l’accord du client en France.
 
 **Équipe et journal** : onglet *Équipe et journal* pour donner l’accès vendeur à un associé (il reçoit une invitation) et voir l’historique des actions (produits, commandes, remboursements, réglages).
 
@@ -188,11 +181,12 @@ Le client choisit son pays et son mode dans le panier, voit la date de livraison
 **Types de produits** : chaque catégorie a un type (*Réglages → Catégories*) qui décide des champs de la fiche :
 - *Textile* (tapis, coussins, plaids) : dimensions, surface, hauteur des poils, guide des tailles.
 - *Bijoux* : métal, pierres et décor, taille ou longueur, mention « sans nickel ».
-- *Beauté et cosmétiques* (khôl, rouge à lèvres, aker fassi…) : contenance, ingrédients INCI, mode d’emploi, précautions, durée après ouverture et référence CPNP. **Ces champs sont obligatoires : sans eux, le produit ne peut pas être mis en ligne.**
+- *Décoration et accessoires* : matière, dimensions.
+Les cosmétiques ne sont pas vendus sur cette boutique. Pour les bijoux, respecter les limites de nickel, plomb et cadmium (règlement REACH) : demandez un certificat à votre fournisseur.
 
-Avant de vendre un cosmétique fait maison (règlement européen 1223/2009) : désigner une personne responsable dans l’UE (vous, si vous êtes établi en France), faire réaliser l’évaluation de sécurité par un professionnel qualifié (quelques centaines d’euros par formule), tenir un dossier d’information produit, notifier le produit sur le portail CPNP (gratuit) et étiqueter l’emballage. Le khôl traditionnel à base de galène (plomb) est interdit. Pour les bijoux, respecter les limites de nickel, plomb et cadmium (règlement REACH) : demandez un certificat à votre fournisseur.
+**Pièce faite selon les choix d’un client** : dans la fiche produit, cochez *Pièce faite selon les choix d’un client : non retournable* uniquement pour une pièce fabriquée à sa demande (dimensions, couleurs, motif ou gravure choisis par lui). Le client en est averti sur la fiche, dans le panier et sur la page de paiement. Une pièce déjà fabriquée et mise en vente reste retournable 14 jours, même faite main.
 
-**Artisans partenaires** : un artisan candidate depuis la page *Vendre mes créations* (après s’être connecté). Onglet *Artisans partenaires* :
+**Artisans partenaires** (désactivé : *Réglages → Place de marché*, à n’ouvrir qu’après Stripe Connect et relecture juridique) : un artisan candidate depuis la page *Vendre mes créations* (après s’être connecté). Onglet *Artisans partenaires* :
 - *Candidatures* : valider ou refuser.
 - L’artisan validé active ses paiements (Stripe, 5 minutes), puis ajoute ses créations depuis *Mon compte → Mon atelier*.
 - *Produits à valider* : chaque création (et chaque changement de nom, prix, photo ou description) passe par vous avant d’être publiée.
@@ -201,7 +195,8 @@ Avant de vendre un cosmétique fait maison (règlement européen 1223/2009) : d�
 
 **Lettre d’information** : les visiteurs s’inscrivent en bas du site. Onglet *Lettre d’information* : écrivez l’objet et le message, choisissez jusqu’à 6 produits (photo + lien), envoyez-vous un test puis envoyez à tous. Chaque email contient un lien de désinscription (obligatoire). Nécessite l’étape 4 bis (Resend).
 
-**Retours** : le client demande un retour depuis *Suivre ma commande* (articles, motif). Onglet *Retours* : *Accepter et envoyer l’adresse*, puis à réception *Colis reçu : rembourser* (remboursement Stripe + remise en stock en un clic).
+**Retours** : le client demande un retour depuis *Suivre ma commande* (articles, motif). Onglet *Retours* : *Accepter et envoyer l’adresse*, puis à réception *Colis reçu : rembourser* (remboursement Stripe + remise en stock en un clic). Retour complet : articles et livraison initiale remboursés ; retour partiel : articles seulement. Les montants restent modifiables.
+Photographiez chaque pièce avant l’envoi et à l’ouverture d’un colis retourné : si la pièce a été utilisée (tapis sur lequel on a marché, bijou porté, étiquette retirée), déduisez la perte de valeur du montant remboursé (CGV, article 7).
 
 **Vente flash** : dans *Réglages → Bandeau d’annonce*, ajoutez une date de fin : le bandeau affiche un compte à rebours puis disparaît tout seul.
 
@@ -219,7 +214,8 @@ Avant de vendre un cosmétique fait maison (règlement européen 1223/2009) : d�
 - *À préparer* → imprimer le *bon de livraison* à glisser dans le colis.
 - Choisir le transporteur, saisir le numéro de suivi, passer en *Expédiée* : le client reçoit son email avec le lien de suivi.
 - *Exporter pour la comptabilité* : fichier Excel de toutes les commandes affichées.
-- *Rembourser* : directement depuis la commande, en totalité ou en partie, avec remise en stock des articles retournés. Le client reçoit un email de Stripe.
+- *Rembourser* : directement depuis la commande, en totalité ou en partie, avec remise en stock des articles retournés. Le client reçoit l’email « Votre remboursement est effectué » (case à décocher si besoin). Deux clics ne remboursent jamais deux fois.
+- *Annulée* : passer la commande en *Annulée* propose d’envoyer l’email d’annulation au client, puis rappelle de le rembourser (obligatoire sous 14 jours).
 - *Facture* : facture numérotée à imprimer ou enregistrer en PDF (numérotation continue).
 - Les clients suivent eux-mêmes leur colis sur `/suivi-commande` (email + code postal).
 
