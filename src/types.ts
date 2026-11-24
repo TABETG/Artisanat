@@ -88,6 +88,7 @@ export interface Order {
   tracking_number: string | null;
   tracking_carrier: string | null;
   shipped_email_sent_at: string | null;
+  cancelled_email_sent_at?: string | null;
   customer_message?: string | null;
   shipping_method?: string | null;
   discount_cents?: number;

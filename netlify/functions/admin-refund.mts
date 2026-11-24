@@ -8,12 +8,14 @@
 // Les remboursements faits depuis le tableau de bord Stripe sont repris par le webhook (sync_stripe_refund).
 import Stripe from 'stripe';
 import { json, requireAdmin, serviceClient } from '../shared/admin';
+import { canEmailCustomers, mailTools, sendEmails } from '../shared/email';
+import { refundEmail } from '../shared/order-emails';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 interface Body {
   orderId?: unknown; amountCents?: unknown; shippingCents?: unknown; restock?: unknown; reason?: unknown;
-  returnId?: unknown; restockItems?: unknown;
+  returnId?: unknown; restockItems?: unknown; notify?: unknown;
 }
 
 export default async (req: Request) => {
@@ -76,14 +78,39 @@ export default async (req: Request) => {
   const { error: finishError } = await supabase.rpc('finish_refund', { p_refund_id: refundId, p_status: status, p_stripe_refund_id: refund.id, p_error: null });
   if (finishError) console.error('finish_refund (le webhook rattrapera)', { refund: refundId, error: finishError.message });
 
-  const { data: updated } = await supabase.from('orders').select('refunded_cents,total_cents,status,note').eq('id', orderId).maybeSingle();
+  const { data: updated } = await supabase.from('orders').select('refunded_cents,total_cents,status,note,email,shipping_name').eq('id', orderId).maybeSingle();
+  const full = (updated?.refunded_cents ?? 0) >= (updated?.total_cents ?? Infinity);
+
+  // 4. Email au client (sauf si l'administrateur l'a décoché). Un échec d'email n'annule pas le remboursement.
+  let email: 'sent' | 'manual' | 'none' | 'failed' = 'none';
+  if (body.notify !== false && updated?.email && (status === 'succeeded' || status === 'pending')) {
+    email = await notifyRefund(supabase, Number(refundId), { id: orderId, email: updated.email, shipping_name: updated.shipping_name ?? null },
+      { amountCents: amount, shippingCents: shipping, full: full || amount >= (updated.total_cents ?? Infinity) });
+  }
+
   return json({
-    refund_id: refundId, status,
+    refund_id: refundId, status, email,
     refunded_cents: updated?.refunded_cents ?? 0,
-    full: (updated?.refunded_cents ?? 0) >= (updated?.total_cents ?? Infinity),
+    full,
     note: `${status === 'pending' ? 'Remboursement en cours' : 'Remboursé'} ${euro(amount)}${shipping ? ` (dont ${euro(shipping)} de livraison)` : ''} le ${new Date().toLocaleDateString('fr-FR')}${reason ? ` : ${reason}` : ''}`,
   });
 };
+
+async function notifyRefund(supabase: ReturnType<typeof serviceClient>, refundId: number,
+  order: { id: string; email: string; shipping_name: string | null }, r: { amountCents: number; shippingCents: number; full: boolean }) {
+  if (!canEmailCustomers()) return 'manual' as const;
+  const { data: claimed } = await supabase.from('refunds').update({ email_sent_at: new Date().toISOString() })
+    .eq('id', refundId).is('email_sent_at', null).select('id');
+  if (!claimed?.length) return 'sent' as const; // déjà envoyé
+  try {
+    await sendEmails([refundEmail(order, r, mailTools())]);
+    return 'sent' as const;
+  } catch (e) {
+    await supabase.from('refunds').update({ email_sent_at: null }).eq('id', refundId);
+    console.error('Email de remboursement', { refund: refundId, error: e instanceof Error ? e.message : 'inconnu' });
+    return 'failed' as const;
+  }
+}
 
 const euro = (c: number) => `${(c / 100).toFixed(2).replace('.', ',')} €`;
 

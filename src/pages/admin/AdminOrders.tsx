@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronDown, Download, ExternalLink, FileText, Mail, Printer, RotateCcw, Search, Truck } from 'lucide-react';
-import { adminListOrders, adminListRefunds, downloadFile, notifyShipped, ordersToCsv, refundOrder, updateOrder } from '../../lib/api';
+import { adminListOrders, adminListRefunds, downloadFile, notifyCancelled, notifyShipped, ordersToCsv, refundOrder, updateOrder } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
 import { formatDate, formatPrice } from '../../lib/format';
 import { Order, ORDER_STATUS, OrderStatus, REFUND_STATUS, type Refund } from '../../types';
@@ -105,6 +105,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
   const [tracking, setTracking] = useState(order.tracking_number ?? '');
   const [note, setNote] = useState(order.note ?? '');
   const [sendEmail, setSendEmail] = useState(!order.shipped_email_sent_at);
+  const [sendCancelEmail, setSendCancelEmail] = useState(!order.cancelled_email_sent_at);
   const [saving, setSaving] = useState(false);
   const [refunding, setRefunding] = useState(false);
   const [refundsVersion, setRefundsVersion] = useState(0);
@@ -130,6 +131,16 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
           message = 'Commande expédiée : le client a reçu son email de suivi';
         } else {
           window.location.href = mailtoShipped(updated);
+          message = 'Email automatique non configuré : votre messagerie s’est ouverte';
+        }
+      }
+      if (status === 'cancelled' && sendCancelEmail && order.email && !order.cancelled_email_sent_at) {
+        const r = await notifyCancelled(order.id);
+        if (r.mode === 'email') {
+          updated = { ...updated, cancelled_email_sent_at: new Date().toISOString() };
+          message = 'Commande annulée : le client a été prévenu par email';
+        } else {
+          window.location.href = mailtoCancelled(updated);
           message = 'Email automatique non configuré : votre messagerie s’est ouverte';
         }
       }
@@ -226,6 +237,21 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
             </span>
           </label>
         )}
+        {status === 'cancelled' && order.email && (
+          <label className="flex items-start gap-3 bg-stone-100 p-3 rounded-md cursor-pointer">
+            <input type="checkbox" checked={sendCancelEmail && !order.cancelled_email_sent_at} disabled={!!order.cancelled_email_sent_at}
+              onChange={(e) => setSendCancelEmail(e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
+            <span className="text-sm">
+              <span className="font-medium block">Envoyer l’email « Votre commande a été annulée » au client</span>
+              {order.cancelled_email_sent_at ? `Déjà envoyé le ${formatDate(order.cancelled_email_sent_at)}.` : 'Il annonce un remboursement complet sous 14 jours.'}
+            </span>
+          </label>
+        )}
+        {status === 'cancelled' && (order.refunded_cents ?? 0) < order.total_cents && order.total_cents > 0 && (
+          <p className="text-sm bg-garance/10 text-garance p-3 rounded-md">
+            Pensez à rembourser le client avec le bouton « Rembourser » : la loi impose un remboursement sous 14 jours.
+          </p>
+        )}
         <Field label="Note interne" optional hint="Visible par vous seulement.">
           <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
@@ -248,6 +274,7 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
   const remaining = order.total_cents - (order.refunded_cents ?? 0);
   const [amount, setAmount] = useState(centsToInput(remaining));
   const [restock, setRestock] = useState(true);
+  const [notify, setNotify] = useState(!!order.email);
   const [reason, setReason] = useState('');
   // Part « frais de livraison » du montant (pour l'historique) : par défaut, la livraison payée si on rembourse tout
   const [shippingInput, setShippingInput] = useState(centsToInput(remaining >= order.total_cents ? order.shipping_cents : 0));
@@ -260,10 +287,13 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
     if (!valid) return;
     setBusy(true);
     try {
-      const r = await refundOrder(order.id, { amountCents: cents!, shippingCents: Math.min(shipping ?? 0, cents!), restock, reason: reason.trim() });
+      const r = await refundOrder(order.id, { amountCents: cents!, shippingCents: Math.min(shipping ?? 0, cents!), restock, reason: reason.trim(), notify });
+      const mail = r.email === 'sent' ? ' Le client a été prévenu par email.'
+        : r.email === 'manual' ? ' Email automatique non configuré : prévenez le client vous-même.'
+        : r.email === 'failed' ? ' L’email au client n’a pas pu partir : prévenez-le vous-même.' : '';
       onDone({ ...order, refunded_cents: r.refunded_cents, status: r.full ? 'refunded' : order.status },
-        r.status === 'pending' ? `Remboursement de ${formatPrice(cents!)} en cours chez Stripe : le statut se mettra à jour seul.`
-          : `${formatPrice(cents!)} remboursés${restock ? ', articles remis en stock' : ''}.`);
+        (r.status === 'pending' ? `Remboursement de ${formatPrice(cents!)} en cours chez Stripe : le statut se mettra à jour seul.`
+          : `${formatPrice(cents!)} remboursés${restock ? ', articles remis en stock' : ''}.`) + mail);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Remboursement impossible');
       setBusy(false);
@@ -287,6 +317,12 @@ function RefundModal({ order, onClose, onDone, onError }: { order: Order; onClos
           <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
           <span><span className="font-medium">Remettre les articles en stock</span><span className="block text-sm text-stone-500">Si la pièce vous a été retournée et peut être revendue.</span></span>
         </label>
+        {order.email && (
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="mt-1 w-5 h-5 accent-emerald-700" />
+            <span><span className="font-medium">Prévenir le client par email</span><span className="block text-sm text-stone-500">Montant remboursé et délai de 5 à 10 jours pour le voir sur son compte.</span></span>
+          </label>
+        )}
         <Field label="Motif" optional>
           <Input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Retour sous 14 jours, colis abîmé…" />
         </Field>
@@ -335,6 +371,11 @@ function mailtoShipped(o: Order): string {
   const link = trackingUrl(o.tracking_carrier, o.tracking_number);
   const body = `Bonjour ${o.shipping_name ?? ''},\n\nVotre commande #${orderNumber(o)} vient d’être expédiée.${o.tracking_number ? `\nNuméro de suivi : ${o.tracking_number}` : ''}${link ? `\nSuivre le colis : ${link}` : ''}\n\nMerci pour votre confiance.\n${SHOP.name}`;
   return `mailto:${o.email}?subject=${encodeURIComponent('Votre commande est en route')}&body=${encodeURIComponent(body)}`;
+}
+
+function mailtoCancelled(o: Order): string {
+  const body = `Bonjour ${o.shipping_name ?? ''},\n\nVotre commande #${orderNumber(o)} a été annulée. Le montant payé vous sera intégralement remboursé sur la carte utilisée, au plus tard sous 14 jours.\n\nPour toute question, répondez simplement à cet email.\n${SHOP.name}`;
+  return `mailto:${o.email}?subject=${encodeURIComponent(`Commande #${orderNumber(o)} annulée`)}&body=${encodeURIComponent(body)}`;
 }
 
 /** Bon de livraison à glisser dans le colis. */

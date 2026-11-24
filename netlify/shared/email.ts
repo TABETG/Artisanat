@@ -39,9 +39,12 @@ export function layout(title: string, paragraphs: string[], button?: { label: st
       ${paragraphs.map((p) => `<p style="font-size:16px;line-height:1.6;margin:0 0 14px">${escapeHtml(p)}</p>`).join('')}
       ${button ? `<p style="margin:24px 0 8px"><a href="${button.url}" style="background:#A3302A;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:4px;display:inline-block;font-size:16px">${escapeHtml(button.label)}</a></p>` : ''}
     </td></tr>
-    <tr><td style="padding:16px 24px;border-top:1px solid #eee;font-size:13px;color:#777">${escapeHtml(SHOP.name)} — tissé à la main depuis ${SHOP.since} · ${escapeHtml(SHOP.email)}</td></tr>
+    <tr><td style="padding:16px 24px;border-top:1px solid #eee;font-size:13px;color:#777">${escapeHtml(SHOP.name)} — ${escapeHtml(SHOP.tagline)}${SHOP.email && !SHOP.email.includes('exemple.') ? ` · ${escapeHtml(SHOP.email)}` : ''}</td></tr>
   </table></td></tr></table></body></html>`;
 }
+
+/** Outils de mise en forme passés aux gabarits d'emails de commande. */
+export const mailTools = () => ({ layout, url: absoluteUrl, shopName: SHOP.name });
 
 export function absoluteUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path;

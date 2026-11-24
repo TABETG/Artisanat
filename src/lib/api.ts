@@ -381,6 +381,18 @@ export async function notifyRestock(productId: string): Promise<NotifyResult> {
   return callAdminFunction({ action: 'restock', productId });
 }
 
+/** Commande annulée : email au client (une seule fois). */
+export async function notifyCancelled(orderId: string): Promise<NotifyResult> {
+  if (DEMO_MODE) {
+    await wait(500);
+    const o = demoDB().orders.find((x) => x.id === orderId);
+    if (o) o.cancelled_email_sent_at = new Date().toISOString();
+    demoSave();
+    return { mode: 'email', sent: o?.email ? 1 : 0, emails: o?.email ? [o.email] : [] };
+  }
+  return callAdminFunction({ action: 'cancelled', orderId });
+}
+
 /** Commande expédiée : email au client avec le lien de suivi. */
 export async function notifyShipped(orderId: string): Promise<NotifyResult> {
   if (DEMO_MODE) {
@@ -587,9 +599,11 @@ export interface RefundRequest {
   restockItems?: { product_id: string; quantity: number }[];
   reason: string;
   returnId?: number;
+  /** Prévenir le client par email (oui par défaut). */
+  notify?: boolean;
 }
 
-export async function refundOrder(orderId: string, r: RefundRequest): Promise<{ refund_id: number; status: Refund['status']; refunded_cents: number; full: boolean; note: string }> {
+export async function refundOrder(orderId: string, r: RefundRequest): Promise<{ refund_id: number; status: Refund['status']; refunded_cents: number; full: boolean; note: string; email?: 'sent' | 'manual' | 'none' | 'failed' }> {
   logActivity(`Remboursement de ${(r.amountCents / 100).toFixed(2).replace('.', ',')} € (commande #${orderId.replace(/^demo-/, '').slice(0, 8).toUpperCase()})`);
   if (DEMO_MODE) {
     await wait(600);
@@ -611,10 +625,10 @@ export async function refundOrder(orderId: string, r: RefundRequest): Promise<{ 
       .forEach((i) => { const p = d.products.find((x) => x.id === i.product_id); if (p) p.stock += i.quantity; });
     if (r.returnId != null) { const ret = d.returns.find((x) => x.id === r.returnId); if (ret) ret.status = 'refunded'; }
     demoSave();
-    return { refund_id: id, status: 'succeeded', refunded_cents: o.refunded_cents, full, note };
+    return { refund_id: id, status: 'succeeded', refunded_cents: o.refunded_cents, full, note, email: r.notify !== false && o.email ? 'sent' : 'none' };
   }
   return callAdminFunction({ orderId, amountCents: r.amountCents, shippingCents: r.shippingCents ?? 0, restock: r.restock,
-    restockItems: r.restockItems, reason: r.reason, returnId: r.returnId }, 'admin-refund');
+    restockItems: r.restockItems, reason: r.reason, returnId: r.returnId, notify: r.notify !== false }, 'admin-refund');
 }
 
 /** Historique des remboursements d'une commande (le plus récent d'abord). */

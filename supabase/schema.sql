@@ -1111,3 +1111,10 @@ do $$ begin
   end if;
 end $$;
 drop function if exists public.is_market_admin(text);
+
+-- =====================================================================
+-- Version 20 : emails clients d'annulation et de remboursement
+-- Une date par envoi : un email n'est envoyé qu'une fois, même après plusieurs clics.
+-- =====================================================================
+alter table public.orders  add column if not exists cancelled_email_sent_at timestamptz;
+alter table public.refunds add column if not exists email_sent_at timestamptz;

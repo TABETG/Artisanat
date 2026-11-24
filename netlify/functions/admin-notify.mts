@@ -1,7 +1,8 @@
 // Actions de l'espace vendeur qui envoient des emails.
 // Accès réservé : le jeton de connexion Supabase est vérifié, puis l'appartenance à la table admins.
 import { requireAdmin, serviceClient } from '../shared/admin';
-import { absoluteUrl, canEmailCustomers, layout, sendEmails } from '../shared/email';
+import { absoluteUrl, canEmailCustomers, layout, mailTools, sendEmails } from '../shared/email';
+import { cancelledEmail } from '../shared/order-emails';
 import { SHOP, trackingUrl, CARRIERS } from '../../src/config';
 
 import { json } from '../shared/admin';
@@ -20,6 +21,7 @@ export default async (req: Request) => {
   try {
     if (body.action === 'restock' && body.productId) return await restock(body.productId);
     if (body.action === 'shipped' && body.orderId) return await shipped(body.orderId);
+    if (body.action === 'cancelled' && body.orderId) return await cancelled(body.orderId);
   } catch (e) {
     console.error('admin-notify', e);
     return json({ error: 'Les emails n’ont pas pu être envoyés. Vérifiez la configuration Resend.' }, 502);
@@ -77,4 +79,25 @@ async function shipped(orderId: string) {
   }]);
   await supabase.from('orders').update({ shipped_email_sent_at: new Date().toISOString() }).eq('id', order.id);
   return json({ mode: 'email', sent, emails: [order.email] });
+}
+
+/** Commande annulée : un seul email, même si l'administrateur enregistre plusieurs fois. */
+async function cancelled(orderId: string) {
+  const { data: order } = await supabase.from('orders').select('id,email,shipping_name,status').eq('id', orderId).maybeSingle();
+  if (!order) return json({ error: 'Commande introuvable' }, 404);
+  if (order.status !== 'cancelled') return json({ error: 'Passez d’abord la commande au statut « Annulée ».' }, 409);
+  if (!order.email) return json({ error: 'Pas d’email pour ce client' }, 400);
+  if (!canEmailCustomers()) return json({ mode: 'manual', sent: 0, emails: [order.email] });
+
+  const now = new Date().toISOString();
+  const { data: claimed } = await supabase.from('orders').update({ cancelled_email_sent_at: now })
+    .eq('id', order.id).is('cancelled_email_sent_at', null).select('id');
+  if (!claimed?.length) return json({ mode: 'email', sent: 0, emails: [order.email] }); // déjà envoyé
+  try {
+    const sent = await sendEmails([cancelledEmail(order, mailTools())]);
+    return json({ mode: 'email', sent, emails: [order.email] });
+  } catch (e) {
+    await supabase.from('orders').update({ cancelled_email_sent_at: null }).eq('id', order.id);
+    throw e;
+  }
 }
