@@ -20,7 +20,7 @@ const EMPTY: ProductInput = {
   width_cm: null, length_cm: null, material: 'Laine de mouton', origin: '',
   images: [], featured: false, active: true,
   reference: '', compare_at_price_cents: null, technique: 'Noué main', colors: [],
-  pile_height_mm: null, weight_kg: null, care: '', made_to_order: false, low_stock_threshold: 2,
+  pile_height_mm: null, weight_kg: null, care: '', made_to_order: false, personalized: false, low_stock_threshold: 2,
   badges: [], promo_ends_at: null, sales_count: 0,
   publish_at: null, views_count: 0, cart_adds_count: 0,
   metal: '', stones: '', jewelry_size: '', nickel_free: false,
@@ -376,6 +376,9 @@ export function AdminProductForm() {
             </div>
             <Toggle checked={form.made_to_order} onChange={(v) => set('made_to_order', v)}
               title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />
+            <Toggle checked={!!form.personalized} onChange={(v) => set('personalized', v)}
+              title="Pièce faite selon les choix d’un client : non retournable"
+              description="Seulement pour une pièce fabriquée à la demande d’un client (dimensions, couleurs, motif ou gravure choisis par lui). Le client est prévenu sur la fiche, dans le panier et au paiement. Une pièce déjà fabriquée et mise en vente reste retournable 14 jours, même faite main." />
           </Section>
 
           {kind === 'cosmetique' && (

@@ -33,7 +33,7 @@ export default async (req: Request) => {
     { auth: { persistSession: false } },
   );
   const { data: products, error } = await supabase
-    .from('products').select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,images,active,width_cm,length_cm,seller_id,moderation,market,category')
+    .from('products').select('id,name,price_cents,compare_at_price_cents,promo_ends_at,stock,images,active,width_cm,length_cm,seller_id,moderation,market,category,personalized')
     .in('id', [...new Set(lines.map((l) => l.id))]);
   if (error || !products) return json({ error: 'Service momentanément indisponible.' }, 500);
 
@@ -126,6 +126,9 @@ export default async (req: Request) => {
       // Adresse limitée au pays choisi : les frais affichés correspondent bien à la destination
       shipping_address_collection: { allowed_countries: [country as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry] },
       phone_number_collection: { enabled: true },
+      ...(products.some((p) => p.personalized) ? {
+        custom_text: { submit: { message: 'Votre commande contient une pièce faite selon vos choix : elle ne pourra être ni reprise ni échangée (article L221-28 du Code de la consommation), sauf défaut.' } },
+      } : {}),
       // Codes promo créés dans Stripe → Catalogue de produits → Coupons
       allow_promotion_codes: true,
       // Relance du panier abandonné : Stripe garde un lien de reprise ; l'email n'est envoyé qu'avec l'accord du client

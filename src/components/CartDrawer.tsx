@@ -115,6 +115,7 @@ export function CartDrawer() {
                   <ProductImage src={l.image} alt={l.name} className="w-20 h-24 rounded-sm shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-display text-nuit leading-snug">{l.name}</p>
+                    {l.personalized && <p className="text-xs text-garance">Faite selon vos choix : ni reprise ni échange</p>}
                     <p className="text-sm text-henne mt-1">{formatPrice(l.price_cents)}</p>
                     <div className="mt-3 flex items-center gap-3">
                       {l.stock > 1 ? (

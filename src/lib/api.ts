@@ -15,7 +15,7 @@ import { sellerShippingCents } from '../sellerShipping';
 
 const PRODUCT_FIELDS =
   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
-  'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,low_stock_threshold,' +
+  'reference,compare_at_price_cents,technique,colors,pile_height_mm,weight_kg,care,made_to_order,personalized,low_stock_threshold,' +
   'badges,promo_ends_at,sales_count,publish_at,views_count,cart_adds_count,seller_id,moderation,moderation_note,' +
   'metal,stones,jewelry_size,nickel_free,net_content,ingredients,usage,warnings,pao_months,cpnp_ref';
 

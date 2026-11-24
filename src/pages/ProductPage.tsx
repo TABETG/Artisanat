@@ -252,7 +252,9 @@ export function ProductPage() {
           })()}
 
           <ul className="mt-7 grid gap-3 text-sm border-y border-laine-fonce py-5">
-            <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />{kind === 'cosmetique' ? '14 jours pour changer d’avis, si l’emballage n’a pas été ouvert (hygiène)' : '14 jours pour changer d’avis'}</li>
+            <li className="flex gap-3"><RotateCcw className="w-5 h-5 text-garance shrink-0" />{product.personalized
+              ? 'Pièce faite selon vos choix : elle ne peut être ni reprise ni échangée (article L221-28 du Code de la consommation). Les garanties légales s’appliquent en cas de défaut.'
+              : '14 jours pour changer d’avis'}</li>
             <li className="flex gap-3"><Lock className="w-5 h-5 text-garance shrink-0" />Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay{settings.installments_enabled ? ', Klarna' : ''}</li>
             <li className="flex gap-3"><Hand className="w-5 h-5 text-garance shrink-0" />Fait à la main : chaque pièce est unique</li>
           </ul>
@@ -271,7 +273,7 @@ export function ProductPage() {
           )}
           <Details title={kind === 'cosmetique' ? 'Conservation' : 'Entretien'}><p className="leading-relaxed text-encre/85 whitespace-pre-line">{product.care || DEFAULT_CARE[kind]}</p></Details>
           <Details title="Livraison et retours">
-            <p className="leading-relaxed text-encre/85">Expédié sous 2 jours ouvrés, soigneusement emballé, avec numéro de suivi. Retour possible sous 14 jours. <Link to="/livraison-et-retours" className="text-garance underline">En savoir plus</Link></p>
+            <p className="leading-relaxed text-encre/85">Expédié sous 2 jours ouvrés, soigneusement emballé, avec numéro de suivi. {product.personalized ? 'Pièce faite selon vos choix : ni reprise ni échange, sauf défaut.' : 'Retour possible sous 14 jours.'} <Link to="/livraison-et-retours" className="text-garance underline">En savoir plus</Link></p>
           </Details>
         </div>
       </div>

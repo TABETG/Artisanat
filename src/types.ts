@@ -24,6 +24,7 @@ export interface Product {
   weight_kg: number | null;
   care: string;
   made_to_order: boolean;                  // « sur mesure possible »
+  personalized?: boolean;                  // fabriquée selon les choix d'un client : ni reprise ni échange (L221-28)
   low_stock_threshold: number;
   // version 6
   badges: string[];                        // badges choisis par le vendeur

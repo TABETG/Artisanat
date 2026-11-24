@@ -12,6 +12,8 @@ export interface CartLine {
   width_cm?: number | null;
   length_cm?: number | null;
   seller_id?: string | null;
+  /** Pièce faite selon les choix du client : non retournable */
+  personalized?: boolean;
 }
 
 interface CartValue {
@@ -75,7 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, {
           id: p.id, name: p.name, price_cents: p.price_cents,
-          image: p.images[0] ?? null, stock: p.stock, quantity: Math.min(p.stock, quantity), width_cm: p.width_cm, length_cm: p.length_cm, seller_id: p.seller_id ?? null,
+          image: p.images[0] ?? null, stock: p.stock, quantity: Math.min(p.stock, quantity), width_cm: p.width_cm, length_cm: p.length_cm, seller_id: p.seller_id ?? null, personalized: !!p.personalized,
         }];
       });
       setLastAdded(p.name);

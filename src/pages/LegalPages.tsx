@@ -120,7 +120,15 @@ export function TermsPage() {
         Le client renvoie le produit au plus tard 14 jours après avoir communiqué sa décision. <strong>Les frais de retour sont
         à la charge du client.</strong> Le produit doit être retourné complet et en bon état ; la responsabilité du client
         peut être engagée en cas de dépréciation résultant de manipulations autres que celles nécessaires pour établir sa
-        nature, ses caractéristiques et son bon fonctionnement.
+        nature, ses caractéristiques et son bon fonctionnement (article L221-23).
+      </p>
+      <p>
+        Le client peut examiner le produit comme il le ferait en magasin : le déballer, le déplier, le toucher. Au-delà, il
+        s’agit d’une utilisation. Par exemple, un tapis sur lequel on a marché, posé sous des meubles, sali ou dont
+        l’étiquette de contrôle a été retirée, ou un bijou porté, n’est plus revendable en l’état. Le vendeur peut alors
+        déduire du remboursement la perte de valeur constatée, jusqu’au montant total de l’article si celui-ci ne peut plus
+        être vendu. Le client est invité à retourner le produit dans son emballage d’origine, avec son étiquette. Le vendeur
+        photographie le produit avant l’envoi et à l’ouverture du colis retourné.
       </p>
       <p>
         Le vendeur rembourse la totalité des sommes versées, <strong>y compris les frais de livraison initiaux</strong>
@@ -129,8 +137,11 @@ export function TermsPage() {
         ou jusqu’à la preuve de son expédition (article L221-24).
       </p>
       <p>
-        Conformément à l’article L221-28, le droit de rétractation ne s’applique pas aux produits confectionnés selon les
-        spécifications du client ou nettement personnalisés (pièces sur mesure).
+        Conformément à l’article L221-28, 3° du Code de la consommation, le droit de rétractation ne s’applique pas aux
+        produits confectionnés selon les spécifications du client ou nettement personnalisés : pièces fabriquées à sa demande
+        (dimensions, couleurs, motif ou gravure choisis par lui). Ces pièces sont signalées sur leur fiche, dans le panier et
+        au moment du paiement par la mention « faite selon vos choix : ni reprise ni échange ». Les garanties légales
+        (article 8) s’appliquent toujours en cas de défaut.
       </p>
 
       <h2>8. Garanties légales</h2>
@@ -203,12 +214,18 @@ export function ShippingPage() {
       <p>
         Vous disposez de 14 jours après réception pour changer d’avis, sans avoir à vous justifier. Signalez-nous votre retour
         depuis <Link to="/suivi-commande">Suivre ma commande</Link>, par email ou avec le <Link to="/formulaire-de-retractation">formulaire de rétractation</Link>,
-        puis renvoyez la pièce dans son état d’origine sous 14 jours. Les frais de retour sont à votre charge.
+        puis renvoyez la pièce dans son état d’origine sous 14 jours, de préférence dans son emballage et avec son étiquette.
+        Les frais de retour sont à votre charge.
+      </p>
+      <p>
+        Vous pouvez examiner la pièce comme en magasin. En revanche, une pièce utilisée (tapis sur lequel on a marché ou posé
+        sous des meubles, bijou porté, article sali ou sans son étiquette de contrôle) perd de sa valeur : cette perte est
+        déduite du remboursement, jusqu’au prix total si la pièce ne peut plus être vendue.
       </p>
       <p>
         Nous vous remboursons sous 14 jours, sur le moyen de paiement utilisé, le prix des articles et, si vous retournez
-        toute la commande, les frais de livraison initiaux (dans la limite du tarif standard). Les pièces réalisées sur mesure
-        ne peuvent pas être reprises, sauf défaut. Détails : <Link to="/conditions-generales-de-vente">conditions générales de vente</Link>.
+        toute la commande, les frais de livraison initiaux (dans la limite du tarif standard). Les pièces faites selon vos
+        choix (sur mesure, personnalisées) ne peuvent être ni reprises ni échangées, sauf défaut. Détails : <Link to="/conditions-generales-de-vente">conditions générales de vente</Link>.
       </p>
     </Prose>
   );

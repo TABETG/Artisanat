@@ -42,6 +42,7 @@ export function CustomOrderPage() {
         <Check className="w-12 h-12 mx-auto text-emerald-700" />
         <h1 className="font-display text-4xl text-nuit mt-4">Demande bien reçue</h1>
         <p className="mt-4 text-lg">Nous étudions votre projet et vous répondons sous 48 heures avec un devis et un délai de fabrication.</p>
+        <p className="mt-2 text-sm text-henne">Une pièce fabriquée selon vos choix ne peut être ni reprise ni échangée (article L221-28 du Code de la consommation), sauf défaut.</p>
         <Link to="/boutique" className="inline-block mt-8 bg-nuit text-laine px-7 py-3.5 rounded-sm hover:bg-garance">Continuer la visite</Link>
       </div>
     );
@@ -52,6 +53,7 @@ export function CustomOrderPage() {
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
       <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Tapis sur mesure</h1>
       <p className="lecture mt-5 text-[1.2rem] text-encre/80">Une dimension précise, vos couleurs, un motif qui vous ressemble : nous tissons la pièce pour vous. Comptez en général 4 à 10 semaines selon la taille.</p>
+      <p className="mt-3 text-sm text-henne">Fabriquée selon vos choix, la pièce ne pourra être ni reprise ni échangée (article L221-28 du Code de la consommation), sauf défaut.</p>
 
       {product && (
         <div className="mt-6 flex items-center gap-4 bg-white/60 border border-laine-fonce rounded-sm p-3">

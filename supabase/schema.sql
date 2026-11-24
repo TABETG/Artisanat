@@ -1118,3 +1118,5 @@ drop function if exists public.is_market_admin(text);
 -- =====================================================================
 alter table public.orders  add column if not exists cancelled_email_sent_at timestamptz;
 alter table public.refunds add column if not exists email_sent_at timestamptz;
+-- Pièce fabriquée selon les choix d'un client : exclue du droit de rétractation (article L221-28, 3° du Code de la consommation)
+alter table public.products add column if not exists personalized boolean not null default false;
