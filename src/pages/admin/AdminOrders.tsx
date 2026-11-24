@@ -161,6 +161,11 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
           <p className="font-medium">{order.shipping_name}</p>
           {a && <p className="whitespace-pre-line">{[a.line1, a.line2, `${a.postal_code ?? ''} ${a.city ?? ''}`, a.country].filter(Boolean).join('\n')}</p>}
         </Info>
+        {/relais/i.test(order.shipping_method ?? '') && !/Point relais souhaité/.test(order.customer_message ?? '') && (
+          <p className="text-sm bg-safran/15 border border-safran/40 rounded-md p-3">
+            Livraison en point relais : le client n’a pas indiqué de point. Écrivez-lui pour le choisir avant l’expédition.
+          </p>
+        )}
         {order.customer_message && (
           <div className="bg-safran/15 border border-safran/40 rounded-md p-3">
             <p className="text-sm font-medium text-henne">Message du client</p>
@@ -389,7 +394,7 @@ function printSlip(o: Order, email: string, phone: string) {
   <style>body{font-family:Arial,sans-serif;color:#222;margin:40px;font-size:14px}h1{font-family:Georgia,serif;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}
   th,td{border-bottom:1px solid #ddd;padding:10px;text-align:left}.grid{display:flex;justify-content:space-between;gap:40px;margin-top:32px}.box{border:1px solid #ccc;padding:16px;min-width:260px}
   .muted{color:#777}</style></head><body>
-  <h1>${esc(SHOP.name)}</h1><p class="muted">Tissé à la main depuis ${SHOP.since} · ${esc(email)} · ${esc(phone)}</p>
+  <h1>${esc(SHOP.name)}</h1><p class="muted">${esc(SHOP.tagline)} · ${esc(email)} · ${esc(phone)}</p>
   <div class="grid"><div><h2 style="margin:0">Bon de livraison</h2><p>Commande <strong>#${orderNumber(o)}</strong><br>du ${new Date(o.created_at).toLocaleDateString('fr-FR')}</p></div>
   <div class="box"><strong>Livrer à</strong><br>${esc(o.shipping_name)}<br>${esc(a.line1)}${a.line2 ? `<br>${esc(a.line2)}` : ''}<br>${esc(a.postal_code)} ${esc(a.city)}<br>${esc(a.country)}${o.phone ? `<br>${esc(o.phone)}` : ''}</div></div>
   <table><thead><tr><th>Article</th><th style="text-align:center;width:100px">Quantité</th></tr></thead><tbody>${rows}</tbody></table>

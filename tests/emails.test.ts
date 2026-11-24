@@ -28,3 +28,12 @@ test('remboursement partiel, sans frais de livraison, client sans nom', () => {
   assert.match(e.text, /remboursement partiel de 10,00 €/);
   assert.doesNotMatch(e.text, /frais de livraison/);
 });
+
+test('message client : point relais et message cadeau regroupés', async () => {
+  const { customerMessage } = await import('../netlify/shared/stripe-processing');
+  const field = (key: string, value: string) => ({ key, type: 'text', text: { value } });
+  const s = (fields: unknown[]) => ({ custom_fields: fields }) as never;
+  assert.equal(customerMessage(s([])), null);
+  assert.equal(customerMessage(s([field('relais', ' Tabac du centre, Lyon ')])), 'Point relais souhaité : Tabac du centre, Lyon');
+  assert.equal(customerMessage(s([field('message', 'Joyeux anniversaire'), field('relais', 'Lyon 3')])), 'Joyeux anniversaire\nPoint relais souhaité : Lyon 3');
+});

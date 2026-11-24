@@ -52,7 +52,7 @@ export const DEFAULT_ZONES: ShippingZone[] = [
 ];
 
 export const DEFAULT_METHODS: ShippingMethod[] = [
-  { id: 'relais', name: 'Point relais', description: 'Mondial Relay : retrait dans un commerce près de chez vous. Nous vous écrivons pour choisir le point.', kind: 'relais', active: true,
+  { id: 'relais', name: 'Point relais', description: 'Mondial Relay : retrait dans un commerce près de chez vous. Indiquez le point souhaité au paiement, ou nous vous écrivons pour le choisir.', kind: 'relais', active: true,
     prices: { france: 690, europe: 1290, proche: null, monde: null }, free_from_cents: 15000, oversize_cents: 0, allow_oversize: false, min_days: 3, max_days: 6 },
   { id: 'domicile', name: 'Colissimo à domicile', description: 'Livraison suivie, remise contre signature.', kind: 'domicile', active: true,
     prices: { france: 1500, europe: 2900, proche: 3900, monde: 6900 }, free_from_cents: 30000, oversize_cents: 2000, min_days: 3, max_days: 7 },

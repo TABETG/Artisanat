@@ -17,6 +17,9 @@ function PriceField({ cents, onChange, emptyLabel, invalid }: { cents: number | 
   );
 }
 
+/** Zones de livraison (pays étrangers) : à réafficher si la boutique livre un jour hors de France. */
+const SHOW_ZONES = false;
+
 export function AdminShipping() {
   const { reload } = useSettings();
   const [s, setS] = useState<ShopSettings | null>(null);
@@ -50,12 +53,14 @@ export function AdminShipping() {
       shipping_methods: s!.shipping_methods.map((m) => { const prices = { ...m.prices }; delete prices[z.id]; return { ...m, prices }; }) });
   }
 
+  // Boutique France : seuls les tarifs de la zone qui contient la France sont utiles (les autres zones restent en base, masquées)
+  const franceZones = s.shipping_zones.filter((z) => z.countries.includes('FR'));
   const problems: string[] = [];
   if (!s.shipping_methods.some((m) => m.active)) problems.push('Activez au moins un mode de livraison, sinon personne ne pourra commander.');
   s.shipping_methods.forEach((m) => {
     if (!m.name.trim()) problems.push('Chaque mode doit avoir un nom.');
     if (m.min_days > m.max_days) problems.push(`« ${m.name} » : le délai minimum dépasse le maximum.`);
-    if (m.active && !Object.values(m.prices).some((p) => p != null)) problems.push(`« ${m.name} » est actif mais n’a de prix dans aucune zone.`);
+    if (m.active && !franceZones.some((z) => m.prices[z.id] != null)) problems.push(`« ${m.name} » est actif mais n’a pas de prix pour la France.`);
   });
 
   async function save() {
@@ -69,7 +74,7 @@ export function AdminShipping() {
   return (
     <div className="max-w-5xl">
       <h1 className="font-display text-3xl text-nuit flex items-center gap-3"><Truck className="w-7 h-7 text-garance" /> Livraison</h1>
-      <p className="text-stone-500 mt-1">Le client choisit son pays et son mode dans le panier. Le prix est recalculé au paiement à partir de ces réglages.</p>
+      <p className="text-stone-500 mt-1">Livraison en France métropolitaine. Le client choisit son mode dans le panier ; le prix est recalculé au paiement à partir de ces réglages.</p>
 
       <div className="mt-6 space-y-6">
         <Section title="Préparation">
@@ -79,7 +84,7 @@ export function AdminShipping() {
         </Section>
 
         {/* ---------- Modes ---------- */}
-        <Section title="Modes de livraison" description={`Laissez un prix vide pour ne pas proposer le mode dans une zone. Le supplément « grand tapis » s’applique aux pièces de plus de ${OVERSIZE_M2} m².`}>
+        <Section title="Modes de livraison" description={`Laissez le prix vide pour ne pas proposer le mode. Le supplément « grand tapis » s’applique aux pièces de plus de ${OVERSIZE_M2} m².`}>
           <div className="space-y-4">
             {s.shipping_methods.map((m) => (
               <div key={m.id} className={`rounded-lg border p-4 sm:p-5 space-y-4 ${m.active ? 'border-stone-300 bg-white' : 'border-dashed border-stone-300 bg-stone-50'}`}>
@@ -103,9 +108,9 @@ export function AdminShipping() {
                   <Textarea rows={2} maxLength={200} value={m.description} onChange={(e) => patchMethod(m.id, { description: e.target.value })} />
                 </Field>
                 <div>
-                  <p className="font-medium text-[15px] mb-1.5">Prix par zone</p>
+                  <p className="font-medium text-[15px] mb-1.5">Prix</p>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {s.shipping_zones.map((z) => (
+                    {franceZones.map((z) => (
                       <label key={z.id} className="block">
                         <span className="block text-sm text-stone-600 mb-1 truncate">{z.label}</span>
                         <PriceField cents={m.prices[z.id] ?? null} emptyLabel="Non proposé" onChange={(c) => patchMethod(m.id, { prices: { ...m.prices, [z.id]: c } })} />
@@ -134,8 +139,8 @@ export function AdminShipping() {
           <button type="button" onClick={() => addMethod()} className="inline-flex items-center gap-2 px-4 py-3 rounded-md border border-stone-300 bg-white hover:bg-stone-50"><Plus className="w-4 h-4" /> Ajouter un mode de livraison</button>
         </Section>
 
-        {/* ---------- Zones ---------- */}
-        <Section title="Zones de livraison" description="Regroupez les pays qui ont les mêmes tarifs. Un pays ne peut appartenir qu’à une seule zone.">
+        {/* ---------- Zones : masquées tant que la boutique ne livre que la France ---------- */}
+        {SHOW_ZONES && <Section title="Zones de livraison" description="Regroupez les pays qui ont les mêmes tarifs. Un pays ne peut appartenir qu’à une seule zone.">
           <div className="space-y-4">
             {s.shipping_zones.map((z) => (
               <div key={z.id} className="rounded-lg border border-stone-300 bg-white p-4 space-y-3">
@@ -159,7 +164,7 @@ export function AdminShipping() {
             ))}
           </div>
           <button type="button" onClick={addZone} className="inline-flex items-center gap-2 px-4 py-3 rounded-md border border-stone-300 bg-white hover:bg-stone-50"><Plus className="w-4 h-4" /> Ajouter une zone</button>
-        </Section>
+        </Section>}
 
         <Section title="Aperçu">
           <p className="text-sm text-stone-500">Exemple : un panier de {formatPrice(20000)} livré en France.</p>

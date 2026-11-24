@@ -97,6 +97,16 @@ export default async (req: Request) => {
   }
   const shippingOptions = ordered.length ? ordered.map(toStripeRate(settings.preparation_days))
     : [{ shipping_rate_data: { type: 'fixed_amount' as const, display_name: 'Expédié par les artisans', fixed_amount: { amount: 0, currency: 'eur' } } }];
+  // Champs libres de la page de paiement : point relais (sans intégration payante) et message cadeau
+  const customFields: Stripe.Checkout.SessionCreateParams.CustomField[] = [];
+  if (ordered.some((q) => q.method.kind === 'relais')) customFields.push({
+    key: 'relais', type: 'text', optional: true, text: { maximum_length: 120 },
+    label: { type: 'custom', custom: 'Point relais souhaité, si choisi (nom ou ville)' },
+  });
+  if (settings.gift_message_enabled) customFields.push({
+    key: 'message', type: 'text', optional: true, text: { maximum_length: 255 },
+    label: { type: 'custom', custom: 'Message cadeau ou précisions (facultatif)' },
+  });
   const origin = process.env.URL ?? new URL(req.url).origin;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -133,15 +143,7 @@ export default async (req: Request) => {
       allow_promotion_codes: true,
       // Relance du panier abandonné : Stripe garde un lien de reprise ; l'email n'est envoyé qu'avec l'accord du client
       after_expiration: { recovery: { enabled: true, allow_promotion_codes: true } },
-      ...(settings.gift_message_enabled ? {
-        custom_fields: [{
-          key: 'message',
-          label: { type: 'custom' as const, custom: 'Message cadeau ou précisions (facultatif)' },
-          type: 'text' as const,
-          optional: true,
-          text: { maximum_length: 255 },
-        }],
-      } : {}),
+      ...(customFields.length ? { custom_fields: customFields } : {}),
       shipping_options: shippingOptions,
       // La page de paiement expire vite : limite le risque de vendre deux fois une pièce unique
       expires_at: expiresAt,

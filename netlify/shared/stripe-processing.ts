@@ -182,7 +182,7 @@ export async function recordOrder(session: Stripe.Checkout.Session, deps: Deps) 
     shipping_method: rateObj?.display_name ?? null,
     shipping_method_id: rateObj?.metadata?.method_id ?? null,
     promo_code: promoCode,
-    customer_message: session.custom_fields?.find((f) => f.key === 'message')?.text?.value ?? null,
+    customer_message: customerMessage(session),
   };
 
   // UNE transaction : commande + lignes + stock + numéro de facture (ou rien du tout)
@@ -196,6 +196,14 @@ export async function recordOrder(session: Stripe.Checkout.Session, deps: Deps) 
   await once(result.order_id, 'owner', deps, () => notifyOwnerNewOrder(session, items, deps)).catch(() => {});
 
   if (deps.paySellers && items.some((i) => i.seller_id)) await deps.paySellers(result.order_id, session, items, sellerShipping);
+}
+
+/** Message cadeau et point relais saisis sur la page de paiement, regroupés pour l'administration. */
+export function customerMessage(session: Stripe.Checkout.Session): string | null {
+  const field = (key: string) => session.custom_fields?.find((f) => f.key === key)?.text?.value?.trim() || null;
+  const relais = field('relais');
+  const parts = [field('message'), relais ? `Point relais souhaité : ${relais}` : null].filter(Boolean);
+  return parts.length ? parts.join('\n') : null;
 }
 
 /** Exécute une action au plus une fois par commande ; si elle échoue, elle redevient disponible pour le prochain essai. */
