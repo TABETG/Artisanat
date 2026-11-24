@@ -131,7 +131,7 @@ export function TermsPage() {
         photographie le produit avant l’envoi et à l’ouverture du colis retourné.
       </p>
       <p>
-        Le vendeur rembourse la totalité des sommes versées, <strong>y compris les frais de livraison initiaux</strong>
+        Le vendeur rembourse la totalité des sommes versées, <strong>y compris les frais de livraison initiaux</strong>{' '}
         (dans la limite du tarif de livraison standard le moins cher proposé), au plus tard 14 jours après avoir été informé
         de la rétractation, avec le même moyen de paiement. Il peut différer le remboursement jusqu’à la réception du produit
         ou jusqu’à la preuve de son expédition (article L221-24).
@@ -266,7 +266,7 @@ export function PrivacyPage() {
 
       <h2>Qui est responsable de vos données ?</h2>
       <p>
-        {SHOP.legalName}, {SHOP.legalForm}, SIRET {SHOP.siret}, {SHOP.address}. Pour toute question ou pour exercer vos droits :
+        {SHOP.legalName}, {SHOP.legalForm}, SIRET {SHOP.siret}, {SHOP.address}. Pour toute question ou pour exercer vos droits :{' '}
         <Contact />.
       </p>
 
