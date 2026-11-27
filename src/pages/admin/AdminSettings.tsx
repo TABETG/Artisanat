@@ -204,7 +204,7 @@ export function AdminSettings() {
       </div>
 
       <div className="sticky bottom-0 z-30 mt-8 -mx-4 px-4 py-3 bg-stone-100/95 backdrop-blur border-t border-stone-200">
-        <button disabled={saving} className="bg-garance text-laine px-8 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-60">
+        <button disabled={saving} className="bg-nuit text-laine px-8 py-3.5 rounded-md text-lg hover:bg-primary-hover disabled:opacity-60">
           {saving ? 'Enregistrement…' : 'Enregistrer les réglages'}
         </button>
       </div>

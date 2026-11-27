@@ -38,7 +38,7 @@ export function StockAlertForm({ productId }: { productId: string }) {
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr"
             className="w-full px-3.5 py-3 bg-white border border-laine-fonce rounded-sm" />
         </label>
-        <button disabled={state === 'sending'} className="bg-nuit text-laine px-5 py-3 rounded-sm hover:bg-garance disabled:opacity-60">
+        <button disabled={state === 'sending'} className="bg-nuit text-laine px-5 py-3 rounded-full hover:bg-primary-hover disabled:opacity-60">
           {state === 'sending' ? 'Envoi…' : 'Me prévenir'}
         </button>
       </div>

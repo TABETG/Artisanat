@@ -19,7 +19,7 @@ export function ContactPage() {
         <ContactCard href={`mailto:${SHOP.email}`} icon={<Mail className="w-6 h-6" />} title="Email" text={SHOP.email} />
         {SHOP.phone && <ContactCard href={`tel:${SHOP.phone.replace(/\s/g, '')}`} icon={<Phone className="w-6 h-6" />} title="Téléphone" text={SHOP.phone} />}
       </div>
-      <button onClick={() => openContact('contact')} className="mt-8 bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-garance">Écrire un message</button>
+      <button onClick={() => openContact('contact')} className="rounded-full mt-8 bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-primary-hover">Écrire un message</button>
       <p className="mt-10 text-henne">{SHOP.address}</p>
     </div>
   );

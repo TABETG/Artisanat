@@ -53,7 +53,7 @@ function OnlineCatalog() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 border-y border-laine-fonce py-4 print:hidden">
         <p className="text-henne">{available.length} pièces disponibles · mis à jour le {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-        <button onClick={() => window.print()} className="inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 hover:bg-garance"><Printer className="w-4 h-4" /> Imprimer ou enregistrer en PDF</button>
+        <button onClick={() => window.print()} className="rounded-full inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 hover:bg-primary-hover"><Printer className="w-4 h-4" /> Imprimer ou enregistrer en PDF</button>
       </div>
 
       {/* En-tête visible seulement à l'impression */}
@@ -108,7 +108,7 @@ function PaperForm() {
   }
 
   if (state === 'done') return (
-    <div className="max-w-xl flex gap-3 bg-[#DCEBE2] text-menthe p-5" role="status">
+    <div className="max-w-xl flex gap-3 bg-success-soft text-menthe p-5" role="status">
       <Check className="w-6 h-6 shrink-0" />
       <p>Demande enregistrée. Votre catalogue part par la poste sous une semaine environ. En attendant, <Link to="/catalogue?version=en-ligne" className="underline">feuilletez-le en ligne</Link>.</p>
     </div>
@@ -136,7 +136,7 @@ function PaperForm() {
       </label>
       <p className="text-xs text-henne">Votre adresse sert uniquement à l’envoi du catalogue ; elle est supprimée un an après. <Link to="/confidentialite" className="underline">Vos données et vos droits</Link>.</p>
       {error && <p className="text-garance text-sm" role="alert">{error}</p>}
-      <button disabled={state === 'sending'} className="bg-garance text-laine px-10 py-4 rounded-full font-semibold uppercase tracking-wide text-sm hover:bg-nuit disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Recevoir le catalogue'}</button>
+      <button disabled={state === 'sending'} className="bg-nuit text-laine px-10 py-4 rounded-full hover:bg-primary-hover font-semibold uppercase tracking-wide text-sm hover:bg-nuit disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Recevoir le catalogue'}</button>
     </form>
   );
 }

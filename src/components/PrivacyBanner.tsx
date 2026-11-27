@@ -22,8 +22,8 @@ export function PrivacyBanner({ onDetails }: { onDetails: () => void }) {
         </p>
         <div className="flex flex-wrap gap-2">
           <button onClick={onDetails} className="px-4 py-2.5 text-sm underline">Détails</button>
-          <button onClick={() => setConsent(false)} className="px-4 py-2.5 text-sm border border-laine/30 hover:border-laine">Refuser les statistiques</button>
-          <button onClick={() => setConsent(true)} className="px-5 py-2.5 text-sm font-medium bg-safran text-nuit hover:bg-laine">D’accord</button>
+          <button onClick={() => setConsent(false)} className="px-4 py-2.5 text-sm border border-laine/30 hover:border-laine rounded-full">Refuser les statistiques</button>
+          <button onClick={() => setConsent(true)} className="px-5 py-2.5 text-sm font-medium bg-laine text-nuit hover:bg-secondary rounded-full">D’accord</button>
         </div>
       </div>
     </div>

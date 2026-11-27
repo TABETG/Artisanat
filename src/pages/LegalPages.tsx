@@ -14,7 +14,7 @@ function useShop() {
 }
 
 /** Information manquante : bien visible pour être complétée avant l'ouverture. */
-const Missing = ({ children }: { children: ReactNode }) => <mark className="bg-safran/30 px-1">{children}</mark>;
+const Missing = ({ children }: { children: ReactNode }) => <mark className="bg-gold-soft px-1">{children}</mark>;
 
 function Contact() {
   const SHOP = useShop();

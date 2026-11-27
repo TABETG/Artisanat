@@ -55,7 +55,7 @@ function ContactTab() {
       </div>
 
       {state === 'done' ? (
-        <p className="flex gap-3 bg-[#DCEBE2] text-menthe p-4" role="status"><Check className="w-5 h-5 shrink-0" /> Message envoyé. Nous vous répondons en général sous 24 heures.</p>
+        <p className="flex gap-3 bg-success-soft text-menthe p-4" role="status"><Check className="w-5 h-5 shrink-0" /> Message envoyé. Nous vous répondons en général sous 24 heures.</p>
       ) : (
         <form onSubmit={submit} className="space-y-3">
           <p className="font-display text-2xl text-nuit">Écrire un message</p>
@@ -66,7 +66,7 @@ function ContactTab() {
           <label className="block"><span className="sr-only">Sujet</span><input maxLength={150} placeholder="Sujet (facultatif)" value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} className={input} /></label>
           <label className="block"><span className="sr-only">Message</span><textarea required rows={5} maxLength={3000} placeholder="Votre message" value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} className={input} /></label>
           {error && <p className="text-sm text-garance" role="alert">{error}</p>}
-          <button disabled={state === 'sending'} className="w-full bg-nuit text-laine py-3.5 font-medium hover:bg-garance disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Envoyer le message'}</button>
+          <button disabled={state === 'sending'} className="rounded-full w-full bg-nuit text-laine py-3.5 font-medium hover:bg-primary-hover disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Envoyer le message'}</button>
           <p className="text-xs text-henne">Votre nom et votre email servent uniquement à vous répondre. <Link to="/confidentialite" className="underline">En savoir plus</Link></p>
         </form>
       )}

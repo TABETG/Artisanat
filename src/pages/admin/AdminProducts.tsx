@@ -149,7 +149,7 @@ export function AdminProducts() {
             className="flex items-center gap-2 px-4 py-3.5 rounded-md border border-stone-300 bg-white disabled:opacity-50" title="Inventaire au format Excel">
             <Download className="w-4 h-4" /> Inventaire
           </button>
-          <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-garance text-laine px-6 py-3.5 rounded-md text-lg hover:bg-nuit">
+          <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-nuit text-laine px-6 py-3.5 rounded-md text-lg hover:bg-primary-hover">
             <Plus className="w-5 h-5" /> Ajouter un produit
           </Link>
         </div>
@@ -286,7 +286,7 @@ export function AdminProducts() {
               className="px-3 py-2 rounded-md hover:bg-laine/20">Retirer</button>
           </span>
           <button disabled={bulkBusy} onClick={() => bulk('promotion retirée', (p) => (p.compare_at_price_cents ? removeDiscountPatch(p) : null))} className="px-3 py-2 rounded-md bg-laine/10 hover:bg-laine/20">Retirer la promotion</button>
-          <button disabled={bulkBusy} onClick={bulkDelete} className="px-3 py-2 rounded-md text-laine/80 hover:text-white hover:bg-garance">Supprimer</button>
+          <button disabled={bulkBusy} onClick={bulkDelete} className="px-3 py-2 rounded-md text-laine/80 hover:text-white hover:bg-primary-hover">Supprimer</button>
           <button onClick={() => setSelected(new Set())} className="ml-auto px-3 py-2 text-laine/70 hover:text-laine">Annuler</button>
         </div>
       )}

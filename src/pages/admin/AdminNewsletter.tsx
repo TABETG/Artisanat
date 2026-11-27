@@ -78,7 +78,7 @@ export function AdminNewsletter() {
         <div className="flex flex-wrap gap-3">
           <button disabled={busy || !subject.trim() || !message.trim()} onClick={() => send(true)} className="px-5 py-3 rounded-md border border-stone-300 bg-white disabled:opacity-50">M’envoyer un test</button>
           <button disabled={busy || !subject.trim() || !message.trim() || !subscribers.length} onClick={() => send(false)}
-            className="inline-flex items-center gap-2 bg-garance text-laine px-6 py-3 rounded-md hover:bg-nuit disabled:opacity-50">
+            className="inline-flex items-center gap-2 bg-nuit text-laine px-6 py-3 rounded-md hover:bg-primary-hover disabled:opacity-50">
             <Send className="w-4 h-4" /> {busy ? 'Envoi…' : `Envoyer à ${subscribers.length} inscrit${subscribers.length > 1 ? 's' : ''}`}
           </button>
         </div>

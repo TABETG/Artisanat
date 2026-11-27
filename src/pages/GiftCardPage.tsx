@@ -71,7 +71,7 @@ export function GiftCardPage() {
         <label className="block"><span className="font-medium block mb-1">Petit mot <span className="font-normal text-sm text-henne">(facultatif)</span></span>
           <textarea rows={3} maxLength={450} value={message} onChange={(e) => setMessage(e.target.value)} className={input} placeholder="Joyeux anniversaire !" /></label>
         {error && <p className="text-garance" role="alert">{error}</p>}
-        <button disabled={busy || value < 2000} className="w-full bg-garance text-laine py-4 rounded-sm text-lg font-medium hover:bg-nuit disabled:opacity-50 inline-flex items-center justify-center gap-2">
+        <button disabled={busy || value < 2000} className="w-full bg-nuit text-laine py-4 rounded-full text-lg font-medium hover:bg-primary-hover disabled:opacity-50 inline-flex items-center justify-center gap-2">
           <Lock className="w-4 h-4" /> {busy ? 'Ouverture du paiement…' : `Offrir ${value >= 2000 ? formatPrice(value) : ''}`}
         </button>
         <p className="text-sm text-henne">Paiement sécurisé par Stripe. Le code arrive par email juste après le paiement ; il s’utilise en une fois sur la page de paiement.</p>

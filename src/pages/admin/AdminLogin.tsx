@@ -65,7 +65,7 @@ export function AdminLogin() {
               onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ''))} className="text-2xl tracking-[0.4em] text-center" placeholder="000000" />
           </Field>
           {error && <p className="text-garance text-sm" role="alert">{error}</p>}
-          <button disabled={busy || code.length < 6} className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-garance disabled:opacity-60">
+          <button disabled={busy || code.length < 6} className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-primary-hover disabled:opacity-60">
             {busy ? 'Vérification…' : 'Valider'}
           </button>
           <button type="button" onClick={async () => { await signOut(); setStep('password'); setCode(''); }} className="text-sm text-stone-500 underline">Utiliser un autre compte</button>
@@ -94,7 +94,7 @@ export function AdminLogin() {
         </Field>
         {error && <p className="text-garance text-sm" role="alert">{error}</p>}
         {info && <p className="text-emerald-700 text-sm" role="status">{info}</p>}
-        <button disabled={busy} className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-garance disabled:opacity-60">
+        <button disabled={busy} className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-primary-hover disabled:opacity-60">
           {busy ? 'Connexion…' : 'Se connecter'}
         </button>
         <div className="flex justify-between text-sm">

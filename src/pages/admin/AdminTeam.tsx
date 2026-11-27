@@ -44,7 +44,7 @@ export function AdminTeam() {
         )}
         <form onSubmit={add} className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-64"><Field label="Ajouter une personne"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="collaborateur@exemple.fr" /></Field></div>
-          <button disabled={busy} className="inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60"><UserPlus className="w-4 h-4" /> Donner l’accès</button>
+          <button disabled={busy} className="inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-primary-hover disabled:opacity-60"><UserPlus className="w-4 h-4" /> Donner l’accès</button>
         </form>
       </Section>
 

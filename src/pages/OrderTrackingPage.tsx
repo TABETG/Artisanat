@@ -41,7 +41,7 @@ export function OrderTrackingPage() {
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={input} autoComplete="email" /></label>
         <label><span className="font-medium block mb-1">Code postal</span>
           <input required value={postal} onChange={(e) => setPostal(e.target.value)} className={input} autoComplete="postal-code" /></label>
-        <button disabled={busy} className="bg-nuit text-laine px-6 py-3 rounded-sm hover:bg-garance disabled:opacity-60">{busy ? 'Recherche…' : 'Rechercher'}</button>
+        <button disabled={busy} className="bg-nuit text-laine px-6 py-3 rounded-full hover:bg-primary-hover disabled:opacity-60">{busy ? 'Recherche…' : 'Rechercher'}</button>
       </form>
       {error && <p className="mt-4 text-garance" role="alert">{error}</p>}
 
@@ -133,7 +133,7 @@ function ReturnForm({ order, email, postal }: { order: TrackedOrder; email: stri
         <textarea rows={3} maxLength={1500} value={comment} onChange={(e) => setComment(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-laine-fonce rounded-sm" /></label>
       {error && <p className="text-garance" role="alert">{error}</p>}
       <div className="flex gap-3">
-        <button disabled={state === 'sending' || !chosen.length} className="bg-nuit text-laine px-5 py-2.5 rounded-sm hover:bg-garance disabled:opacity-50">{state === 'sending' ? 'Envoi…' : 'Envoyer la demande'}</button>
+        <button disabled={state === 'sending' || !chosen.length} className="bg-nuit text-laine px-5 py-2.5 rounded-full hover:bg-primary-hover disabled:opacity-50">{state === 'sending' ? 'Envoi…' : 'Envoyer la demande'}</button>
         <button type="button" onClick={() => setOpen(false)} className="px-3 text-henne">Annuler</button>
       </div>
     </form>

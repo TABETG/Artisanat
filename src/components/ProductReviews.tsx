@@ -62,7 +62,7 @@ export function ProductReviews({ productId }: { productId: string }) {
               placeholder="Qualité, couleurs, livraison…" /></label>
           {error && <p className="text-sm text-garance" role="alert">{error}</p>}
           <div className="flex gap-3">
-            <button disabled={state === 'sending'} className="bg-nuit text-laine px-6 py-3 rounded-sm hover:bg-garance disabled:opacity-60">
+            <button disabled={state === 'sending'} className="bg-nuit text-laine px-6 py-3 rounded-full hover:bg-primary-hover disabled:opacity-60">
               {state === 'sending' ? 'Envoi…' : 'Envoyer mon avis'}
             </button>
             <button type="button" onClick={() => setOpen(false)} className="px-4 py-3 text-henne">Annuler</button>

@@ -29,7 +29,7 @@ export function SellerSpace() {
     <div className="max-w-xl">
       <p className="font-display text-3xl text-nuit">Vous créez à la main ?</p>
       <p className="lecture mt-2 text-henne">Proposez vos créations sur la boutique : vous fixez vos prix, nous nous occupons de la vitrine et du paiement.</p>
-      <Link to="/vendre" className="inline-block mt-6 bg-nuit text-laine px-6 py-3.5 font-medium hover:bg-garance">Devenir artisan partenaire</Link>
+      <Link to="/vendre" className="rounded-full inline-block mt-6 bg-nuit text-laine px-6 py-3.5 font-medium hover:bg-primary-hover">Devenir artisan partenaire</Link>
     </div>
   );
 
@@ -79,7 +79,7 @@ function PayoutsBanner({ me, onChange }: { me: MySeller; onChange: () => void })
   }
   if (me.seller.payouts_enabled) {
     return (
-      <div className="flex flex-wrap items-center gap-3 bg-[#DCEBE2] text-menthe p-4">
+      <div className="flex flex-wrap items-center gap-3 bg-success-soft text-menthe p-4">
         <Check className="w-5 h-5" /> <span className="flex-1">Paiements activés : vos ventes vous sont versées automatiquement par Stripe.</span>
         <button onClick={() => go('dashboard')} disabled={busy} className="underline">Mon tableau de bord Stripe</button>
       </div>
@@ -89,7 +89,7 @@ function PayoutsBanner({ me, onChange }: { me: MySeller; onChange: () => void })
     <div className="flex flex-wrap items-center gap-3 bg-safran/20 text-nuit p-4">
       <AlertTriangle className="w-5 h-5 text-henne" />
       <span className="flex-1">Dernière étape : activez vos paiements (identité et IBAN, 5 minutes chez Stripe). Vos produits ne sont achetables qu’ensuite.</span>
-      <button onClick={() => go('onboard')} disabled={busy} className="bg-nuit text-laine px-5 py-2.5 font-medium hover:bg-garance disabled:opacity-60">{busy ? 'Ouverture…' : 'Activer mes paiements'}</button>
+      <button onClick={() => go('onboard')} disabled={busy} className="rounded-full bg-nuit text-laine px-5 py-2.5 font-medium hover:bg-primary-hover disabled:opacity-60">{busy ? 'Ouverture…' : 'Activer mes paiements'}</button>
       {error && <p className="w-full text-sm text-garance">{error}</p>}
     </div>
   );
@@ -103,7 +103,7 @@ function MyProducts({ sellerId }: { sellerId: string }) {
   const labels = { approved: ['En ligne', 'bg-emerald-100 text-emerald-800'], pending: ['En relecture', 'bg-safran/25 text-henne'], rejected: ['À corriger', 'bg-garance/10 text-garance'] } as const;
   return (
     <div>
-      <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 bg-garance text-laine px-5 py-3 font-medium hover:bg-nuit"><Plus className="w-4 h-4" /> Ajouter une création</button>
+      <button onClick={() => setEditing('new')} className="rounded-full inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 font-medium hover:bg-primary-hover"><Plus className="w-4 h-4" /> Ajouter une création</button>
       <p className="text-sm text-henne mt-3">Chaque nouvelle création, et chaque modification du nom, du prix, des photos ou de la description, est relue par la boutique avant publication (en général sous 48 h).</p>
       {loading ? <p className="mt-6 text-henne">Chargement…</p> : (
         <ul className="mt-6 space-y-3">
@@ -230,7 +230,7 @@ function ProductForm({ sellerId, product, onDone }: { sellerId: string; product:
       <label className="block"><span className="font-medium block mb-1">Description</span><textarea rows={6} maxLength={2000} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={input} /></label>
       <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="w-5 h-5 accent-nuit" /> Proposer à la vente</label>
       {error && <p className="text-garance text-sm" role="alert">{error}</p>}
-      <button disabled={busy || uploading > 0} className="bg-garance text-laine px-7 py-3.5 font-medium hover:bg-nuit disabled:opacity-60">{busy ? 'Envoi…' : product ? 'Enregistrer' : 'Envoyer en relecture'}</button>
+      <button disabled={busy || uploading > 0} className="rounded-full bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-primary-hover disabled:opacity-60">{busy ? 'Envoi…' : product ? 'Enregistrer' : 'Envoyer en relecture'}</button>
     </form>
   );
 }
@@ -270,10 +270,10 @@ function OrderRow({ sellerId, o, onSaved }: { sellerId: string; o: Awaited<Retur
             <select value={carrier} onChange={(e) => setCarrier(e.target.value)} className="px-3 py-2.5 bg-white border border-laine-fonce" aria-label="Transporteur">{CARRIERS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
             <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="Numéro de suivi" className="flex-1 min-w-40 px-3 py-2.5 bg-white border border-laine-fonce" />
             <button disabled={busy} onClick={async () => { setBusy(true); await markShippedBySeller(sellerId, o.id, carrier, tracking.trim()); onSaved(); }}
-              className="bg-nuit text-laine px-4 py-2.5 hover:bg-garance disabled:opacity-60 inline-flex items-center gap-2"><Package className="w-4 h-4" /> Marquer expédiée</button>
+              className="bg-nuit text-laine px-4 py-2.5 hover:bg-primary-hover disabled:opacity-60 inline-flex items-center gap-2"><Package className="w-4 h-4" /> Marquer expédiée</button>
           </div>
         ) : (
-          <p className="mt-4 inline-flex items-center gap-2 bg-[#DCEBE2] text-menthe px-3 py-1.5 text-sm"><Check className="w-4 h-4" /> Expédiée{o.tracking_number ? ` · ${o.tracking_number}` : ''}</p>
+          <p className="mt-4 inline-flex items-center gap-2 bg-success-soft text-menthe px-3 py-1.5 text-sm"><Check className="w-4 h-4" /> Expédiée{o.tracking_number ? ` · ${o.tracking_number}` : ''}</p>
         )}
       </div>
     </li>
@@ -341,7 +341,7 @@ function MyShop({ me, onSaved }: { me: MySeller; onSaved: () => void }) {
       <label className="block"><span className="font-medium block mb-1">Ma politique de retour</span><textarea rows={2} maxLength={1000} value={f.ret} onChange={(e) => setF({ ...f, ret: e.target.value })} className={input}
         placeholder={s.legal_status === 'professionnel' ? 'Obligatoire pour un professionnel : 14 jours de rétractation minimum.' : 'Ex. : retour accepté sous 14 jours, frais de retour à la charge du client.'} /></label>
       <p className="text-sm text-henne">Commission de la boutique sur vos ventes : {s.commission_percent ?? settings.marketplace_commission_percent} %.</p>
-      <button className="bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-garance inline-flex items-center gap-2">{saved ? <><Check className="w-4 h-4" /> Enregistré</> : 'Enregistrer'}</button>
+      <button className="rounded-full bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-primary-hover inline-flex items-center gap-2">{saved ? <><Check className="w-4 h-4" /> Enregistré</> : 'Enregistrer'}</button>
     </form>
   );
 }

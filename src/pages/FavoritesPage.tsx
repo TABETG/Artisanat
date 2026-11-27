@@ -19,7 +19,7 @@ export function FavoritesPage() {
         <div className="py-16">
           <p className="font-display text-2xl text-nuit">Aucun favori pour l’instant</p>
           <p className="mt-2 text-henne">Touchez le cœur sur une création pour la garder de côté.</p>
-          <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-sm hover:bg-garance">Voir la boutique</Link>
+          <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-full hover:bg-primary-hover">Voir la boutique</Link>
         </div>
       )}
       <div className="mt-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">

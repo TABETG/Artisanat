@@ -30,7 +30,7 @@ export function AdminNewPassword() {
         <Field label="Mot de passe" hint="Au moins 10 caractères" error={error ?? undefined}>
           <Input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <button className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-garance">Enregistrer le mot de passe</button>
+        <button className="w-full bg-nuit text-laine py-3.5 rounded-md text-lg hover:bg-primary-hover">Enregistrer le mot de passe</button>
       </form>
     </div>
   );

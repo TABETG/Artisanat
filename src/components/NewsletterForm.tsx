@@ -17,7 +17,7 @@ export function NewsletterForm({ variant = 'sombre' }: { variant?: 'sombre' | 'c
   }
 
   if (variant === 'clair') {
-    if (state === 'done') return <p className="flex items-center gap-2 bg-[#DCEBE2] text-menthe p-4 rounded-xl" role="status"><Check className="w-5 h-5" /> Merci ! Vous recevrez nos nouveautés et bons plans.</p>;
+    if (state === 'done') return <p className="flex items-center gap-2 bg-success-soft text-menthe p-4 rounded-xl" role="status"><Check className="w-5 h-5" /> Merci ! Vous recevrez nos nouveautés et bons plans.</p>;
     return (
       <form onSubmit={submit} className="space-y-3">
         <div className="flex flex-col sm:flex-row gap-2.5">

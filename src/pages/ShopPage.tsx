@@ -190,7 +190,7 @@ export function ShopPage() {
             className="w-full pl-9 pr-3 py-3 bg-white border border-laine-fonce focus:border-nuit focus:outline-none" />
         </label>
         <div className="flex items-center gap-3 sm:contents">
-          <button onClick={() => setDrawer(true)} className="lg:hidden inline-flex items-center gap-2 px-4 py-3 bg-nuit text-laine shrink-0 sm:order-first">
+          <button onClick={() => setDrawer(true)} className="rounded-full lg:hidden inline-flex items-center gap-2 px-4 py-3 bg-nuit text-laine shrink-0 sm:order-first">
             <SlidersHorizontal className="w-4 h-4" /> Filtrer{chips.length ? ` (${chips.length})` : ''}
           </button>
           <p className="hidden sm:block text-sm text-henne sm:ml-auto" aria-live="polite">{loading ? '…' : `${visible.length} création${visible.length > 1 ? 's' : ''}`}</p>
@@ -229,7 +229,7 @@ export function ShopPage() {
             <div className="py-16 max-w-md">
               <p className="font-display text-3xl text-nuit">Aucune création ne correspond</p>
               <p className="lecture mt-2 text-henne">Retirez un filtre, ou demandez-nous de tisser la pièce que vous cherchez.</p>
-              <div className="mt-5 flex gap-4"><button onClick={clearAll} className="bg-nuit text-laine px-5 py-3">Effacer les filtres</button></div>
+              <div className="mt-5 flex gap-4"><button onClick={clearAll} className="rounded-full bg-nuit text-laine px-5 py-3 hover:bg-primary-hover">Effacer les filtres</button></div>
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-x-3 sm:gap-x-5 gap-y-10 sm:gap-y-12">
@@ -239,7 +239,7 @@ export function ShopPage() {
             <div className="mt-14 text-center">
               <p className="text-sm text-henne mb-3">{shown} sur {visible.length} créations</p>
               <div className="h-1 max-w-xs mx-auto bg-laine-fonce"><div className="h-1 bg-nuit" style={{ width: `${(shown / visible.length) * 100}%` }} /></div>
-              <button onClick={() => setShown((n) => n + PAGE)} className="mt-5 px-8 py-3.5 border border-nuit text-nuit font-medium hover:bg-nuit hover:text-laine">Afficher plus</button>
+              <button onClick={() => setShown((n) => n + PAGE)} className="rounded-full mt-5 px-8 py-3.5 border border-nuit text-nuit font-medium hover:bg-nuit hover:text-laine">Afficher plus</button>
             </div>
           )}
         </div>
@@ -250,7 +250,7 @@ export function ShopPage() {
           <div className="px-6 py-4">{panel}</div>
           <div className="sticky bottom-0 bg-laine border-t border-laine-fonce px-6 py-4 flex gap-3">
             <button onClick={clearAll} className="px-4 py-3 text-nuit underline">Tout effacer</button>
-            <button onClick={() => setDrawer(false)} className="flex-1 bg-nuit text-laine py-3 font-medium">Voir {visible.length} création{visible.length > 1 ? 's' : ''}</button>
+            <button onClick={() => setDrawer(false)} className="rounded-full flex-1 bg-nuit text-laine py-3 font-medium">Voir {visible.length} création{visible.length > 1 ? 's' : ''}</button>
           </div>
         </Drawer>
       )}

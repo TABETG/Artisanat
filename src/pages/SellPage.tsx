@@ -55,13 +55,13 @@ export function SellPage() {
             <>
               <p className="font-display text-3xl text-nuit">Proposer ma boutique</p>
               <p className="lecture text-base mt-3 text-henne">Commencez par vous connecter (un simple lien par email), puis remplissez votre candidature en 3 minutes.</p>
-              <button onClick={() => navigate('/compte')} className="mt-6 w-full bg-nuit text-laine py-4 font-medium hover:bg-garance">Me connecter pour candidater</button>
+              <button onClick={() => navigate('/compte')} className="rounded-full mt-6 w-full bg-nuit text-laine py-4 font-medium hover:bg-primary-hover">Me connecter pour candidater</button>
             </>
           ) : already ? (
             <>
               <p className="font-display text-3xl text-nuit">Votre candidature est enregistrée</p>
               <p className="lecture text-base mt-3 text-henne">Suivez-la et gérez votre boutique depuis votre compte.</p>
-              <Link to="/compte?onglet=atelier" className="mt-6 block text-center w-full bg-nuit text-laine py-4 font-medium hover:bg-garance">Ouvrir mon espace artisan</Link>
+              <Link to="/compte?onglet=atelier" className="rounded-full mt-6 block text-center w-full bg-nuit text-laine py-4 font-medium hover:bg-primary-hover">Ouvrir mon espace artisan</Link>
             </>
           ) : <ApplicationForm onDone={() => navigate('/compte?onglet=atelier')} />}
         </div>
@@ -114,7 +114,7 @@ function ApplicationForm({ onDone }: { onDone: () => void }) {
       <label className="flex items-start gap-3 text-sm cursor-pointer"><input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-0.5 w-4 h-4 accent-nuit" />
         <span>J’accepte les <Link to="/conditions-vendeurs" target="_blank" className="underline">conditions pour les vendeurs</Link> et certifie que mes créations sont faites à la main.</span></label>
       {error && <p className="text-garance text-sm" role="alert">{error}</p>}
-      <button disabled={busy} className="w-full bg-garance text-laine py-4 font-medium hover:bg-nuit disabled:opacity-60 inline-flex items-center justify-center gap-2"><Check className="w-4 h-4" /> {busy ? 'Envoi…' : 'Envoyer ma candidature'}</button>
+      <button disabled={busy} className="rounded-full w-full bg-nuit text-laine py-4 font-medium hover:bg-primary-hover disabled:opacity-60 inline-flex items-center justify-center gap-2"><Check className="w-4 h-4" /> {busy ? 'Envoi…' : 'Envoyer ma candidature'}</button>
     </form>
   );
 }

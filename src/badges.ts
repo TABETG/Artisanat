@@ -61,9 +61,9 @@ export const BADGE_TONES: Record<BadgeTone, string> = {
   promo: 'bg-garance text-laine',
   best: 'bg-safran text-nuit',
   new: 'bg-menthe text-laine',
-  love: 'bg-[#F4D9D6] text-garance',
+  love: 'bg-terracotta-soft text-garance',
   dark: 'bg-nuit text-laine',
   light: 'bg-laine text-nuit',
-  gold: 'bg-[#FBEBC5] text-nuit',
-  green: 'bg-[#DCEBE2] text-menthe',
+  gold: 'bg-gold-soft text-nuit',
+  green: 'bg-success-soft text-menthe',
 };

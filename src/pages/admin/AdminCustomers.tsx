@@ -99,7 +99,7 @@ export function AdminCustomers() {
             {open === c.email && (
               <div className="border-t border-stone-200 p-4 space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <a href={`mailto:${c.email}`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-nuit text-laine hover:bg-garance"><Mail className="w-4 h-4" /> Écrire</a>
+                  <a href={`mailto:${c.email}`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-nuit text-laine hover:bg-primary-hover"><Mail className="w-4 h-4" /> Écrire</a>
                   {c.phone && <a href={`tel:${c.phone}`} className="px-4 py-2.5 rounded-md border border-stone-300">{c.phone}</a>}
                 </div>
                 <ul className="divide-y divide-stone-100">

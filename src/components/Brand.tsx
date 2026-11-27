@@ -2,14 +2,14 @@ import { SHOP } from '../config';
 
 /** Emblème : losange amazigh doré, inspiré des motifs tissés et des bijoux émaillés. */
 export function Mark({ className = 'w-10 h-10', tone = 'dore' }: { className?: string; tone?: 'dore' | 'clair' }) {
-  const c = tone === 'clair' ? '#D9B57E' : '#B88746';
+  const c = tone === 'clair' ? 'color-mix(in srgb, var(--color-gold) 75%, var(--color-background))' : 'var(--color-gold)';
   return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden>
-      <path d="M24 3 45 24 24 45 3 24Z" fill="none" stroke={c} strokeWidth="2" />
-      <path d="M24 10 38 24 24 38 10 24Z" fill="none" stroke={c} strokeWidth="1.5" />
-      <path d="M24 17 31 24 24 31 17 24Z" fill="#A64932" />
-      <path d="M24 21 27 24 24 27 21 24Z" fill="#FAF6EF" />
-      <path d="M24 3v7M24 38v7M3 24h7M38 24h7" stroke={c} strokeWidth="1.5" />
+    <svg viewBox="0 0 48 48" className={className} aria-hidden style={{ color: c }}>
+      <path d="M24 3 45 24 24 45 3 24Z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M24 10 38 24 24 38 10 24Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M24 17 31 24 24 31 17 24Z" fill="var(--color-terracotta)" />
+      <path d="M24 21 27 24 24 27 21 24Z" fill="var(--color-background)" />
+      <path d="M24 3v7M24 38v7M3 24h7M38 24h7" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }

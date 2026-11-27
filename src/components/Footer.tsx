@@ -21,7 +21,7 @@ export function Footer() {
             <Link to="/" aria-label={`${SHOP.name}, accueil`} className="inline-block"><Logo tone="clair" size="lg" /></Link>
             <p className="font-display italic text-xl text-safran mt-6">{SHOP.slogan}</p>
             <p className="mt-3 text-laine/75 max-w-sm leading-relaxed">
-              {SHOP.tagline}. Un savoir-faire familial transmis depuis {SHOP.since}.
+              {SHOP.tagline}. Un savoir-faire familial et authentique, transmis depuis {SHOP.since}.
             </p>
             {(settings.instagram || settings.facebook) && (
               <div className="mt-6 flex gap-2">
@@ -42,6 +42,7 @@ export function Footer() {
                 <li><Link className={a} to="/univers/bijoux">Univers Bijoux</Link></li>
                 <li><Link className={a} to="/carte-cadeau">Carte cadeau</Link></li>
                 <li><Link className={a} to="/catalogue">Catalogue</Link></li>
+                <li><Link className={a} to="/nos-realisations">Nos réalisations</Link></li>
               </ul>
             </div>
             <div>
@@ -59,6 +60,8 @@ export function Footer() {
               <ul className={col}>
                 <li><Link className={a} to="/notre-histoire">Notre histoire</Link></li>
                 <li><Link className={a} to="/nos-realisations">L’atelier</Link></li>
+                <li><Link className={a} to="/notre-histoire#savoir-faire">Le savoir-faire</Link></li>
+                <li><Link className={a} to="/notre-histoire#engagements">Nos engagements</Link></li>
                 {settings.marketplace_enabled && <li><Link className={a} to="/artisans">Nos artisans</Link></li>}
                 {settings.marketplace_enabled && <li><Link className={a} to="/vendre">Vendre mes créations</Link></li>}
                 <li><Link className={a} to="/compte">Mon compte</Link></li>
@@ -68,9 +71,9 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-6 border-t border-laine/15 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-x-6 gap-y-3 text-sm text-laine/65">
-          <span>© {new Date().getFullYear()} {SHOP.name} {SHOP.signature}</span>
+          <span>© {new Date().getFullYear()} {SHOP.name} {SHOP.signature}. Tous droits réservés.</span>
           <span>Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</span>
-          <span className="flex flex-wrap gap-x-4 gap-y-2 lg:ml-auto">
+          <span className="flex flex-wrap gap-y-2 lg:ml-auto [&>*]:px-3 [&>*:not(:first-child)]:border-l [&>*]:border-laine/25 -mx-3">
             <Link className="hover:text-laine" to="/conditions-generales-de-vente">Conditions de vente</Link>
             <Link className="hover:text-laine" to="/mentions-legales">Mentions légales</Link>
             {settings.marketplace_enabled && <Link className="hover:text-laine" to="/conditions-vendeurs">Conditions vendeurs</Link>}

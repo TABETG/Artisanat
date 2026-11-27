@@ -50,7 +50,7 @@ export function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <h1 className="font-display text-3xl text-nuit">Tableau de bord</h1>
-        <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-garance text-laine px-6 py-3.5 rounded-md text-lg hover:bg-nuit">
+        <Link to="/admin/produits/nouveau" className="flex items-center gap-2 bg-nuit text-laine px-6 py-3.5 rounded-md text-lg hover:bg-primary-hover">
           <Plus className="w-5 h-5" /> Ajouter un produit
         </Link>
       </div>
@@ -108,7 +108,7 @@ export function AdminDashboard() {
           <button disabled={!subscribers.length}
             onClick={() => downloadFile(`inscrits-${new Date().toISOString().slice(0, 10)}.csv`, '\uFEFF"Email";"Date d’inscription"\r\n' + subscribers.map((s) => `"${s.email}";"${new Date(s.created_at).toLocaleDateString('fr-FR')}"`).join('\r\n'))}
             className="px-4 py-2.5 rounded-md border border-stone-300 disabled:opacity-50">Exporter la liste (Excel)</button>
-          <Link to="/admin/lettre" className="px-4 py-2.5 rounded-md bg-nuit text-laine hover:bg-garance">Écrire aux inscrits</Link>
+          <Link to="/admin/lettre" className="px-4 py-2.5 rounded-md bg-nuit text-laine hover:bg-primary-hover">Écrire aux inscrits</Link>
         </section>
         <section className="bg-white rounded-lg border border-stone-200 p-5">
           <h2 className="font-display text-xl text-nuit">Les plus regardés</h2>

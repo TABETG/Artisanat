@@ -96,7 +96,7 @@ export function Section({ title, description, children, id }: { title: string; d
 export function Toast({ message, tone = 'ok' }: { message: string | null; tone?: 'ok' | 'error' }) {
   if (!message) return null;
   return (
-    <div role="status" className={`fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-md shadow-lg text-laine max-w-[90vw] ${tone === 'ok' ? 'bg-emerald-700' : 'bg-garance'}`}>
+    <div role="status" className={`fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-md shadow-lg text-laine max-w-[90vw] ${tone === 'ok' ? 'bg-emerald-700' : 'bg-nuit'}`}>
       {message}
     </div>
   );

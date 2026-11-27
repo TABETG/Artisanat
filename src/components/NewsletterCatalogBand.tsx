@@ -11,14 +11,14 @@ export function NewsletterCatalogBand() {
       <div className="bg-white/70 border border-laine-fonce rounded-2xl grid lg:grid-cols-[1.15fr_1fr]">
         <div className="p-6 sm:p-10">
           <h2 className="font-display text-[1.9rem] sm:text-4xl text-nuit">S’inscrire à la lettre d’information</h2>
-          <p className="mt-3 text-encre/80">Nouvelles pièces, coulisses de l’atelier, offres réservées… Rejoignez l’univers de {SHOP.name}. Une fois par mois au plus.</p>
+          <p className="mt-3 text-encre/80">Nouvelles pièces, coulisses de l’atelier, offres exclusives… Rejoignez l’univers de {SHOP.name}.</p>
           <div className="mt-6"><NewsletterForm variant="clair" /></div>
         </div>
         <div className="p-6 sm:p-10 border-t lg:border-t-0 lg:border-l border-laine-fonce grid grid-cols-[auto_1fr] gap-6 sm:gap-8 items-center">
           <Link to="/catalogue" aria-label="Ouvrir le catalogue"><CatalogCover className="w-28 sm:w-36" /></Link>
           <div>
             <h2 className="font-display text-[1.9rem] sm:text-4xl text-nuit">Demander un catalogue</h2>
-            <p className="mt-3 text-encre/80">En ligne ou en version papier : la demande est gratuite et se fait en quelques clics.</p>
+            <p className="mt-3 text-encre/80">En ligne ou en version papier, la demande est gratuite et en quelques clics.</p>
             <Link to="/catalogue" className="btn btn-secondaire mt-6"><BookOpen className="w-4 h-4" /> Consulter ou recevoir</Link>
           </div>
         </div>

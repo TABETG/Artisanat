@@ -2,28 +2,69 @@
 
 /* ==========================================================================
    Galerie Tamurt — by JULDEY
-   Ivoire et sable pour laisser les pièces porter la couleur ; indigo pour le texte
-   et les grands aplats ; doré artisanal pour les accents ; terracotta pour l'achat.
+   Ivoire et indigo d'abord ; sable pour les zones calmes ; doré réservé à la signature
+   JULDEY et aux détails raffinés ; terracotta avec modération (promotions, erreurs).
+   Les couleurs se modifient uniquement dans le bloc @theme ci-dessous (et, pour les
+   emails, dans src/theme.ts).
    Signature : une frise géométrique amazighe, discrète, en bordure de section.
    Les anciens noms de couleurs (laine, nuit, garance…) restent utilisés par les pages :
    ils pointent vers la nouvelle palette, ce qui l'applique partout d'un coup.
    ========================================================================== */
 @theme {
-  --color-ivoire: #FAF6EF;       /* fond */
-  --color-sable: #E8D9C5;        /* filets, zones calmes, cartes */
-  --color-indigo: #1C203D;       /* texte de titre, en-têtes, aplats */
-  --color-dore: #B88746;         /* accents, signature, prix sur fond indigo */
-  --color-terracotta: #A64932;   /* promotions, liens d'achat */
-  --color-texte: #242424;        /* texte de lecture */
+  /* ---- Palette officielle Galerie Tamurt (noms sémantiques, à utiliser dans tout nouveau code) ---- */
+  --color-primary: #1C203D;          /* bleu indigo : titres, boutons, aplats */
+  --color-primary-hover: #2B3058;    /* survol des boutons indigo */
+  --color-background: #FAF6EF;       /* ivoire : fond des pages */
+  --color-secondary: #E8D9C5;        /* sable : zones calmes, vignettes */
+  --color-gold: #B88746;             /* doré : signature JULDEY et détails raffinés uniquement */
+  --color-terracotta: #A64932;       /* terracotta : promotions, erreurs, avec modération */
+  --color-success: #346348;          /* confirmations */
+  --color-text: #242424;             /* texte de lecture */
+  --color-text-muted: #70665C;       /* texte secondaire (5,2:1 sur ivoire) */
+  --color-border: #E5DDD2;           /* filets et bordures */
+  --color-white: #FFFFFF;
+  /* fonds doux dérivés, pour les messages et pastilles (contrastes AA vérifiés) */
+  --color-success-soft: #E3EDE6;
+  --color-terracotta-soft: #F5E3DD;
+  --color-gold-soft: #F3E8D6;
 
-  --color-laine: var(--color-ivoire);
-  --color-laine-fonce: var(--color-sable);
-  --color-nuit: var(--color-indigo);
+  /* ---- Anciens noms, conservés : ils pointent vers la palette officielle ---- */
+  --color-ivoire: var(--color-background);
+  --color-sable: var(--color-secondary);
+  --color-indigo: var(--color-primary);
+  --color-dore: var(--color-gold);
+  --color-texte: var(--color-text);
+  --color-laine: var(--color-background);
+  --color-laine-fonce: var(--color-secondary);
+  --color-nuit: var(--color-primary);
   --color-garance: var(--color-terracotta);
-  --color-safran: var(--color-dore);
-  --color-henne: #6A5646;        /* texte secondaire (contraste 6,6:1 sur ivoire) */
-  --color-menthe: #2F6B4F;       /* confirmations */
-  --color-encre: var(--color-texte);
+  --color-safran: var(--color-gold);
+  --color-henne: var(--color-text-muted);
+  --color-menthe: var(--color-success);
+  --color-encre: var(--color-text);
+
+  /* ---- Gris et verts génériques (espace vendeur, formulaires) ramenés à la palette ---- */
+  --color-stone-50: #FCFAF6;
+  --color-stone-100: #F5EFE6;
+  --color-stone-200: var(--color-border);
+  --color-stone-300: #D9CFC2;
+  --color-stone-400: #786D62;        /* texte d'aide : 4,8:1 sur blanc */
+  --color-stone-500: var(--color-text-muted);
+  --color-stone-600: #5A5148;
+  --color-stone-700: #463F38;
+  --color-stone-800: #2F2A25;
+  --color-stone-900: var(--color-text);
+  --color-emerald-50: #EEF4F0;
+  --color-emerald-100: var(--color-success-soft);
+  --color-emerald-300: #9DBFA9;
+  --color-emerald-600: #3D7154;
+  --color-emerald-700: var(--color-success);
+  --color-emerald-800: #29503A;
+  --color-red-50: #FBEFEC;
+  --color-red-600: var(--color-terracotta);
+  --color-red-700: #8E3E2A;
+  --color-amber-50: #FBF4E6;
+  --color-amber-900: #5C4219;
 
   --font-display: "Playfair Display Variable", Georgia, "Times New Roman", serif;
   --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -49,7 +90,7 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 /* Sur-titre de section (« ARTISANAT … ») */
 .surtitre { font-family: var(--font-sans); text-transform: uppercase; letter-spacing: .22em; font-size: .72rem; font-weight: 600; }
 
-:focus-visible { outline: 2px solid var(--color-terracotta); outline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 3px; box-shadow: 0 0 0 5px var(--color-primary); }
 
 /* --------------------------------------------------------------------------
    Frise amazighe : losanges et chevrons, comme une bordure brodée.
@@ -64,7 +105,7 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 /* Variante sur fond indigo : un peu plus lumineuse */
 .frise-claire { filter: brightness(1.25); opacity: .85; }
 /* Petit filet doré au-dessus des titres */
-.lisiere-fine { height: 3px; background: var(--color-dore); border-radius: 2px; }
+.lisiere-fine { height: 3px; background: var(--color-gold); border-radius: 2px; }
 
 /* Motif géométrique très léger pour les grands aplats indigo (promotions, pied de page) */
 .motif-fond {
@@ -73,14 +114,14 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 
 /* Boutons : pilules sobres */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: 9999px; padding: .85rem 1.7rem; font-weight: 600; font-size: .95rem; line-height: 1.2; transition: background-color .2s, color .2s, border-color .2s; text-align: center; }
-.btn-primaire { background: var(--color-indigo); color: var(--color-ivoire); }
-.btn-primaire:hover { background: var(--color-terracotta); }
-.btn-secondaire { border: 1.5px solid var(--color-indigo); color: var(--color-indigo); }
-.btn-secondaire:hover { background: var(--color-indigo); color: var(--color-ivoire); }
-.btn-dore { background: var(--color-dore); color: var(--color-indigo); }
-.btn-dore:hover { background: var(--color-ivoire); }
-.btn-clair { border: 1.5px solid rgb(250 246 239 / .6); color: var(--color-ivoire); }
-.btn-clair:hover { background: var(--color-ivoire); color: var(--color-indigo); }
+.btn-primaire { background: var(--color-primary); color: var(--color-background); }
+.btn-primaire:hover { background: var(--color-primary-hover); }
+.btn-secondaire { border: 1.5px solid var(--color-primary); color: var(--color-primary); }
+.btn-secondaire:hover { background: var(--color-primary); color: var(--color-background); }
+.btn-dore { background: var(--color-gold); color: var(--color-primary); }
+.btn-dore:hover { background: var(--color-background); }
+.btn-clair { border: 1.5px solid color-mix(in srgb, var(--color-background) 60%, transparent); color: var(--color-background); }
+.btn-clair:hover { background: var(--color-background); color: var(--color-primary); }
 
 /* Franges : fils de laine qui dépassent d'une photo de tapis */
 .franges { position: relative; }

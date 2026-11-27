@@ -69,7 +69,7 @@ export function SecuritySection() {
       ) : (
         <div className="flex flex-wrap items-center gap-4">
           <p className="text-stone-600">Non activée. À chaque connexion, un code de votre téléphone vous sera demandé en plus du mot de passe.</p>
-          <button type="button" onClick={start} disabled={busy} className="ml-auto inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60">
+          <button type="button" onClick={start} disabled={busy} className="ml-auto inline-flex items-center gap-2 bg-nuit text-laine px-5 py-3 rounded-md hover:bg-primary-hover disabled:opacity-60">
             <ShieldCheck className="w-4 h-4" /> Activer
           </button>
         </div>

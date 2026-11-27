@@ -41,7 +41,7 @@ export function AdminMessages() {
             <p className="mt-2 whitespace-pre-line leading-relaxed">{m.message}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={`mailto:${m.email}?subject=${encodeURIComponent(`Re: ${m.subject || 'Votre message'}`)}&body=${encodeURIComponent(`Bonjour ${m.name},\n\n\n\n> ${m.message.replace(/\n/g, '\n> ')}`)}`}
-                onClick={() => toggle(m.id, true)} className="inline-flex items-center gap-2 bg-nuit text-laine px-4 py-2.5 rounded-md hover:bg-garance"><Mail className="w-4 h-4" /> Répondre</a>
+                onClick={() => toggle(m.id, true)} className="inline-flex items-center gap-2 bg-nuit text-laine px-4 py-2.5 rounded-md hover:bg-primary-hover"><Mail className="w-4 h-4" /> Répondre</a>
               {m.handled
                 ? <button onClick={() => toggle(m.id, false)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-stone-300"><RotateCcw className="w-4 h-4" /> Remettre à traiter</button>
                 : <button onClick={() => toggle(m.id, true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-stone-300"><Check className="w-4 h-4" /> Marquer comme traité</button>}

@@ -43,7 +43,7 @@ export function CustomOrderPage() {
         <h1 className="font-display text-4xl text-nuit mt-4">Demande bien reçue</h1>
         <p className="mt-4 text-lg">Nous étudions votre projet et vous répondons sous 48 heures avec un devis et un délai de fabrication.</p>
         <p className="mt-2 text-sm text-henne">Une pièce fabriquée selon vos choix ne peut être ni reprise ni échangée (article L221-28 du Code de la consommation), sauf défaut.</p>
-        <Link to="/boutique" className="inline-block mt-8 bg-nuit text-laine px-7 py-3.5 rounded-sm hover:bg-garance">Continuer la visite</Link>
+        <Link to="/boutique" className="inline-block mt-8 bg-nuit text-laine px-7 py-3.5 rounded-full hover:bg-primary-hover">Continuer la visite</Link>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export function CustomOrderPage() {
           <label><span className="font-medium block mb-1">Téléphone <span className="font-normal text-sm text-henne">(facultatif)</span></span><input type="tel" maxLength={40} value={f.phone} onChange={(e) => set('phone', e.target.value)} className={input} autoComplete="tel" /></label>
         </div>
         {error && <p className="text-garance" role="alert">{error}</p>}
-        <button disabled={state === 'sending'} className="bg-garance text-laine px-8 py-4 rounded-sm text-lg hover:bg-nuit disabled:opacity-60">
+        <button disabled={state === 'sending'} className="bg-nuit text-laine px-8 py-4 rounded-full text-lg hover:bg-primary-hover disabled:opacity-60">
           {state === 'sending' ? 'Envoi…' : 'Demander un devis gratuit'}
         </button>
         <p className="text-sm text-henne">Sans engagement. Vos informations servent uniquement à vous répondre.</p>

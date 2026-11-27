@@ -102,7 +102,7 @@ export function CartDrawer() {
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
             <p className="font-display text-2xl text-nuit">Votre panier est vide</p>
             <p className="mt-2 text-henne">Chaque pièce est tissée à la main. Prenez le temps de choisir.</p>
-            <Link to="/boutique" onClick={close} className="mt-6 bg-nuit text-laine px-6 py-3 rounded-sm hover:bg-garance">
+            <Link to="/boutique" onClick={close} className="mt-6 bg-nuit text-laine px-6 py-3 rounded-full hover:bg-primary-hover">
               Voir la boutique
             </Link>
           </div>
@@ -213,7 +213,7 @@ export function CartDrawer() {
               </div>
               {error && <p className="text-sm text-garance bg-garance/10 p-3 rounded-sm" role="alert">{error}</p>}
               <button onClick={pay} disabled={paying || !canShip}
-                className="w-full mt-2 bg-garance text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-nuit disabled:opacity-60">
+                className="w-full mt-2 bg-nuit text-laine py-4 rounded-sm font-medium text-lg flex items-center justify-center gap-2 hover:bg-primary-hover disabled:opacity-60">
                 <Lock className="w-4 h-4" />
                 {paying ? 'Ouverture du paiement…' : 'Payer ma commande'}
               </button>

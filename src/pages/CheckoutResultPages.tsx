@@ -27,7 +27,7 @@ export function ThankYouPage() {
       </p>
       <p className="mt-4 text-henne">Une question ? <a className="text-garance underline" href={`mailto:${settings.email}`}>{settings.email}</a></p>
       <p className="mt-2 text-henne">Suivez votre colis, retrouvez votre facture et vos commandes dans <Link to="/compte" className="text-garance underline">Mon compte</Link> (connexion par simple lien email).</p>
-      <Link to="/boutique" className="inline-block mt-10 bg-nuit text-laine px-7 py-3.5 rounded-sm hover:bg-garance">Continuer la visite</Link>
+      <Link to="/boutique" className="inline-block mt-10 bg-nuit text-laine px-7 py-3.5 rounded-full hover:bg-primary-hover">Continuer la visite</Link>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export function CancelledPage() {
     <div className="max-w-2xl mx-auto px-5 pt-20 text-center">
       <h1 className="font-display text-4xl text-nuit">Paiement interrompu</h1>
       <p className="mt-5 text-lg">Aucun montant n’a été débité. Votre panier est conservé.</p>
-      <button onClick={open} className="mt-10 bg-garance text-laine px-7 py-3.5 rounded-sm hover:bg-nuit">Reprendre mon panier</button>
+      <button onClick={open} className="mt-10 bg-nuit text-laine px-7 py-3.5 rounded-full hover:bg-primary-hover">Reprendre mon panier</button>
     </div>
   );
 }
@@ -72,7 +72,7 @@ function GiftThanks({ sessionId }: { sessionId: string }) {
       ) : (
         <p className="mt-5 text-lg text-henne">Création de la carte…</p>
       )}
-      <Link to="/boutique" className="inline-block mt-10 bg-nuit text-laine px-7 py-3.5 rounded-sm hover:bg-garance">Voir la boutique</Link>
+      <Link to="/boutique" className="inline-block mt-10 bg-nuit text-laine px-7 py-3.5 rounded-full hover:bg-primary-hover">Voir la boutique</Link>
     </div>
   );
 }

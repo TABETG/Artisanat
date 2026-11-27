@@ -36,7 +36,7 @@ export function ArtisansPage() {
       </div>
       <div className="mt-16 border-t border-laine-fonce pt-10 flex flex-wrap items-center justify-between gap-4">
         <p className="font-display text-3xl text-nuit">Vous êtes artisan ?</p>
-        <Link to="/vendre" className="bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-garance">Vendre mes créations</Link>
+        <Link to="/vendre" className="rounded-full bg-nuit text-laine px-7 py-3.5 font-medium hover:bg-primary-hover">Vendre mes créations</Link>
       </div>
     </div>
   );

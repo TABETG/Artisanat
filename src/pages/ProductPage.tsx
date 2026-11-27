@@ -83,7 +83,7 @@ export function ProductPage() {
       <div className="max-w-7xl mx-auto px-5 lg:px-8 pt-16">
         <h1 className="font-display text-3xl text-nuit">Cette création n’existe plus</h1>
         <p className="mt-2 text-henne">Elle a peut-être été retirée de la boutique.</p>
-        <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-sm">Voir la boutique</Link>
+        <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 rounded-full">Voir la boutique</Link>
       </div>
     );
   }
@@ -209,7 +209,7 @@ export function ProductPage() {
               <StockAlertForm productId={product.id} />
             ) : (
               <button onClick={() => add(product, quantity)} disabled={!canAdd}
-                className="w-full sm:w-auto bg-garance text-laine px-10 py-4 rounded-sm text-lg font-medium hover:bg-nuit disabled:opacity-50">
+                className="w-full sm:w-auto bg-nuit text-laine px-10 py-4 rounded-sm text-lg font-medium hover:bg-primary-hover disabled:opacity-50">
                 {canAdd ? 'Ajouter au panier' : 'Déjà dans votre panier'}
               </button>
             )}
@@ -306,7 +306,7 @@ export function ProductPage() {
             <p className="text-sm truncate">{product.name}</p>
             <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} />
           </div>
-          <button onClick={() => add(product, quantity)} disabled={!canAdd} className="bg-garance text-laine px-5 py-3 rounded-sm font-medium disabled:opacity-50">
+          <button onClick={() => add(product, quantity)} disabled={!canAdd} className="bg-nuit text-laine px-5 py-3 rounded-full font-medium disabled:opacity-50">
             {canAdd ? 'Ajouter au panier' : 'Dans le panier'}
           </button>
         </div>

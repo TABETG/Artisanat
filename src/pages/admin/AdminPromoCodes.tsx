@@ -103,7 +103,7 @@ export function AdminPromoCodes() {
             </Field>
           </div>
           {formError && <p className="text-sm text-garance font-medium" role="alert">{formError}</p>}
-          <button disabled={busy || code.length < 3} className="inline-flex items-center gap-2 bg-garance text-laine px-6 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-50">
+          <button disabled={busy || code.length < 3} className="inline-flex items-center gap-2 bg-nuit text-laine px-6 py-3.5 rounded-md text-lg hover:bg-primary-hover disabled:opacity-50">
             <Plus className="w-5 h-5" /> {busy ? 'Création…' : 'Créer le code'}
           </button>
         </Section>

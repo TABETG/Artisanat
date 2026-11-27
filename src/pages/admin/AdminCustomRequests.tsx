@@ -102,7 +102,7 @@ function Detail({ request: r, productName, productId, onSaved }: { request: Cust
           <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div className="flex flex-wrap gap-3">
-          <button onClick={save} disabled={saving} className="bg-nuit text-laine px-6 py-3 rounded-md hover:bg-garance disabled:opacity-60">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+          <button onClick={save} disabled={saving} className="bg-nuit text-laine px-6 py-3 rounded-md hover:bg-primary-hover disabled:opacity-60">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
           <a href={`mailto:${r.email}?subject=${subject}&body=${body}`} className="inline-flex items-center gap-2 px-5 py-3 rounded-md border border-stone-300"><Mail className="w-4 h-4" /> Envoyer un devis</a>
         </div>
       </div>

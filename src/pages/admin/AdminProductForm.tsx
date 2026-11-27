@@ -567,7 +567,7 @@ export function AdminProductForm() {
 
       {/* Barre d'enregistrement toujours visible */}
       <div className="sticky bottom-0 z-30 mt-8 -mx-4 px-4 py-3 bg-stone-100/95 backdrop-blur border-t border-stone-200 flex flex-wrap items-center gap-3">
-        <button disabled={saving || uploading > 0} className="flex-1 sm:flex-none bg-garance text-laine px-8 py-3.5 rounded-md text-lg hover:bg-nuit disabled:opacity-60">
+        <button disabled={saving || uploading > 0} className="flex-1 sm:flex-none bg-nuit text-laine px-8 py-3.5 rounded-md text-lg hover:bg-primary-hover disabled:opacity-60">
           {saving ? 'Enregistrement…' : uploading > 0 ? 'Photos en cours d’envoi…' : isNew ? 'Ajouter à la boutique' : 'Enregistrer les modifications'}
         </button>
         {isNew && (

@@ -1,6 +1,7 @@
 // Envoi d'emails via Resend (gratuit jusqu'à 3 000 emails / mois).
 // Pour écrire aux CLIENTS, il faut un domaine vérifié dans Resend et EMAIL_FROM renseigné.
 import { SHOP } from '../../src/config';
+import { COLORS as C } from '../../src/theme';
 
 export interface Email { to: string; subject: string; html: string; text: string }
 
@@ -29,18 +30,18 @@ const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', 
 
 /** Gabarit sobre, lisible sur téléphone. */
 export function layout(title: string, paragraphs: string[], button?: { label: string; url: string }, image?: string): string {
-  return `<!doctype html><html lang="fr"><body style="margin:0;background:#FAF6EF;font-family:Arial,Helvetica,sans-serif;color:#242424">
+  return `<!doctype html><html lang="fr"><body style="margin:0;background:${C.background};font-family:Arial,Helvetica,sans-serif;color:${C.text}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
-  <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #E8D9C5;border-radius:12px" cellpadding="0" cellspacing="0">
-    <tr><td style="background:#1C203D;color:#FAF6EF;padding:20px 24px;border-radius:12px 12px 0 0"><div style="font-family:Georgia,serif;font-size:24px">${escapeHtml(SHOP.name)}</div><div style="color:#B88746;font-size:11px;letter-spacing:3px;margin-top:4px">by ${escapeHtml(SHOP.brand)}</div></td></tr>
-    <tr><td style="height:4px;background:#B88746;font-size:0;line-height:0">&nbsp;</td></tr>
+  <table role="presentation" width="100%" style="max-width:560px;background:${C.white};border:1px solid ${C.border};border-radius:12px" cellpadding="0" cellspacing="0">
+    <tr><td style="background:${C.primary};color:${C.background};padding:20px 24px;border-radius:12px 12px 0 0"><div style="font-family:Georgia,serif;font-size:24px">${escapeHtml(SHOP.name)}</div><div style="color:${C.gold};font-size:11px;letter-spacing:3px;margin-top:4px">by ${escapeHtml(SHOP.brand)}</div></td></tr>
+    <tr><td style="height:4px;background:${C.gold};font-size:0;line-height:0">&nbsp;</td></tr>
     ${image ? `<tr><td><img src="${image}" alt="" width="560" style="width:100%;height:auto;display:block"></td></tr>` : ''}
     <tr><td style="padding:24px">
-      <h1 style="font-family:Georgia,serif;font-size:24px;font-weight:normal;color:#1C203D;margin:0 0 16px">${escapeHtml(title)}</h1>
+      <h1 style="font-family:Georgia,serif;font-size:24px;font-weight:normal;color:${C.primary};margin:0 0 16px">${escapeHtml(title)}</h1>
       ${paragraphs.map((p) => `<p style="font-size:16px;line-height:1.6;margin:0 0 14px">${escapeHtml(p)}</p>`).join('')}
-      ${button ? `<p style="margin:24px 0 8px"><a href="${button.url}" style="background:#1C203D;color:#FAF6EF;text-decoration:none;padding:14px 26px;border-radius:999px;display:inline-block;font-size:15px;font-weight:bold">${escapeHtml(button.label)}</a></p>` : ''}
+      ${button ? `<p style="margin:24px 0 8px"><a href="${button.url}" style="background:${C.primary};color:${C.background};text-decoration:none;padding:14px 26px;border-radius:999px;display:inline-block;font-size:15px;font-weight:bold">${escapeHtml(button.label)}</a></p>` : ''}
     </td></tr>
-    <tr><td style="padding:16px 24px;border-top:1px solid #E8D9C5;font-size:13px;color:#6A5646"><em style="font-family:Georgia,serif;color:#A64932">${escapeHtml(SHOP.slogan)}</em><br>${escapeHtml(SHOP.name)} ${escapeHtml(SHOP.signature)} — ${escapeHtml(SHOP.tagline)}${SHOP.email && !SHOP.email.includes('exemple.') ? ` · ${escapeHtml(SHOP.email)}` : ''}</td></tr>
+    <tr><td style="padding:16px 24px;border-top:1px solid ${C.border};font-size:13px;color:${C.textMuted}"><em style="font-family:Georgia,serif;color:${C.primary}">${escapeHtml(SHOP.slogan)}</em><br>${escapeHtml(SHOP.name)} ${escapeHtml(SHOP.signature)} — ${escapeHtml(SHOP.tagline)}${SHOP.email && !SHOP.email.includes('exemple.') ? ` · ${escapeHtml(SHOP.email)}` : ''}</td></tr>
   </table></td></tr></table></body></html>`;
 }
 

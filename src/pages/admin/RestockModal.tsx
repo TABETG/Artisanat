@@ -35,7 +35,7 @@ export function RestockModal({ productId, productName, waiting, onClose }: {
           <p className="leading-relaxed">L’envoi automatique n’est pas encore configuré (voir le guide, étape Resend). Vous pouvez leur écrire en un clic :</p>
           <a href={`mailto:?bcc=${manual.emails.join(',')}&subject=${subject}&body=${body}`}
             onClick={() => onClose({ ...manual, sent: manual.emails.length })}
-            className="mt-5 w-full inline-flex items-center justify-center gap-2 bg-nuit text-laine px-5 py-3.5 rounded-md text-lg hover:bg-garance">
+            className="mt-5 w-full inline-flex items-center justify-center gap-2 bg-nuit text-laine px-5 py-3.5 rounded-md text-lg hover:bg-primary-hover">
             <Mail className="w-5 h-5" /> Écrire aux {manual.emails.length} clients
           </a>
         </>

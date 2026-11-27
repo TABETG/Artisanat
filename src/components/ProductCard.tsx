@@ -24,7 +24,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <Link to={`/produit/${product.id}`} className="group block">
-      <div className="relative aspect-[4/5] overflow-hidden bg-laine-fonce">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-laine-fonce">
         <ProductImage src={product.images[0]} alt={product.name}
           className={`w-full h-full transition-transform duration-700 ease-out group-hover:scale-[1.04] ${soldOut ? 'grayscale-[60%] opacity-70' : ''}`} />
         {product.images[1] && !soldOut && (
@@ -33,18 +33,18 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="absolute top-0 left-0"><BadgeStack badges={badges} max={2} /></div>
         <FavoriteButton id={product.id} name={product.name} className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 opacity-90 group-hover:opacity-100" />
         {/* Filet garance qui se tisse au survol */}
-        <span className="absolute left-0 bottom-0 h-1 w-0 bg-garance transition-all duration-500 group-hover:w-full" aria-hidden />
+        <span className="absolute left-0 bottom-0 h-0.5 w-0 bg-safran transition-all duration-500 group-hover:w-full" aria-hidden />
       </div>
       <div className="mt-3 sm:mt-4">
-        <h3 className="font-display text-[1.1rem] sm:text-[1.35rem] leading-tight text-nuit group-hover:text-garance">{product.name}</h3>
+        <h3 className="font-semibold text-[0.98rem] sm:text-[1.05rem] leading-snug text-nuit group-hover:underline underline-offset-4">{product.name}</h3>
         {seller && <p className="text-sm text-henne mt-0.5">par {seller.shop_name}</p>}
         <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <Price cents={product.price_cents} compareAt={product.compare_at_price_cents} />
           {dims && <span className="text-xs sm:text-sm text-henne">{dims}</span>}
         </div>
         {(review || freeShipping) && (
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-henne">
-            {review && <span className="flex items-center gap-1"><Stars value={review.average} size={12} /> {review.count} avis</span>}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-henne">
+            {review && <span className="flex items-center gap-1"><Stars value={review.average} size={13} /> {review.average.toFixed(1).replace('.', ',')} ({review.count} avis)</span>}
             {freeShipping && <span className="text-menthe">Livraison offerte</span>}
           </p>
         )}

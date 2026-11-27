@@ -17,11 +17,17 @@ import { PrivacyBanner } from './PrivacyBanner';
 import { PanelsContext } from '../context/PanelsContext';
 
 export function Layout() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const { settings } = useSettings();
   const [menu, setMenu] = useState(false);
   const [contact, setContact] = useState<null | 'contact' | 'donnees'>(null);
-  useEffect(() => { window.scrollTo(0, 0); setMenu(false); }, [pathname]);
+  useEffect(() => {
+    setMenu(false);
+    // Lien vers une section (#savoir-faire…) : on y descend une fois la page affichée ; sinon, haut de page
+    const id = hash.slice(1);
+    if (id) { requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView()); return; }
+    window.scrollTo(0, 0);
+  }, [pathname, hash]);
   const closeMenu = useCallback(() => setMenu(false), []);
   const closeContact = useCallback(() => setContact(null), []);
   // Données structurées pour Google : la boutique et sa recherche interne
@@ -44,7 +50,7 @@ export function Layout() {
     <PanelsContext.Provider value={panels}>
     <div className="min-h-screen flex flex-col">
       {DEMO_MODE && (
-        <p className="bg-safran text-encre text-center text-xs sm:text-sm px-4 py-2">
+        <p className="bg-secondary text-encre text-center text-xs sm:text-sm px-4 py-2">
           Mode démonstration : paiement simulé, aucune carte débitée.{' '}
           <a href="/admin" className="underline font-medium">Tester l’espace vendeur</a>
         </p>
@@ -68,7 +74,7 @@ export function Layout() {
 
       {/* Onglet fixe sur le bord droit : ouvre la barre latérale Contact / Vos données */}
       <button onClick={() => setContact('contact')}
-        className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-30 bg-nuit text-laine hover:bg-garance py-4 px-2.5 flex-col items-center gap-2 shadow-lg"
+        className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-30 bg-nuit text-laine hover:bg-primary-hover py-4 px-2.5 flex-col items-center gap-2 shadow-lg"
         aria-label="Nous contacter">
         <MessageCircle className="w-5 h-5" />
         <span className="text-sm font-medium tracking-wide [writing-mode:vertical-rl] rotate-180">Contact</span>

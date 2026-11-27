@@ -152,7 +152,7 @@ function Detail({ ret, order, onSaved, onError }: { ret: ReturnRequest; order?: 
         )}
         <Field label="Note interne" optional><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => save()} disabled={busy} className="bg-nuit text-laine px-5 py-3 rounded-md hover:bg-garance disabled:opacity-60">Enregistrer</button>
+          <button onClick={() => save()} disabled={busy} className="bg-nuit text-laine px-5 py-3 rounded-md hover:bg-primary-hover disabled:opacity-60">Enregistrer</button>
           {ret.status === 'new' && (
             <a href={`mailto:${ret.email}?subject=${subject}&body=${body}`} onClick={() => save('accepted', 'Retour accepté : pensez à envoyer l’email ouvert')}
               className="inline-flex items-center gap-2 px-4 py-3 rounded-md border border-stone-300"><Mail className="w-4 h-4" /> Accepter et envoyer l’adresse</a>

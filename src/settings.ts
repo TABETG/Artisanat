@@ -16,8 +16,8 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   instagram: SHOP.instagram,
   facebook: SHOP.facebook,
   categories: CATEGORIES.map((c) => ({ ...c })),
-  hero_title: 'L’héritage algérien, pièce après pièce.',
-  hero_subtitle: `Bijoux, accessoires et objets de décoration faits main en France, inspirés du patrimoine amazigh et portés par un savoir-faire familial transmis depuis ${SHOP.since}.`,
+  hero_title: 'L’artisanat algérien, pièce après pièce.',
+  hero_subtitle: 'Bijoux, accessoires et objets de décoration faits main en France, portés par un savoir-faire traditionnel et une passion transmise de génération en génération.',
   hero_image: '',
   story_image: '',
   story: `Tout commence en ${SHOP.since}, avec un savoir-faire familial transmis de génération en génération, nourri du patrimoine algérien et amazigh.

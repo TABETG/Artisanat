@@ -48,7 +48,7 @@ function Login() {
         <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Mon compte</h1>
         <p className="lecture mt-5 text-[1.2rem] text-encre/80 max-w-md">Pas de mot de passe à retenir : indiquez votre email, nous vous envoyons un lien de connexion.</p>
         {state === 'sent' ? (
-          <p className="mt-8 flex gap-3 bg-[#DCEBE2] text-menthe p-4 max-w-md" role="status">
+          <p className="mt-8 flex gap-3 bg-success-soft text-menthe p-4 max-w-md" role="status">
             <Mail className="w-5 h-5 shrink-0 mt-0.5" /> Lien envoyé à {email}. Ouvrez l’email sur cet appareil et touchez « Se connecter ».
           </p>
         ) : (
@@ -57,7 +57,7 @@ function Login() {
               <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3.5 bg-white border border-laine-fonce focus:border-nuit focus:outline-none text-lg" /></label>
             {error && <p className="text-garance text-sm" role="alert">{error}</p>}
-            <button disabled={state === 'sending'} className="w-full bg-nuit text-laine py-4 text-lg font-medium hover:bg-garance disabled:opacity-60">
+            <button disabled={state === 'sending'} className="rounded-full w-full bg-nuit text-laine py-4 text-lg font-medium hover:bg-primary-hover disabled:opacity-60">
               {state === 'sending' ? 'Envoi…' : DEMO_MODE ? 'Se connecter (démonstration)' : 'Recevoir mon lien de connexion'}
             </button>
             <p className="text-sm text-henne">Utilisez l’email de vos commandes pour les retrouver. Le compte est créé à la première connexion.</p>
@@ -133,7 +133,7 @@ function Orders({ email }: { email: string }) {
     <div className="py-10 max-w-md">
       <p className="font-display text-3xl text-nuit">Pas encore de commande</p>
       <p className="lecture mt-2 text-henne">Vos commandes passées avec {email} apparaîtront ici.</p>
-      <Link to="/boutique" className="inline-block mt-6 bg-nuit text-laine px-6 py-3 hover:bg-garance">Voir la boutique</Link>
+      <Link to="/boutique" className="rounded-full inline-block mt-6 bg-nuit text-laine px-6 py-3 hover:bg-primary-hover">Voir la boutique</Link>
     </div>
   );
 
@@ -174,7 +174,7 @@ function Orders({ email }: { email: string }) {
                 {ret && <li className={`text-sm inline-block px-2.5 py-1 ${RETURN_STATUS[ret.status].tone}`}>Retour : {RETURN_STATUS[ret.status].label}</li>}
               </ul>
               <div className="flex md:flex-col gap-2 flex-wrap">
-                {link && <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 bg-nuit text-laine hover:bg-garance"><Truck className="w-4 h-4" /> Suivre le colis</a>}
+                {link && <a href={link} target="_blank" rel="noreferrer" className="rounded-full inline-flex items-center gap-2 px-4 py-2.5 bg-nuit text-laine hover:bg-primary-hover"><Truck className="w-4 h-4" /> Suivre le colis</a>}
                 <button onClick={() => printInvoice(o)} className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit"><FileText className="w-4 h-4" /> Facture</button>
                 <button onClick={() => reorder(o.id)} className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit"><RotateCcw className="w-4 h-4" /> Commander à nouveau</button>
                 {returnable && <Link to="/suivi-commande" className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit">Retourner un article</Link>}
@@ -238,7 +238,7 @@ function Preferences({ email }: { email: string }) {
         <p className="lecture mt-3 text-encre/80">Vous pouvez télécharger toutes les informations liées à votre email (commandes, retours, cartes cadeaux), ou demander leur suppression.</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <button onClick={async () => downloadFile(`mes-donnees-${new Date().toISOString().slice(0, 10)}.json`, await exportMyData(email), 'application/json')}
-            className="inline-flex items-center gap-2 px-5 py-3 bg-nuit text-laine hover:bg-garance"><Download className="w-4 h-4" /> Télécharger mes données</button>
+            className="inline-flex items-center gap-2 px-5 py-3 bg-nuit text-laine hover:bg-primary-hover"><Download className="w-4 h-4" /> Télécharger mes données</button>
           <a href={`mailto:${settings.email}?subject=${encodeURIComponent('Suppression de mon compte')}&body=${encodeURIComponent(`Bonjour,\n\nJe souhaite la suppression de mon compte et de mes données personnelles (${email}).\n\nMerci.`)}`}
             className="px-5 py-3 border border-nuit/20 hover:border-garance hover:text-garance">Demander la suppression</a>
         </div>

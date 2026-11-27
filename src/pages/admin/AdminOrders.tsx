@@ -261,7 +261,7 @@ function OrderDetail({ order, onSaved, onError }: { order: Order; onSaved: (o: O
           <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <div className="flex flex-wrap gap-3">
-          <button onClick={save} disabled={saving} className="bg-nuit text-laine px-6 py-3 rounded-md hover:bg-garance disabled:opacity-60">
+          <button onClick={save} disabled={saving} className="bg-nuit text-laine px-6 py-3 rounded-md hover:bg-primary-hover disabled:opacity-60">
             {saving ? 'Enregistrement…' : becomesShipped ? 'Marquer comme expédiée' : 'Enregistrer'}
           </button>
           {order.email && (
