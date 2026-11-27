@@ -85,7 +85,7 @@ export function Footer() {
           </span>
         </div>
       </div>
-      <div className="frise frise-claire" aria-hidden />
+      <div className="frise-kilim" aria-hidden />
     </footer>
   );
 }

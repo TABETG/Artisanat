@@ -18,10 +18,8 @@ import { Mark } from '../components/Brand';
 
 /** Grille qui s'adapte au nombre de pièces : pas de colonnes vides quand il y en a peu. */
 export function gridFor(n: number): string {
-  if (n <= 1) return 'grid grid-cols-1 max-w-sm';
-  if (n === 2) return 'grid grid-cols-2 max-w-3xl';
-  if (n === 3) return 'grid grid-cols-2 md:grid-cols-3 max-w-5xl';
-  return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+  // Toujours la largeur d'une carte sur quatre : avec peu de pièces, les cartes gardent leur taille
+  return n <= 1 ? 'grid grid-cols-2 lg:grid-cols-4' : 'grid grid-cols-2 lg:grid-cols-4';
 }
 
 /** Titre en deux temps : la fin, après la virgule, passe en italique (« …, pièce après pièce. »). */
@@ -50,28 +48,29 @@ export function HomePage() {
 
   return (
     <>
-      {/* ---------- Ouverture : texte éditorial à gauche, photographie jusqu'au bord droit ---------- */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-5 lg:px-8">
-          <div className="md:w-1/2 md:pr-10 pt-10 pb-12 md:py-20 lg:py-28 md:min-h-[600px] flex flex-col justify-center relative z-10">
-            <p className="surtitre text-henne">{SHOP.heritage}</p>
-            <div className="lisiere-fine w-12 mt-4" aria-hidden />
-            <h1 className="font-display text-nuit mt-6 text-[2.7rem] leading-[1.05] sm:text-[3.4rem] lg:text-[3.9rem] xl:text-[4.4rem]">
-              <HeroTitle text={settings.hero_title} />
-            </h1>
-            <p className="lecture mt-6 text-encre/80 max-w-lg">{settings.hero_subtitle}</p>
-            <div className="mt-8 flex flex-col min-[420px]:flex-row gap-3">
-              <Link to="/boutique" className="btn btn-primaire"><ShoppingBag className="w-4 h-4" /> Voir les créations</Link>
-              <Link to="/nos-realisations" className="btn btn-secondaire">Découvrir l’atelier</Link>
-            </div>
-          </div>
-        </div>
-        <div className="relative h-[340px] sm:h-[440px] md:h-auto md:absolute md:inset-y-0 md:right-0 md:w-1/2">
+      {/* ---------- Ouverture : la photographie occupe tout le bandeau, le texte se pose sur un fondu ivoire ---------- */}
+      <section className="relative overflow-hidden lumiere-chaude">
+        <div className="relative h-[300px] sm:h-[400px] md:h-auto md:absolute md:inset-y-0 md:right-0 md:w-[64%]">
           {heroImage
             ? <ProductImage src={heroImage} alt="" className="absolute inset-0 w-full h-full" priority />
             : <DecorPanel />}
-          {/* fondu vers le texte sur grand écran */}
-          <div className="hidden md:block absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-laine to-transparent" aria-hidden />
+          {/* fondu ivoire vers le texte (bureau) et vers le bas (téléphone) */}
+          <div className="hidden md:block absolute inset-y-0 left-0 w-[55%] bg-gradient-to-r from-laine via-laine/70 to-transparent" aria-hidden />
+          <div className="md:hidden absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-laine to-transparent" aria-hidden />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-5 lg:px-8">
+          <div className="md:w-[52%] lg:w-[48%] pt-6 pb-12 md:py-24 lg:py-28 md:min-h-[620px] flex flex-col justify-center">
+            <p className="surtitre text-nuit/80">{SHOP.heritage}</p>
+            <div className="lisiere-fine w-12 mt-4" aria-hidden />
+            <h1 className="font-display text-nuit mt-6 text-[2.6rem] leading-[1.04] sm:text-[3.3rem] lg:text-[3.8rem] xl:text-[4.2rem]">
+              <HeroTitle text={settings.hero_title} />
+            </h1>
+            <p className="mt-6 text-[1.02rem] leading-relaxed text-encre/80 max-w-md">{settings.hero_subtitle}</p>
+            <div className="mt-8 flex flex-col min-[420px]:flex-row gap-3">
+              <Link to="/boutique" className="btn btn-primaire"><ShoppingBag className="w-4 h-4" /> Voir les créations</Link>
+              <Link to="/nos-realisations" className="btn btn-secondaire bg-laine/70">Découvrir l’atelier</Link>
+            </div>
+          </div>
         </div>
       </section>
       <div className="frise" aria-hidden />
@@ -100,13 +99,25 @@ export function HomePage() {
               </div>
               <Link to="/boutique?promotion=1" className="font-medium pb-1.5 border-b border-laine/50 hover:border-safran inline-flex items-center gap-3">Toutes les promotions <ArrowRight className="w-4 h-4" /></Link>
             </div>
-            {promos.length === 1
-              ? <div className="relative"><PromoFeature product={promos[0]} /><BigMotif /></div>
-              : (
-                <div className={`${gridFor(promos.length)} gap-x-5 gap-y-10 [&_h3]:text-laine [&_.text-henne]:text-laine/70 [&_.line-through]:text-laine/60 [&_.text-garance]:text-safran [&_.text-nuit]:text-laine`}>
-                  {promos.map((p) => <ProductCard key={p.id} product={p} />)}
-                </div>
+            <div className="relative">
+              <PromoFeature product={promos[0]} />
+              {promos.length > 1 && (
+                <ul className="relative z-10 mt-10 grid sm:grid-cols-3 gap-4 max-w-4xl">
+                  {promos.slice(1).map((p) => (
+                    <li key={p.id}>
+                      <Link to={`/produit/${p.id}`} className="flex items-center gap-4 p-2 rounded-lg bg-laine/5 hover:bg-laine/10">
+                        <span className="w-16 h-16 rounded-md overflow-hidden bg-laine-fonce shrink-0"><ProductImage src={p.images[0]} alt="" className="w-full h-full" /></span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold truncate">{p.name}</span>
+                          <span className="block text-sm [&_.text-garance]:text-safran [&_.text-nuit]:text-laine [&_.line-through]:text-laine/60"><Price cents={p.price_cents} compareAt={p.compare_at_price_cents} /></span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               )}
+              <BigMotif />
+            </div>
           </div>
         </section>
       )}
@@ -119,24 +130,25 @@ export function HomePage() {
           {storyImage
             ? <ProductImage src={storyImage} alt="" className="absolute inset-0 w-full h-full" />
             : <DecorPanel />}
+          <div className="hidden md:block absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-laine to-transparent" aria-hidden />
         </div>
         <div className="px-5 sm:px-10 lg:px-16 py-14 md:py-20 max-w-2xl">
           <div className="lisiere-fine w-12" aria-hidden />
           <p className="font-display text-nuit text-3xl sm:text-4xl mt-5">{SHOP.name}</p>
           <p className="text-safran mt-1 text-sm"><span className="tracking-[.14em]">by</span> <span className="signature">{SHOP.brand}</span></p>
-          <h2 className="font-display italic font-medium text-nuit text-[2rem] sm:text-[2.6rem] mt-6">{years} ans de savoir-faire familial</h2>
-          <p className="lecture mt-5 text-encre/80">
+          <h2 className="font-display italic text-nuit text-[1.9rem] sm:text-[2.4rem] mt-6">{years} ans de savoir-faire familial</h2>
+          <p className="mt-5 leading-relaxed text-encre/80">
             Le métal est ciselé, les perles enfilées, la laine tissée à la main, en France. Chaque pièce demande du
             temps : aucune n’est identique à une autre.
           </p>
-          <ul className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-px bg-laine-fonce border-y border-laine-fonce">
+          <ul className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-y-6 [&>li]:border-laine-fonce [&>li:nth-child(even)]:border-l sm:[&>li:not(:first-child)]:border-l">
             {[
               [<Hand key="h" className="w-6 h-6 stroke-[1.5]" />, 'Savoir-faire artisanal'],
               [<Leaf key="g" className="w-6 h-6 stroke-[1.5]" />, 'Pièces uniques'],
               [<MapPin key="m" className="w-6 h-6 stroke-[1.5]" />, 'Fabriqué en France'],
               [<Users key="u" className="w-6 h-6 stroke-[1.5]" />, 'Héritage familial'],
             ].map(([icon, label], i) => (
-              <li key={i} className="bg-laine py-5 px-2 flex flex-col items-center text-center gap-2 text-sm font-medium text-nuit">
+              <li key={i} className="px-2 flex flex-col items-center text-center gap-2 text-sm font-semibold text-nuit leading-tight">
                 <span className="text-safran">{icon}</span>{label}
               </li>
             ))}
@@ -180,16 +192,21 @@ function DecorPanel() {
   );
 }
 
-/** Grand losange tissé, en filigrane à droite du bandeau des promotions. */
+/** Broderie au point de croix, en filigrane à droite du bandeau des promotions (comme une étoffe posée). */
 function BigMotif() {
+  const stitches: JSX.Element[] = [];
+  // grille de points de croix : losanges concentriques répétés
+  for (let y = 0; y < 22; y++) for (let x = 0; x < 22; x++) {
+    const d = Math.abs((x % 11) - 5) + Math.abs((y % 11) - 5);
+    if (d === 5 || d === 3 || d === 0 || (d === 1 && (x + y) % 2 === 0)) {
+      const c = d === 3 ? 'var(--color-terracotta)' : 'var(--color-gold)';
+      stitches.push(<path key={`${x}-${y}`} d={`M${x * 10 + 2} ${y * 10 + 2}l6 6m0-6l-6 6`} stroke={c} strokeWidth="1.6" />);
+    }
+  }
   return (
-    <svg viewBox="0 0 240 240" aria-hidden className="hidden lg:block absolute -right-6 top-1/2 -translate-y-1/2 w-[340px] h-[340px] text-safran opacity-30">
-      <g fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M120 6 234 120 120 234 6 120Z" /><path d="M120 34 206 120 120 206 34 120Z" />
-        <path d="M120 62 178 120 120 178 62 120Z" /><path d="M120 90 150 120 120 150 90 120Z" fill="currentColor" fillOpacity=".35" />
-        <path d="M6 120h40M194 120h40M120 6v40M120 194v40" />
-        <path d="M63 63l-20-20M177 63l20-20M63 177l-20 20M177 177l20 20" />
-      </g>
+    <svg viewBox="0 0 220 220" aria-hidden
+      className="hidden lg:block absolute -right-10 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rotate-12 opacity-40 [mask-image:linear-gradient(to_left,black_45%,transparent)]">
+      {stitches}
     </svg>
   );
 }

@@ -8,7 +8,7 @@ import { SHOP } from '../config';
 export function NewsletterCatalogBand() {
   return (
     <section className="max-w-7xl mx-auto w-full px-5 lg:px-8 mt-20 md:mt-28 print:hidden" aria-label="Lettre d’information et catalogue">
-      <div className="bg-white/70 border border-laine-fonce rounded-2xl grid lg:grid-cols-[1.15fr_1fr]">
+      <div className="bg-white/80 border border-border rounded-2xl shadow-[0_12px_40px_-20px_rgba(28,32,61,0.25)] grid lg:grid-cols-[1.15fr_1fr]">
         <div className="p-6 sm:p-10">
           <h2 className="font-display text-[1.9rem] sm:text-4xl text-nuit">S’inscrire à la lettre d’information</h2>
           <p className="mt-3 text-encre/80">Nouvelles pièces, coulisses de l’atelier, offres exclusives… Rejoignez l’univers de {SHOP.name}.</p>

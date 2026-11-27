@@ -5,11 +5,15 @@ export function Mark({ className = 'w-10 h-10', tone = 'dore' }: { className?: s
   const c = tone === 'clair' ? 'color-mix(in srgb, var(--color-gold) 75%, var(--color-background))' : 'var(--color-gold)';
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden style={{ color: c }}>
-      <path d="M24 3 45 24 24 45 3 24Z" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M24 10 38 24 24 38 10 24Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M24 17 31 24 24 31 17 24Z" fill="var(--color-terracotta)" />
-      <path d="M24 21 27 24 24 27 21 24Z" fill="var(--color-background)" />
-      <path d="M24 3v7M24 38v7M3 24h7M38 24h7" stroke="currentColor" strokeWidth="1.5" />
+      {/* losange double, comme une bordure tissée */}
+      <path d="M24 2 46 24 24 46 2 24Z" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M24 6.5 41.5 24 24 41.5 6.5 24Z" fill="none" stroke="currentColor" strokeWidth="1" />
+      {/* quatre petits losanges en croix (motif amazigh) */}
+      <path d="M24 11 27 14 24 17 21 14Z M24 31 27 34 24 37 21 34Z M11 24 14 21 17 24 14 27Z M31 24 34 21 37 24 34 27Z" fill="currentColor" />
+      <path d="M24 17v-3M24 31v3M17 24h-3M31 24h3" stroke="currentColor" strokeWidth="1" />
+      {/* cœur terracotta */}
+      <path d="M24 18.5 29.5 24 24 29.5 18.5 24Z" fill="var(--color-terracotta)" />
+      <path d="M24 21.5 26.5 24 24 26.5 21.5 24Z" fill="var(--color-background)" />
     </svg>
   );
 }
