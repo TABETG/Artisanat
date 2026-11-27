@@ -5,6 +5,7 @@ import { useCategories, useSettings } from '../context/SettingsContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
+import { FEATURES } from '../features';
 
 /** Menu burger : catégories, pages et aide, sur ordinateur comme sur téléphone. */
 export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onContact: () => void }) {
@@ -31,10 +32,10 @@ export function MenuDrawer({ onClose, onContact }: { onClose: () => void; onCont
           ))}
           <li className="mt-3"><Link to="/boutique?promotion=1" onClick={onClose} className={`${big} text-garance`}>Promotions</Link></li>
           <li><Link to="/boutique?nouveautes=1" onClick={onClose} className={big}>Nouveautés</Link></li>
-          <li><Link to="/sur-mesure" onClick={onClose} className={big}>Sur mesure</Link></li>
+          {FEATURES.customOrdersEnabled && <li><Link to="/sur-mesure" onClick={onClose} className={big}>Sur mesure</Link></li>}
           {settings.marketplace_enabled && <li><Link to="/artisans" onClick={onClose} className={big}>Nos artisans</Link></li>}
-          <li><Link to="/nos-realisations" onClick={onClose} className={big}>Réalisations</Link></li>
-          <li><Link to="/notre-histoire" onClick={onClose} className={big}>L’atelier</Link></li>
+          <li><Link to="/nos-realisations" onClick={onClose} className={big}>L’atelier</Link></li>
+          <li><Link to="/notre-histoire" onClick={onClose} className={big}>Notre histoire</Link></li>
         </ul>
 
         <div className="lisiere-fine w-16 my-8" aria-hidden />

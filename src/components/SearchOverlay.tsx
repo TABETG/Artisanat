@@ -6,6 +6,7 @@ import { listProducts } from '../lib/api';
 import { Product } from '../types';
 import { ProductImage } from './ProductImage';
 import { Price } from './Price';
+import { FEATURES } from '../features';
 
 /** Recherche instantanée depuis n'importe quelle page. */
 export function SearchOverlay({ onClose }: { onClose: () => void }) {
@@ -54,7 +55,9 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
         {q.trim() && (
           <div className="max-h-[70vh] overflow-y-auto">
             {results.length === 0 ? (
-              <p className="p-6 text-henne">Aucune création ne correspond. <Link to="/sur-mesure" onClick={onClose} className="text-garance underline">Et si nous la tissions pour vous ?</Link></p>
+              <p className="p-6 text-henne">Aucune création ne correspond. {FEATURES.customOrdersEnabled
+                ? <Link to="/sur-mesure" onClick={onClose} className="text-garance underline">Et si nous la tissions pour vous ?</Link>
+                : <Link to="/boutique" onClick={onClose} className="text-garance underline">Voir toute la boutique</Link>}</p>
             ) : (
               <ul className="divide-y divide-laine-fonce">
                 {results.map((p) => (

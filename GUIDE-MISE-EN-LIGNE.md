@@ -120,6 +120,10 @@ Sans cette étape, tout fonctionne : l’espace vendeur ouvre votre messagerie a
 | Élément | Où |
 |---|---|
 | Nom, raison sociale, SIRET, adresse, TVA, hébergeurs | `src/config.ts` |
+| Marque (nom, signature JULDEY, slogan, Instagram, domaine prévu) | `src/config.ts` |
+| Couleurs, typographies, frise, boutons | `src/index.css` (bloc `@theme`) |
+| Fonctions activables (sur-mesure : `customOrdersEnabled`) | `src/features.ts` |
+| Grandes photos de l’accueil et de « Notre histoire » | Espace vendeur → Réglages → Page d’accueil |
 | Email, téléphone, médiateur, réseaux sociaux | Espace vendeur → Réglages → Coordonnées |
 | Frais, délais, préparation | Espace vendeur → Livraison |
 | Accueil, « Notre histoire », catégories, bandeau | Espace vendeur → Réglages |

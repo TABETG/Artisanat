@@ -4,6 +4,7 @@ import { Prose } from './Prose';
 import { useSettings } from '../context/SettingsContext';
 import { formatPrice } from '../lib/format';
 import { cheapestShipping, freeShippingThreshold } from '../settings';
+import { FEATURES } from '../features';
 
 export function FaqPage() {
   const { settings } = useSettings();
@@ -14,7 +15,7 @@ export function FaqPage() {
     ['Combien coûte la livraison ?', <>Cela dépend du mode et du pays{cheapestShipping(settings) != null && <> : à partir de {formatPrice(cheapestShipping(settings)!)} en France</>}{freeShippingThreshold(settings) && <>, offerte dès {formatPrice(freeShippingThreshold(settings)!)} d’achat</>}. Le prix exact s’affiche dans le panier. <Link to="/livraison-et-retours">Voir tous les tarifs</Link>.</>],
     ['Comment suivre mon colis ?', <>Sur la page <Link to="/suivi-commande">Suivre ma commande</Link>, avec votre email et votre code postal. Vous recevez aussi le numéro de suivi par email.</>],
     ['Puis-je retourner un article ?', <>Oui, sous 14 jours après réception. Voir <Link to="/livraison-et-retours">Livraison et retours</Link>.</>],
-    ['Faites-vous des tapis sur mesure ?', <>Oui, pour de nombreux modèles. Indiquez les dimensions et couleurs souhaitées via la <Link to="/contact">page Contact</Link> : nous vous répondons avec un devis et un délai.</>],
+    ...(FEATURES.customOrdersEnabled ? [['Faites-vous des tapis sur mesure ?', <>Oui, pour de nombreux modèles. Indiquez les dimensions et couleurs souhaitées via la <Link to="/contact">page Contact</Link> : nous vous répondons avec un devis et un délai.</>] as [string, ReactNode]] : []),
     ['Les bijoux conviennent-ils aux peaux sensibles ?', 'Chaque fiche indique le métal utilisé. La mention « Sans nickel » n’apparaît que lorsque notre fournisseur le garantit. En cas d’allergie connue, écrivez-nous avant de commander.'],
     ['Comment entretenir un tapis en laine ?', 'Aspirateur sans brosse rotative, dans le sens du poil. Tache : tamponner à l’eau froide, sans frotter. Tournez le tapis une à deux fois par an.'],
     ['Un article est en rupture de stock, que faire ?', 'Sur sa fiche, laissez votre email avec « Me prévenir » : nous vous écrivons dès qu’il revient ou qu’une pièce semblable est tissée.'],

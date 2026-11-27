@@ -2,6 +2,7 @@
 // N'envoie rien si aucune demande n'a été créée dans les 2 dernières minutes (évite les abus).
 import { json, serviceClient } from '../shared/admin';
 import { absoluteUrl, layout, sendEmails } from '../shared/email';
+import { FEATURES } from '../../src/features';
 
 export default async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405);
@@ -41,6 +42,7 @@ export default async (req: Request) => {
     } catch (e) { console.error('notify-owner contact', e); }
     return json({ ok: true });
   }
+  if (!FEATURES.customOrdersEnabled) return json({ ok: true }); // sur-mesure désactivé : aucune notification
   const { data } = await serviceClient().from('custom_requests').select('name,email,width_cm,length_cm,budget,message')
     .gte('created_at', since).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return json({ ok: true });

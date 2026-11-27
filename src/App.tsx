@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { ShopPage } from './pages/ShopPage';
@@ -21,6 +21,7 @@ import { SellPage } from './pages/SellPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { UniversePage } from './pages/UniversePage';
 import { ArtisanProfilePage, ArtisansPage } from './pages/ArtisansPage';
+import { FEATURES } from './features';
 
 // L'espace vendeur est chargé à part : les clients ne téléchargent pas son code.
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })));
@@ -62,7 +63,7 @@ export default function App() {
         <Route path="suivi-commande" element={<OrderTrackingPage />} />
         <Route path="questions-frequentes" element={<FaqPage />} />
         <Route path="carte-cadeau" element={<GiftCardPage />} />
-        <Route path="sur-mesure" element={<CustomOrderPage />} />
+        <Route path="sur-mesure" element={FEATURES.customOrdersEnabled ? <CustomOrderPage /> : <Navigate to="/boutique" replace />} />
         <Route path="desinscription" element={<UnsubscribePage />} />
         <Route path="nos-realisations" element={<RealisationsPage />} />
         <Route path="compte" element={<AccountPage />} />
@@ -95,7 +96,7 @@ export default function App() {
         <Route path="reglages" element={<AdminSettings />} />
         <Route path="codes-promo" element={<AdminPromoCodes />} />
         <Route path="clients" element={<AdminCustomers />} />
-        <Route path="sur-mesure" element={<AdminCustomRequests />} />
+        <Route path="sur-mesure" element={FEATURES.customOrdersEnabled ? <AdminCustomRequests /> : <Navigate to="/admin" replace />} />
         <Route path="cartes-cadeaux" element={<AdminGiftCards />} />
         <Route path="retours" element={<AdminReturns />} />
         <Route path="lettre" element={<AdminNewsletter />} />

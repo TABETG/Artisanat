@@ -12,6 +12,7 @@ import { applyPromoExpiry } from '../pricing';
 import { CARRIERS, trackingUrl } from '../config';
 import { quoteShipping } from '../shipping';
 import { sellerShippingCents } from '../sellerShipping';
+import { FEATURES } from '../features';
 
 const PRODUCT_FIELDS =
   'id,name,description,category,price_cents,stock,width_cm,length_cm,material,origin,images,featured,active,created_at,' +
@@ -656,7 +657,7 @@ export async function startMfaEnrollment(): Promise<{ factorId: string; qr: stri
   // nettoie une tentative précédente non terminée
   const { data: existing } = await db().auth.mfa.listFactors();
   for (const f of existing?.all ?? []) if (f.status !== 'verified') await db().auth.mfa.unenroll({ factorId: f.id });
-  const { data, error } = await db().auth.mfa.enroll({ factorType: 'totp', friendlyName: `Artisanat ${new Date().toLocaleDateString('fr-FR')}` });
+  const { data, error } = await db().auth.mfa.enroll({ factorType: 'totp', friendlyName: `Galerie Tamurt ${new Date().toLocaleDateString('fr-FR')}` });
   if (error || !data) throw new Error('Activation impossible pour le moment.');
   return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
 }
@@ -688,6 +689,7 @@ export function productsToCsv(products: Product[]): string {
 // =============== Demandes sur mesure ===============
 
 export async function createCustomRequest(input: CustomRequestInput): Promise<void> {
+  if (!FEATURES.customOrdersEnabled) throw new Error('Les créations sur mesure ne sont pas proposées pour le moment.');
   const clean = { ...input, name: input.name.trim(), email: input.email.trim().toLowerCase(), message: input.message.trim() };
   if (!clean.name) throw new Error('Indiquez votre nom.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clean.email)) throw new Error('Adresse email invalide.');

@@ -24,6 +24,7 @@ import { useCategories, useSettings } from '../context/SettingsContext';
 import { useReviews } from '../context/ReviewsContext';
 import { ProductReviews } from '../components/ProductReviews';
 import { Stars } from '../components/Stars';
+import { FEATURES } from '../features';
 
 const DEFAULT_CARE: Record<ProductKind, string> = {
   textile: 'Passez l’aspirateur sans brosse rotative, dans le sens du poil. En cas de tache, tamponnez à l’eau froide sans frotter. Tournez le tapis une à deux fois par an.',
@@ -221,7 +222,7 @@ export function ProductPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            {product.made_to_order && (
+            {product.made_to_order && FEATURES.customOrdersEnabled && (
               <Link to={`/sur-mesure?produit=${product.id}`}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm border border-nuit/25 text-nuit hover:border-nuit">
                 <Ruler className="w-4 h-4" /> Demander un modèle sur mesure

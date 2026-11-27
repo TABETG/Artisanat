@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { adminListProducts, getSettings, saveSettings } from '../../lib/api';
+import { adminListProducts, getSettings, saveSettings, uploadProductImage } from '../../lib/api';
 import { slugify } from '../../settings';
 import { guessKind, KIND_LABELS, ProductKind } from '../../config';
 import { parsePriceToCents } from '../../lib/format';
@@ -111,6 +111,12 @@ export function AdminSettings() {
           <Field label="Phrase sous le titre" counter={{ value: form.hero_subtitle.length, max: 200 }}>
             <Textarea rows={2} maxLength={200} value={form.hero_subtitle} onChange={(e) => set('hero_subtitle', e.target.value)} />
           </Field>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <ImageSetting label="Grande photo de l’accueil" hint="Format paysage ou carré, au moins 1600 px de large. Vide : la photo d’une création est utilisée."
+              value={form.hero_image ?? ''} onChange={(v) => set('hero_image', v)} />
+            <ImageSetting label="Photo de la section « Notre histoire »" hint="L’atelier, vos mains au travail, un lieu de famille… Format portrait conseillé."
+              value={form.story_image ?? ''} onChange={(v) => set('story_image', v)} />
+          </div>
           <Field label="Texte de la page « Notre histoire »" hint="Laissez une ligne vide entre deux paragraphes." counter={{ value: form.story.length, max: 5000 }}>
             <Textarea rows={9} maxLength={5000} value={form.story} onChange={(e) => set('story', e.target.value)} />
           </Field>
@@ -206,5 +212,35 @@ export function AdminSettings() {
     </form>
     <div className="max-w-3xl mt-10"><SecuritySection /></div>
     </>
+  );
+}
+
+/** Photo de mise en page (accueil) : envoi dans le stockage des photos, aperçu et retrait. */
+function ImageSetting({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <Field label={label} optional hint={hint} error={error}>
+      <div className="flex items-start gap-3">
+        <div className="w-28 h-20 rounded-md overflow-hidden bg-stone-100 border border-stone-200 shrink-0">
+          {value ? <img src={value} alt="" className="w-full h-full object-cover" /> : <div className="tissage w-full h-full" />}
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          <label className="cursor-pointer px-3 py-2 rounded-md border border-stone-300 hover:border-nuit text-center">
+            {busy ? 'Envoi…' : value ? 'Changer la photo' : 'Choisir une photo'}
+            <input type="file" accept="image/*" className="sr-only" disabled={busy} onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setBusy(true); setError('');
+              try { onChange(await uploadProductImage(file)); }
+              catch { setError('La photo n’a pas pu être envoyée. Réessayez.'); }
+              finally { setBusy(false); }
+            }} />
+          </label>
+          {value && <button type="button" onClick={() => onChange('')} className="text-garance hover:underline text-left">Retirer</button>}
+        </div>
+      </div>
+    </Field>
   );
 }

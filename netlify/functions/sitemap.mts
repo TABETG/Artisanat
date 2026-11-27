@@ -1,11 +1,12 @@
 // Plan du site pour Google : /sitemap.xml
 import { createClient } from '@supabase/supabase-js';
+import { FEATURES } from '../../src/features';
 
 export default async (req: Request) => {
   const origin = process.env.URL ?? new URL(req.url).origin;
   const supabase = createClient(process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!, process.env.VITE_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
-  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).eq('market', 'fr').limit(5000);
-  const pages = ['/', '/boutique', '/univers/maison', '/univers/bijoux', '/univers/beaute', '/catalogue', '/artisans', '/sur-mesure', '/carte-cadeau', '/nos-realisations', '/notre-histoire', '/livraison-et-retours', '/questions-frequentes', '/contact'];
+  const { data } = await supabase.from('products').select('id,updated_at').eq('active', true).eq('market', 'fr').neq('category', 'beaute').limit(5000);
+  const pages = ['/', '/boutique', '/univers/maison', '/univers/bijoux', '/catalogue', ...(FEATURES.customOrdersEnabled ? ['/sur-mesure'] : []), '/carte-cadeau', '/nos-realisations', '/notre-histoire', '/livraison-et-retours', '/questions-frequentes', '/contact'];
   const urls = [
     ...pages.map((p) => `<url><loc>${origin}${p}</loc></url>`),
     ...(data ?? []).map((p) => `<url><loc>${origin}/produit/${p.id}</loc><lastmod>${String(p.updated_at).slice(0, 10)}</lastmod></url>`),

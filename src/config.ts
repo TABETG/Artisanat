@@ -2,11 +2,18 @@
 // Informations de la boutique — à personnaliser ici uniquement
 // ============================================================
 export const SHOP = {
-  name: 'Artisanat',
+  // Marque : modifier ici met à jour l'en-tête, le pied de page, les emails, les pages légales et le référencement
+  name: 'Galerie Tamurt',
+  signature: 'by JULDEY',          // signature discrète, future marque de produits
+  brand: 'JULDEY',
+  slogan: 'Chaque pièce a une histoire.',
   tagline: 'Bijoux, accessoires et décoration faits main en France',
+  heritage: 'Héritage algérien et amazigh, fait main en France',
   since: 1982,
+  // Domaine prévu (pas encore acheté) : les liens du site utilisent l'adresse réelle de publication
+  domain: 'galerietamurt.com',
   // Coordonnées affichées aux clients : modifiables sans code dans Espace vendeur → Réglages → Coordonnées
-  email: 'contact@exemple.fr',
+  email: 'contact@galerietamurt.com', // actif seulement une fois le domaine acheté et la boîte créée
   phone: '',
   whatsapp: '', // numéro au format international, sans + ni espaces
   address: '10 avenue du Général Leclerc, 77680 Roissy-en-Brie, France',
@@ -19,7 +26,7 @@ export const SHOP = {
   publicationDirector: 'Djalal TABET',
   host: 'Netlify, Inc., 101 2nd Street, San Francisco, CA 94105, États-Unis (www.netlify.com)',
   dataHost: 'Supabase Pte. Ltd. (Singapour) ; données stockées dans l’Union européenne (Francfort, Allemagne)',
-  instagram: '',
+  instagram: 'https://www.instagram.com/tamurt.officiel/',
   facebook: '',
 };
 

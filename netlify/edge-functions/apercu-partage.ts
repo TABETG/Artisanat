@@ -21,8 +21,8 @@ export default async (request: Request, context: { next: () => Promise<Response>
     if (!product) return response;
 
     const price = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(product.price_cents / 100);
-    const title = esc(`${product.name} — ${price}`);
-    const description = esc((product.description || 'Pièce tissée à la main.').slice(0, 180));
+    const title = esc(`${product.name} — ${price} | Galerie Tamurt`);
+    const description = esc((product.description || 'Création faite main en France.').slice(0, 180));
     const image = product.images?.[0] ? esc(new URL(product.images[0], url.origin).href) : `${url.origin}/og-image.jpg`;
     const tags = `<meta property="og:type" content="product" />
     <meta property="og:title" content="${title}" />

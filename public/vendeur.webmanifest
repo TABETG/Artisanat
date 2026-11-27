@@ -1,12 +1,12 @@
 {
-  "name": "Artisanat — Espace vendeur",
+  "name": "Galerie Tamurt — Espace vendeur",
   "short_name": "Vendeur",
   "description": "Gérer les produits, les commandes et les clients de la boutique.",
   "start_url": "/admin",
   "scope": "/admin",
   "display": "standalone",
-  "background_color": "#1B2440",
-  "theme_color": "#1B2440",
+  "background_color": "#1C203D",
+  "theme_color": "#1C203D",
   "lang": "fr",
   "icons": [
     { "src": "/icone-vendeur-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },

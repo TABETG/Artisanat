@@ -9,6 +9,7 @@ import { StatCard } from './ui';
 import { isLowStock } from './AdminProducts';
 import { LaunchChecklist } from './LaunchChecklist';
 import { ProductImage } from '../../components/ProductImage';
+import { FEATURES } from '../../features';
 
 export function AdminDashboard() {
   const { data, loading, error } = useAsync(
@@ -73,7 +74,7 @@ export function AdminDashboard() {
             {toPrepare.length > 0 && <Todo to="/admin/commandes" icon={<ShoppingBag className="w-5 h-5" />}>{toPrepare.length} commande{toPrepare.length > 1 ? 's' : ''} à préparer et expédier</Todo>}
             {outOfStock.length > 0 && <Todo to="/admin/alertes" icon={<AlertTriangle className="w-5 h-5" />}>{outOfStock.length} produit{outOfStock.length > 1 ? 's' : ''} en rupture de stock</Todo>}
             {waiting > 0 && <Todo to="/admin/alertes" icon={<Bell className="w-5 h-5" />}>{waiting} client{waiting > 1 ? 's attendent' : ' attend'} un retour en stock</Todo>}
-            {newRequests > 0 && <Todo to="/admin/sur-mesure" icon={<Ruler className="w-5 h-5" />}>{newRequests} demande{newRequests > 1 ? 's' : ''} sur mesure à traiter</Todo>}
+            {newRequests > 0 && FEATURES.customOrdersEnabled && <Todo to="/admin/sur-mesure" icon={<Ruler className="w-5 h-5" />}>{newRequests} demande{newRequests > 1 ? 's' : ''} sur mesure à traiter</Todo>}
             {reviewsPending > 0 && <Todo to="/admin/avis" icon={<MessageSquare className="w-5 h-5" />}>{reviewsPending} avis client{reviewsPending > 1 ? 's' : ''} à valider</Todo>}
             {lowStock.length > 0 && <Todo to="/admin/produits" icon={<Package className="w-5 h-5" />}>Stock bas : {lowStock.map((p) => `${p.name} (${p.stock})`).join(', ')}</Todo>}
           </ul>

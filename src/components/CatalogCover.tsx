@@ -1,7 +1,7 @@
 import { listProducts } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { SHOP } from '../config';
-import { Mark } from './Header';
+import { Mark } from './Brand';
 
 /** Couverture du catalogue, composée à partir des photos des produits (toujours à jour). */
 export function CatalogCover({ className = 'w-44' }: { className?: string }) {
@@ -25,7 +25,7 @@ export function CatalogCover({ className = 'w-44' }: { className?: string }) {
         </div>
         <div className="bg-nuit text-laine px-3 py-2">
           <p className="font-display text-base leading-tight">Le catalogue</p>
-          <p className="text-[8px] text-laine/70">Tapis, bijoux et beauté faits main</p>
+          <p className="text-[8px] text-laine/70">Bijoux, accessoires et décoration faits main</p>
         </div>
       </div>
     </div>

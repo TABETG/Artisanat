@@ -9,6 +9,7 @@ import { useSettings } from '../context/SettingsContext';
 import { SHOP } from '../config';
 import { CartReminder } from './CartReminder';
 import { NewsletterCatalogBand } from './NewsletterCatalogBand';
+import { Reassurance } from './Reassurance';
 import { Countdown } from './Countdown';
 import { MenuDrawer } from './MenuDrawer';
 import { ContactSidebar } from './ContactSidebar';
@@ -60,6 +61,7 @@ export function Layout() {
         <Outlet />
       </main>
       <NewsletterCatalogBand />
+      <Reassurance />
       <Footer />
       <CartDrawer />
       <CartReminder />

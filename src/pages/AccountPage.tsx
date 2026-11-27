@@ -16,6 +16,7 @@ import { trackingUrl } from '../config';
 import { ORDER_STATUS, RETURN_STATUS } from '../types';
 import { ProductCard } from '../components/ProductCard';
 import { ProductImage } from '../components/ProductImage';
+import { FEATURES } from '../features';
 
 type Tab = 'commandes' | 'favoris' | 'cadeaux' | 'atelier' | 'preferences';
 
@@ -177,7 +178,7 @@ function Orders({ email }: { email: string }) {
                 <button onClick={() => printInvoice(o)} className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit"><FileText className="w-4 h-4" /> Facture</button>
                 <button onClick={() => reorder(o.id)} className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit"><RotateCcw className="w-4 h-4" /> Commander à nouveau</button>
                 {returnable && <Link to="/suivi-commande" className="inline-flex items-center gap-2 px-4 py-2.5 border border-nuit/20 hover:border-nuit">Retourner un article</Link>}
-                {done === `vide-${o.id}` && <p className="text-sm text-henne max-w-48">Ces pièces uniques ne sont plus disponibles. <Link to="/sur-mesure" className="underline">Les faire tisser ?</Link></p>}
+                {done === `vide-${o.id}` && <p className="text-sm text-henne max-w-48">Ces pièces uniques ne sont plus disponibles. {FEATURES.customOrdersEnabled ? <Link to="/sur-mesure" className="underline">Les faire tisser ?</Link> : <Link to="/boutique" className="underline">Voir les pièces disponibles</Link>}</p>}
               </div>
             </div>
           </li>

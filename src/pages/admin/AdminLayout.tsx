@@ -7,6 +7,7 @@ import { adminCounts, AdminStatus, getAdminStatus, onSignedOut, signOut } from '
 import { demoReset } from '../../lib/demoStore';
 import { AdminCounts } from '../../types';
 import { SHOP } from '../../config';
+import { FEATURES } from '../../features';
 
 export function AdminLayout() {
   const [state, setState] = useState<AdminStatus | 'checking'>('checking');
@@ -54,7 +55,7 @@ export function AdminLayout() {
       { to: '/admin/messages', label: 'Messages', icon: <Inbox className="w-4 h-4" />, badge: counts?.messagesNew },
       { to: '/admin/clients', label: 'Clients', icon: <Users className="w-4 h-4" /> },
       { to: '/admin/retours', label: 'Retours', icon: <Undo2 className="w-4 h-4" />, badge: counts?.returnsNew },
-      { to: '/admin/sur-mesure', label: 'Demandes sur mesure', icon: <Ruler className="w-4 h-4" />, badge: counts?.customRequestsNew },
+      ...(FEATURES.customOrdersEnabled ? [{ to: '/admin/sur-mesure', label: 'Demandes sur mesure', icon: <Ruler className="w-4 h-4" />, badge: counts?.customRequestsNew }] : []),
     ] },
     { title: 'Catalogue', items: [
       { to: '/admin/produits', label: 'Produits', icon: <Package className="w-4 h-4" /> },
@@ -115,7 +116,7 @@ export function AdminLayout() {
         <p className="font-display text-lg">{SHOP.name} <span className="text-laine/60 text-sm">· vendeur</span></p>
         <button onClick={() => setMenuOpen(true)} className="relative p-2" aria-label="Ouvrir le menu">
           <Menu className="w-6 h-6" />
-          {(counts?.ordersToPrepare ?? 0) + alertTotal + (counts?.reviewsPending ?? 0) + (counts?.customRequestsNew ?? 0) + (counts?.returnsNew ?? 0) + (counts?.messagesNew ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-garance" />}
+          {(counts?.ordersToPrepare ?? 0) + alertTotal + (counts?.reviewsPending ?? 0) + (FEATURES.customOrdersEnabled ? counts?.customRequestsNew ?? 0 : 0) + (counts?.returnsNew ?? 0) + (counts?.messagesNew ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-garance" />}
         </button>
       </header>
       {menuOpen && (

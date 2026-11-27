@@ -14,6 +14,7 @@ import { RestockModal, restockMessage } from './RestockModal';
 import { MANUAL_BADGES } from '../../badges';
 import { useBadges } from '../../context/BadgesContext';
 import { BadgePill } from '../../components/ProductBadges';
+import { FEATURES } from '../../features';
 
 const EMPTY: ProductInput = {
   name: '', description: '', category: 'tapis', price_cents: 0, stock: 1,
@@ -374,8 +375,8 @@ export function AdminProductForm() {
                 <div><Stepper label="Seuil d’alerte" value={form.low_stock_threshold} onChange={(v) => set('low_stock_threshold', v)} max={50} /></div>
               </Field>
             </div>
-            <Toggle checked={form.made_to_order} onChange={(v) => set('made_to_order', v)}
-              title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />
+            {FEATURES.customOrdersEnabled && <Toggle checked={form.made_to_order} onChange={(v) => set('made_to_order', v)}
+              title="Fabrication sur mesure possible" description="Affiche un bouton « Demander un modèle sur mesure » sur la fiche produit." />}
             <Toggle checked={!!form.personalized} onChange={(v) => set('personalized', v)}
               title="Pièce faite selon les choix d’un client : non retournable"
               description="Seulement pour une pièce fabriquée à la demande d’un client (dimensions, couleurs, motif ou gravure choisis par lui). Le client est prévenu sur la fiche, dans le panier et au paiement. Une pièce déjà fabriquée et mise en vente reste retournable 14 jours, même faite main." />

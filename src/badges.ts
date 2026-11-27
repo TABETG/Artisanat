@@ -1,5 +1,6 @@
 // Badges affichés sur les produits : certains sont automatiques, d'autres choisis par le vendeur.
 import { Product } from './types';
+import { FEATURES } from './features';
 
 export type BadgeTone = 'promo' | 'best' | 'new' | 'love' | 'dark' | 'light' | 'gold' | 'green';
 
@@ -50,7 +51,7 @@ export function computeBadges(p: Product, ctx: BadgeContext): Badge[] {
     if (b) out.push({ id: b.id, label: b.label, tone: b.tone, auto: false });
   }
   if (isNew(p, ctx.newDays, now)) out.push({ id: 'nouveau', label: 'Nouveauté', tone: 'new', auto: true });
-  if (p.made_to_order) out.push({ id: 'sur-mesure', label: 'Sur mesure possible', tone: 'light', auto: true });
+  if (p.made_to_order && FEATURES.customOrdersEnabled) out.push({ id: 'sur-mesure', label: 'Sur mesure possible', tone: 'light', auto: true });
   if (p.stock === 1) out.push({ id: 'unique', label: 'Pièce unique', tone: 'light', auto: true });
   else if (p.stock > 1 && p.stock <= (p.low_stock_threshold || 2)) out.push({ id: 'stock-bas', label: `Plus que ${p.stock}`, tone: 'light', auto: true });
   return out;

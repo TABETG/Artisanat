@@ -272,6 +272,8 @@ export interface ShopSettings {
   hero_title: string;
   hero_subtitle: string;
   story: string;                    // page « Notre histoire » (paragraphes séparés par une ligne vide)
+  hero_image?: string;              // grande photo de l'accueil (vide = photo d'un produit)
+  story_image?: string;             // photo de la section « Notre histoire » de l'accueil
   gift_message_enabled: boolean;    // champ « message / précisions » au paiement
   new_days: number;                 // durée du badge « Nouveauté »
   // version 7 : modes de livraison et paiement en plusieurs fois

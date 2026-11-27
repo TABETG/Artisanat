@@ -1,70 +1,92 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Artisanat — identité visuelle « Lisière »
-   Blanc de galerie pour laisser les tapis porter la couleur ; indigo pour le texte ;
-   garance pour l'achat ; la lisière rayée (bandes de fin de tapis) comme signature.
+   Galerie Tamurt — by JULDEY
+   Ivoire et sable pour laisser les pièces porter la couleur ; indigo pour le texte
+   et les grands aplats ; doré artisanal pour les accents ; terracotta pour l'achat.
+   Signature : une frise géométrique amazighe, discrète, en bordure de section.
+   Les anciens noms de couleurs (laine, nuit, garance…) restent utilisés par les pages :
+   ils pointent vers la nouvelle palette, ce qui l'applique partout d'un coup.
    ========================================================================== */
 @theme {
-  --color-laine: #FBFAF7;        /* blanc de galerie (fond) */
-  --color-laine-fonce: #E9E5DD;  /* filets, zones calmes */
-  --color-nuit: #1F2452;         /* indigo : texte principal, en-têtes */
-  --color-garance: #B0281F;      /* rouge garance : achat, promotions */
-  --color-safran: #E3A725;       /* jaune safran : accents ponctuels */
-  --color-henne: #6B5647;        /* brun henné : texte secondaire */
-  --color-menthe: #2F6B4F;       /* vert thé : confirmations */
-  --color-encre: #1B1B2F;        /* texte de lecture */
+  --color-ivoire: #FAF6EF;       /* fond */
+  --color-sable: #E8D9C5;        /* filets, zones calmes, cartes */
+  --color-indigo: #1C203D;       /* texte de titre, en-têtes, aplats */
+  --color-dore: #B88746;         /* accents, signature, prix sur fond indigo */
+  --color-terracotta: #A64932;   /* promotions, liens d'achat */
+  --color-texte: #242424;        /* texte de lecture */
 
-  --font-display: "Bricolage Grotesque Variable", "Arial Narrow", system-ui, sans-serif;
-  --font-sans: "Bricolage Grotesque Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  --color-laine: var(--color-ivoire);
+  --color-laine-fonce: var(--color-sable);
+  --color-nuit: var(--color-indigo);
+  --color-garance: var(--color-terracotta);
+  --color-safran: var(--color-dore);
+  --color-henne: #6A5646;        /* texte secondaire (contraste 6,6:1 sur ivoire) */
+  --color-menthe: #2F6B4F;       /* confirmations */
+  --color-encre: var(--color-texte);
+
+  --font-display: "Playfair Display Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display Variable", Georgia, serif;
 }
 
 html { background: var(--color-laine); color: var(--color-encre); }
 body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
 
-/* Titres : grotesque resserrée, grasse, légèrement rentrée */
+/* Titres : serif éditoriale, graisse moyenne */
 .font-display {
-  font-weight: 750;
-  font-stretch: 80%;
-  letter-spacing: -0.015em;
-  line-height: 1.02;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
 }
+.font-display em, em.font-display { font-style: italic; font-weight: 500; }
 
 /* Texte de lecture (descriptions, histoire, pages d'information) */
-.lecture { font-family: var(--font-serif); font-size: 1.125rem; line-height: 1.75; }
+.lecture { font-family: var(--font-sans); font-size: 1.0625rem; line-height: 1.75; }
 
-:focus-visible { outline: 2px solid var(--color-garance); outline-offset: 3px; }
+/* Signature JULDEY : capitales espacées */
+.signature { font-family: var(--font-sans); text-transform: uppercase; letter-spacing: .32em; font-weight: 500; }
+/* Sur-titre de section (« ARTISANAT … ») */
+.surtitre { font-family: var(--font-sans); text-transform: uppercase; letter-spacing: .22em; font-size: .72rem; font-weight: 600; }
+
+:focus-visible { outline: 2px solid var(--color-terracotta); outline-offset: 3px; }
 
 /* --------------------------------------------------------------------------
-   La lisière : bandes de couleur comme aux extrémités d'un kilim.
-   Largeurs inégales, volontairement irrégulières comme un tissage main.
+   Frise amazighe : losanges et chevrons, comme une bordure brodée.
    -------------------------------------------------------------------------- */
-.lisiere {
+.lisiere, .motif, .frise {
   height: 14px;
-  background: linear-gradient(to bottom,
-    var(--color-nuit) 0 3px, transparent 3px 5px,
-    var(--color-garance) 5px 9px, transparent 9px 10px,
-    var(--color-safran) 10px 12px, transparent 12px 13px,
-    var(--color-nuit) 13px 14px);
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='14' viewBox='0 0 32 14'%3E%3Cpath d='M8 1.5 13.5 7 8 12.5 2.5 7Z' fill='none' stroke='%23B88746' stroke-width='1.4'/%3E%3Cpath d='M8 5 10 7 8 9 6 7Z' fill='%23A64932'/%3E%3Cpath d='M18 4l3 3-3 3M23 4l3 3-3 3' fill='none' stroke='%23B88746' stroke-width='1.2'/%3E%3Ccircle cx='30' cy='7' r='1' fill='%23A64932'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
 }
-.lisiere-fine {
-  height: 6px;
-  background: linear-gradient(to bottom, var(--color-garance) 0 3px, var(--color-safran) 3px 4px, transparent 4px 5px, var(--color-nuit) 5px 6px);
+/* Variante sur fond indigo : un peu plus lumineuse */
+.frise-claire { filter: brightness(1.25); opacity: .85; }
+/* Petit filet doré au-dessus des titres */
+.lisiere-fine { height: 3px; background: var(--color-dore); border-radius: 2px; }
+
+/* Motif géométrique très léger pour les grands aplats indigo (promotions, pied de page) */
+.motif-fond {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23B88746' stroke-opacity='.13' stroke-width='1'%3E%3Cpath d='M28 4 52 28 28 52 4 28Z'/%3E%3Cpath d='M28 14 42 28 28 42 14 28Z'/%3E%3Cpath d='M28 22 34 28 28 34 22 28Z'/%3E%3C/g%3E%3C/svg%3E");
 }
-/* ancien nom conservé pour les pages qui l'utilisent encore */
-.motif { height: 14px;
-  background: linear-gradient(to bottom,
-    var(--color-nuit) 0 3px, transparent 3px 5px,
-    var(--color-garance) 5px 9px, transparent 9px 10px,
-    var(--color-safran) 10px 12px, transparent 12px 13px,
-    var(--color-nuit) 13px 14px); }
+
+/* Boutons : pilules sobres */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; border-radius: 9999px; padding: .85rem 1.7rem; font-weight: 600; font-size: .95rem; line-height: 1.2; transition: background-color .2s, color .2s, border-color .2s; text-align: center; }
+.btn-primaire { background: var(--color-indigo); color: var(--color-ivoire); }
+.btn-primaire:hover { background: var(--color-terracotta); }
+.btn-secondaire { border: 1.5px solid var(--color-indigo); color: var(--color-indigo); }
+.btn-secondaire:hover { background: var(--color-indigo); color: var(--color-ivoire); }
+.btn-dore { background: var(--color-dore); color: var(--color-indigo); }
+.btn-dore:hover { background: var(--color-ivoire); }
+.btn-clair { border: 1.5px solid rgb(250 246 239 / .6); color: var(--color-ivoire); }
+.btn-clair:hover { background: var(--color-ivoire); color: var(--color-indigo); }
 
 /* Franges : fils de laine qui dépassent d'une photo de tapis */
 .franges { position: relative; }
 .franges::before, .franges::after {
   content: ""; position: absolute; left: 6%; right: 6%; height: 22px; pointer-events: none;
-  background: repeating-linear-gradient(to right, #EDE6D8 0 2px, transparent 2px 5px, #E2D8C6 5px 6px, transparent 6px 9px);
+  background: repeating-linear-gradient(to right, #EDE3D3 0 2px, transparent 2px 5px, #E2D3BC 5px 6px, transparent 6px 9px);
   -webkit-mask: linear-gradient(to bottom, #000 55%, transparent);
           mask: linear-gradient(to bottom, #000 55%, transparent);
 }
@@ -73,10 +95,10 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 
 /* Visuel de remplacement quand un produit n'a pas encore de photo : une trame tissée */
 .tissage {
-  background-color: #EFEAE1;
+  background-color: #EFE4D4;
   background-image:
-    repeating-linear-gradient(90deg, rgba(31,36,82,.07) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(0deg, rgba(176,40,31,.12) 0 3px, transparent 3px 16px, rgba(227,167,37,.18) 16px 18px, transparent 18px 34px);
+    repeating-linear-gradient(90deg, rgba(28,32,61,.06) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(0deg, rgba(166,73,50,.10) 0 3px, transparent 3px 16px, rgba(184,135,70,.18) 16px 18px, transparent 18px 34px);
 }
 
 /* Soulignement tissé pour les liens de navigation */

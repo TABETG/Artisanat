@@ -11,6 +11,7 @@ import { useCategories, useSettings } from '../context/SettingsContext';
 import { discountOf, isNew } from '../badges';
 import { Product } from '../types';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { FEATURES } from '../features';
 
 type Sort = 'recent' | 'prix-croissant' | 'prix-decroissant' | 'promo' | 'ventes';
 
@@ -54,7 +55,7 @@ export function ShopPage() {
     disponibles: params.get('disponibles') === '1',
     promotion: params.get('promotion') === '1',
     nouveautes: params.get('nouveautes') === '1',
-    surMesure: params.get('sur-mesure') === '1',
+    surMesure: FEATURES.customOrdersEnabled && params.get('sur-mesure') === '1',
   };
 
   // Nouvelle recherche ou nouveau filtre : on repart des premières pièces
@@ -171,7 +172,7 @@ export function ShopPage() {
         <Check checked={f.disponibles} onChange={() => set('disponibles', f.disponibles ? null : '1')} label="En stock" n={count('options', (p) => p.stock > 0)} />
         <Check checked={f.promotion} onChange={() => set('promotion', f.promotion ? null : '1')} label="Promotions" n={count('options', (p) => !!discountOf(p))} />
         <Check checked={f.nouveautes} onChange={() => set('nouveautes', f.nouveautes ? null : '1')} label="Nouveautés" n={count('options', (p) => isNew(p, settings.new_days))} />
-        <Check checked={f.surMesure} onChange={() => set('sur-mesure', f.surMesure ? null : '1')} label="Sur mesure possible" n={count('options', (p) => p.made_to_order)} />
+        {FEATURES.customOrdersEnabled && <Check checked={f.surMesure} onChange={() => set('sur-mesure', f.surMesure ? null : '1')} label="Sur mesure possible" n={count('options', (p) => p.made_to_order)} />}
       </Group>
     </div>
   );

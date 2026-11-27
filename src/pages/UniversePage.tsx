@@ -7,6 +7,7 @@ import { ProductImage } from '../components/ProductImage';
 import { usePanels } from '../context/PanelsContext';
 import { COLORS } from '../config';
 import { Product } from '../types';
+import { FEATURES } from '../features';
 
 // =====================================================================
 // Pages « univers » : une vitrine par grande famille (maison, bijoux, beauté),
@@ -51,10 +52,10 @@ const UNIVERSES: Record<Id, Universe> = {
           { label: 'Moyens, 150 à 250 cm', to: shop({ categorie: 'tapis', taille: 'moyen' }) },
           { label: 'Grands tapis de salon', to: shop({ categorie: 'tapis', taille: 'grand' }) },
         ] },
-        { title: 'Sur mesure', to: '/sur-mesure', links: [
+        ...(FEATURES.customOrdersEnabled ? [{ title: 'Sur mesure', to: '/sur-mesure', links: [
           { label: 'Vos dimensions exactes', to: '/sur-mesure' },
           { label: 'Vos couleurs et motifs', to: '/sur-mesure' },
-        ] },
+        ] }] : []),
       ] },
       { title: 'Associer', image: imageOf('coussins'), groups: [
         { title: 'Coussins', to: shop({ categorie: 'coussins' }), links: [
@@ -91,7 +92,7 @@ const UNIVERSES: Record<Id, Universe> = {
             <li>Mesurez la pièce et repérez les meubles qui reposeront sur le tapis.</li>
             <li>Choisissez la texture : velours épais et chaud, ou tissage plat et léger.</li>
             <li>Choisissez les couleurs : écru pour agrandir l’espace, motifs colorés pour réchauffer.</li>
-            <li>Pas de dimension adaptée ? Demandez un tapis sur mesure, tissé pour vous.</li>
+            {FEATURES.customOrdersEnabled && <li>Pas de dimension adaptée ? Demandez un tapis sur mesure, tissé pour vous.</li>}
           </ol>
         ) },
       ],
@@ -102,7 +103,7 @@ const UNIVERSES: Record<Id, Universe> = {
       { label: 'grand tapis de salon', to: shop({ categorie: 'tapis', taille: 'grand' }) }, { label: 'petit tapis', to: shop({ categorie: 'tapis', taille: 'petit' }) },
       { label: 'tapis écru', to: shop({ categorie: 'tapis', couleur: 'ecru' }) }, { label: 'tapis rouge', to: shop({ categorie: 'tapis', couleur: 'rouge' }) },
       { label: 'coussin en laine', to: shop({ categorie: 'coussins' }) }, { label: 'plaid en laine', to: shop({ categorie: 'plaids' }) },
-      { label: 'tapis sur mesure', to: '/sur-mesure' }, { label: 'tapis en promotion', to: shop({ categorie: 'tapis', promotion: '1' }) },
+      ...(FEATURES.customOrdersEnabled ? [{ label: 'tapis sur mesure', to: '/sur-mesure' }] : []), { label: 'tapis en promotion', to: shop({ categorie: 'tapis', promotion: '1' }) },
     ],
   },
 
@@ -238,11 +239,11 @@ function Tools({ id }: { id: Id }) {
         {id === 'maison' && <><RugSizeFinder /><ColorFinder category="tapis" /></>}
         {id === 'bijoux' && <><BudgetFinder category="bijoux" steps={[30, 50, 100, 200]} /><ColorFinder category="bijoux" /></>}
         <div className={card}>
-          <div className={iconBox}>{id === 'maison' ? <Scissors className="w-9 h-9" /> : <Gift className="w-9 h-9" />}</div>
+          <div className={iconBox}>{id === 'maison' && FEATURES.customOrdersEnabled ? <Scissors className="w-9 h-9" /> : <Gift className="w-9 h-9" />}</div>
           <div>
-            <p className="font-display text-2xl text-nuit">{id === 'maison' ? 'Un tapis à vos mesures' : 'Offrir sans se tromper'}</p>
-            <p className="text-henne mt-1">{id === 'maison' ? 'Dimensions, couleurs, motifs : nous le tissons pour vous.' : 'La carte cadeau, valable sur toute la boutique pendant un an.'}</p>
-            <Link to={id === 'maison' ? '/sur-mesure' : '/carte-cadeau'} className="mt-3 inline-flex items-center gap-1.5 font-semibold text-garance hover:underline">{id === 'maison' ? 'Demander un devis' : 'Choisir une carte'} <ArrowRight className="w-4 h-4" /></Link>
+            <p className="font-display text-2xl text-nuit">{id === 'maison' && FEATURES.customOrdersEnabled ? 'Un tapis à vos mesures' : 'Offrir sans se tromper'}</p>
+            <p className="text-henne mt-1">{id === 'maison' && FEATURES.customOrdersEnabled ? 'Dimensions, couleurs, motifs : nous le tissons pour vous.' : 'La carte cadeau, valable sur toute la boutique pendant un an.'}</p>
+            <Link to={id === 'maison' && FEATURES.customOrdersEnabled ? '/sur-mesure' : '/carte-cadeau'} className="mt-3 inline-flex items-center gap-1.5 font-semibold text-garance hover:underline">{id === 'maison' && FEATURES.customOrdersEnabled ? 'Demander un devis' : 'Choisir une carte'} <ArrowRight className="w-4 h-4" /></Link>
           </div>
         </div>
         <div className={card}>

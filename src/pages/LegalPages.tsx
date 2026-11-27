@@ -4,6 +4,7 @@ import { Prose } from './Prose';
 import { SHOP as SHOP_CONFIG } from '../config';
 import { useSettings } from '../context/SettingsContext';
 import { ShippingTable } from '../components/ShippingTable';
+import { FEATURES } from '../features';
 
 /** Infos légales du fichier de configuration + coordonnées modifiables dans les réglages. */
 function useShop() {
@@ -225,7 +226,7 @@ export function ShippingPage() {
       <p>
         Nous vous remboursons sous 14 jours, sur le moyen de paiement utilisé, le prix des articles et, si vous retournez
         toute la commande, les frais de livraison initiaux (dans la limite du tarif standard). Les pièces faites selon vos
-        choix (sur mesure, personnalisées) ne peuvent être ni reprises ni échangées, sauf défaut. Détails : <Link to="/conditions-generales-de-vente">conditions générales de vente</Link>.
+        choix (personnalisées) ne peuvent être ni reprises ni échangées, sauf défaut. Détails : <Link to="/conditions-generales-de-vente">conditions générales de vente</Link>.
       </p>
     </Prose>
   );
@@ -290,7 +291,7 @@ export function PrivacyPage() {
           présent dans chaque envoi) ou 3 ans sans interaction.
         </li>
         <li>
-          <strong>Messages, demandes sur mesure, avis, alertes de retour en stock</strong> : nom, email, message. Pour vous
+          <strong>Messages{FEATURES.customOrdersEnabled ? ', demandes sur mesure' : ''}, avis, alertes de retour en stock</strong> : nom, email, message. Pour vous
           répondre ou vous prévenir ; conservés au plus 3 ans. Les avis publiés n’affichent jamais votre email.
         </li>
         <li>

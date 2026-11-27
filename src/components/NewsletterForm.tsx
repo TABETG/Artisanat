@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, Mail } from 'lucide-react';
 import { subscribeNewsletter } from '../lib/api';
 
 /** Inscription à la lettre d'information. « clair » : sur fond blanc, avec mention RGPD complète. */
@@ -17,22 +17,25 @@ export function NewsletterForm({ variant = 'sombre' }: { variant?: 'sombre' | 'c
   }
 
   if (variant === 'clair') {
-    if (state === 'done') return <p className="flex items-center gap-2 bg-[#DCEBE2] text-menthe p-4" role="status"><Check className="w-5 h-5" /> Merci ! Vous recevrez nos nouveautés et bons plans.</p>;
+    if (state === 'done') return <p className="flex items-center gap-2 bg-[#DCEBE2] text-menthe p-4 rounded-xl" role="status"><Check className="w-5 h-5" /> Merci ! Vous recevrez nos nouveautés et bons plans.</p>;
     return (
       <form onSubmit={submit} className="space-y-3">
-        <label className="block">
-          <span className="block text-sm text-henne mb-1">Adresse email <span aria-hidden>*</span></span>
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3.5 bg-white border border-laine-fonce border-b-2 border-b-nuit focus:border-nuit focus:outline-none" />
-        </label>
-        <p className="text-xs leading-relaxed text-henne">
-          Inscrivez-vous pour recevoir nos nouvelles pièces, offres et actualités. Vous pouvez vous désabonner à tout moment grâce au lien
-          présent dans chaque email. <Link to="/confidentialite" className="underline text-nuit">Gestion de vos données et de vos droits</Link>.
-        </p>
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <label className="relative flex-1">
+            <span className="sr-only">Votre adresse email</span>
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-henne" aria-hidden />
+            <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Votre adresse email"
+              className="w-full pl-11 pr-4 py-3.5 bg-white border border-laine-fonce rounded-full focus:border-nuit focus:outline-none placeholder:text-henne/80" />
+          </label>
+          <button disabled={state === 'sending'} className="btn btn-primaire disabled:opacity-60">
+            {state === 'sending' ? 'Inscription…' : 'S’abonner'}
+          </button>
+        </div>
         {error && <p className="text-sm text-garance" role="alert">{error}</p>}
-        <button disabled={state === 'sending'} className="w-full sm:w-auto sm:min-w-64 bg-garance text-laine px-10 py-4 rounded-full font-semibold tracking-wide uppercase text-sm hover:bg-nuit disabled:opacity-60">
-          {state === 'sending' ? 'Inscription…' : 'S’abonner'}
-        </button>
+        <p className="text-xs leading-relaxed text-henne">
+          Nouvelles pièces, offres et actualités. Désinscription à tout moment grâce au lien présent dans chaque email.{' '}
+          <Link to="/confidentialite" className="underline text-nuit">Gestion de vos données et de vos droits</Link>.
+        </p>
       </form>
     );
   }

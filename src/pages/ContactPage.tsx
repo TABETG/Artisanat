@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Mail, MessageCircle, Phone } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { usePanels } from '../context/PanelsContext';
+import { FEATURES } from '../features';
 
 export function ContactPage() {
   const { settings: SHOP } = useSettings();
@@ -11,7 +12,7 @@ export function ContactPage() {
       <div className="lisiere-fine w-16 mb-5" aria-hidden />
       <h1 className="font-display text-[2.8rem] sm:text-6xl md:text-7xl text-nuit">Nous contacter</h1>
       <p className="lecture mt-5 text-[1.2rem] text-encre/85">
-        Une question sur une pièce, une dimension sur mesure, le suivi d’une commande ? Nous répondons en général sous 24 heures.
+        {FEATURES.customOrdersEnabled ? 'Une question sur une pièce, une dimension sur mesure, le suivi d’une commande ?' : 'Une question sur une pièce, le suivi d’une commande ?'} Nous répondons en général sous 24 heures.
       </p>
       <div className="mt-10 grid gap-4 sm:grid-cols-3">
         {SHOP.whatsapp && <ContactCard href={`https://wa.me/${SHOP.whatsapp}`} icon={<MessageCircle className="w-6 h-6" />} title="WhatsApp" text="Écrire un message" />}

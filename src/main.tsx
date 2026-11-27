@@ -10,9 +10,9 @@ import { MarketplaceProvider } from './context/MarketplaceContext';
 import { ReviewsProvider } from './context/ReviewsContext';
 import { BadgesProvider } from './context/BadgesContext';
 // Polices hébergées avec le site : rien n'est chargé depuis Google (plus rapide, et conforme au RGPD)
-import '@fontsource-variable/bricolage-grotesque/standard.css';
-import '@fontsource-variable/newsreader/standard.css';
-import '@fontsource-variable/newsreader/standard-italic.css';
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/playfair-display/wght.css';
+import '@fontsource-variable/playfair-display/wght-italic.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
