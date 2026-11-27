@@ -30,7 +30,7 @@ export function Header() {
   const { customer } = useCustomer();
   const { settings } = useSettings();
   const icon = 'relative p-2 sm:p-2.5 text-nuit hover:text-garance rounded-full';
-  const nav = 'lien-tisse text-[0.92rem] font-medium text-nuit pb-0.5 whitespace-nowrap';
+  const nav = 'lien-tisse text-[0.78rem] uppercase tracking-[0.14em] font-medium text-nuit pb-0.5 whitespace-nowrap';
 
   return (
     <header className="sticky top-0 z-40 bg-laine/95 backdrop-blur-sm border-b border-laine-fonce/80">

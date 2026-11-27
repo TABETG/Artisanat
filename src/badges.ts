@@ -59,11 +59,11 @@ export function computeBadges(p: Product, ctx: BadgeContext): Badge[] {
 
 export const BADGE_TONES: Record<BadgeTone, string> = {
   promo: 'bg-garance text-laine',
-  best: 'bg-safran text-nuit',
-  new: 'bg-menthe text-laine',
-  love: 'bg-terracotta-soft text-garance',
+  best: 'bg-laine/95 text-nuit',
+  new: 'bg-laine/95 text-menthe',
+  love: 'bg-laine/95 text-garance',
   dark: 'bg-nuit text-laine',
   light: 'bg-laine text-nuit',
-  gold: 'bg-gold-soft text-nuit',
-  green: 'bg-success-soft text-menthe',
+  gold: 'bg-laine/95 text-nuit',
+  green: 'bg-laine/95 text-menthe',
 };

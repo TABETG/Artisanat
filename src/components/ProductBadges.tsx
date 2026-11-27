@@ -14,8 +14,8 @@ const ICONS: Record<string, ReactNode> = {
 
 export function BadgePill({ badge, size = 'md' }: { badge: Badge; size?: 'sm' | 'md' }) {
   return (
-    <span title={badge.hint} className={`inline-flex items-center gap-1.5 font-semibold tracking-tight ${BADGE_TONES[badge.tone]} ${size === 'sm' ? 'text-xs px-2 py-1' : 'text-[11px] px-2 py-1 sm:text-[13px] sm:px-3 sm:py-1.5'}`}>
-      <span className="hidden sm:inline-flex">{ICONS[badge.id]}</span>{badge.label}
+    <span title={badge.hint} className={`inline-flex items-center gap-1.5 rounded-full font-semibold uppercase tracking-[0.08em] ${BADGE_TONES[badge.tone]} ${BADGE_TONES[badge.tone].includes('bg-laine') ? 'ring-1 ring-nuit/10' : ''} ${size === 'sm' ? 'text-[10px] px-2.5 py-1' : 'text-[9px] px-2 py-0.5 sm:text-[11px] sm:px-3 sm:py-1'}`}>
+      {size === 'sm' && <span className="inline-flex">{ICONS[badge.id]}</span>}{badge.label}
     </span>
   );
 }
@@ -24,7 +24,7 @@ export function BadgePill({ badge, size = 'md' }: { badge: Badge; size?: 'sm' | 
 export function BadgeStack({ badges, max = 3 }: { badges: Badge[]; max?: number }) {
   if (!badges.length) return null;
   return (
-    <div className="flex flex-col items-start">
+    <div className="flex flex-col items-start gap-1 sm:gap-1.5 p-2 sm:p-3">
       {badges.slice(0, max).map((b) => <BadgePill key={b.id} badge={b} />)}
     </div>
   );

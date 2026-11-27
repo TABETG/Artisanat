@@ -17,11 +17,11 @@ export function Reassurance() {
       : [<Hand key="f" />, 'Fait main en France', 'pièce après pièce'],
   ];
   return (
-    <section className="max-w-7xl mx-auto w-full px-5 lg:px-8 py-12 print:hidden" aria-label="Nos engagements">
+    <section className="max-w-7xl mx-auto w-full px-5 lg:px-8 py-10 print:hidden" aria-label="Nos engagements">
       <ul className="grid grid-cols-2 lg:grid-cols-4 gap-y-8">
         {items.map(([icon, title, text], i) => (
           <li key={i} className={`flex flex-col items-center text-center px-3 ${i % 2 ? 'border-l' : ''} ${i === 2 ? 'lg:border-l' : ''} border-laine-fonce`}>
-            <span className="text-safran [&_svg]:w-7 [&_svg]:h-7 [&_svg]:stroke-[1.5]">{icon}</span>
+            <span className="text-safran [&_svg]:w-7 [&_svg]:h-7 ">{icon}</span>
             <strong className="mt-3 text-nuit text-[0.95rem]">{title}</strong>
             <span className="text-sm text-henne">{text}</span>
           </li>

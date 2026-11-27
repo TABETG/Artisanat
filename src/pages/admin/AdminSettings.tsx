@@ -6,7 +6,7 @@ import { guessKind, KIND_LABELS, ProductKind } from '../../config';
 import { parsePriceToCents } from '../../lib/format';
 import { useSettings } from '../../context/SettingsContext';
 import { ShopSettings } from '../../types';
-import { Field, Input, Section, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
+import { Field, Input, Section, Select, Stepper, Textarea, Toast, Toggle, UnitInput } from './ui';
 import { SecuritySection } from './SecuritySection';
 
 export function AdminSettings() {
@@ -112,9 +112,17 @@ export function AdminSettings() {
             <Textarea rows={2} maxLength={200} value={form.hero_subtitle} onChange={(e) => set('hero_subtitle', e.target.value)} />
           </Field>
           <div className="grid sm:grid-cols-2 gap-5">
-            <ImageSetting label="Grande photo de l’accueil" hint="Format paysage ou carré, au moins 1600 px de large. Vide : la photo d’une création est utilisée."
-              value={form.hero_image ?? ''} onChange={(v) => set('hero_image', v)} />
-            <ImageSetting label="Photo de la section « Notre histoire »" hint="L’atelier, vos mains au travail, un lieu de famille… Format portrait conseillé."
+            <div className="space-y-3">
+              <ImageSetting label="Grande photo de l’accueil" hint="Indépendante du catalogue. Photo chaleureuse en lumière naturelle, format paysage, au moins 2000 px de large. Vide : fond sable décoré."
+                value={form.hero_image ?? ''} onChange={(v) => set('hero_image', v)} />
+              <Field label="Partie de la photo à garder visible" hint="Sur téléphone, la photo est recadrée : choisissez où se trouve le sujet.">
+                <Select value={form.hero_image_position ?? 'center'} onChange={(e) => set('hero_image_position', e.target.value as ShopSettingsPosition)}>
+                  <option value="center">Centre</option><option value="left">Gauche</option><option value="right">Droite</option>
+                  <option value="top">Haut</option><option value="bottom">Bas</option>
+                </Select>
+              </Field>
+            </div>
+            <ImageSetting label="Photo de la section « Notre histoire »" hint="Indépendante du catalogue : l’atelier, vos mains au travail, un lieu de famille… Format portrait conseillé."
               value={form.story_image ?? ''} onChange={(v) => set('story_image', v)} />
           </div>
           <Field label="Texte de la page « Notre histoire »" hint="Laissez une ligne vide entre deux paragraphes." counter={{ value: form.story.length, max: 5000 }}>
@@ -244,3 +252,5 @@ function ImageSetting({ label, hint, value, onChange }: { label: string; hint: s
     </Field>
   );
 }
+
+type ShopSettingsPosition = NonNullable<import('../../types').ShopSettings['hero_image_position']>;

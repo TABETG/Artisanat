@@ -8,7 +8,7 @@ export const SHOP = {
   brand: 'JULDEY',
   slogan: 'Chaque pièce a une histoire.',
   tagline: 'Bijoux, accessoires et décoration faits main en France',
-  heritage: 'Artisanat algérien authentique', // sur-titre de l'accueil
+  heritage: 'Héritage algérien et amazigh', // sur-titre de l'accueil (les pièces sont faites main en France)
   since: 1982,
   // Domaine prévu (pas encore acheté) : les liens du site utilisent l'adresse réelle de publication
   domain: 'galerietamurt.com',

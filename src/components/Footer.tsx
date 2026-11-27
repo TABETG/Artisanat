@@ -9,9 +9,9 @@ import { usePanels } from '../context/PanelsContext';
 export function Footer() {
   const { settings } = useSettings();
   const { openContact } = usePanels();
-  const col = 'space-y-2.5 text-laine/80 text-[0.95rem]';
+  const col = 'space-y-2.5 text-laine/90 text-[0.95rem]';
   const a = 'hover:text-safran';
-  const title = 'font-display text-lg text-laine mb-4';
+  const title = 'surtitre text-safran mb-4';
   const realEmail = settings.email && !settings.email.includes('exemple.');
   return (
     <footer className="bg-nuit motif-fond text-laine print:hidden">
@@ -20,7 +20,7 @@ export function Footer() {
           <div className="lg:pr-10 lg:border-r border-laine/15">
             <Link to="/" aria-label={`${SHOP.name}, accueil`} className="inline-block"><Logo tone="clair" size="lg" /></Link>
             <p className="font-display italic text-xl text-safran mt-6">{SHOP.slogan}</p>
-            <p className="mt-3 text-laine/75 max-w-sm leading-relaxed">
+            <p className="mt-3 text-laine/85 max-w-sm leading-relaxed">
               {SHOP.tagline}. Un savoir-faire familial et authentique, transmis depuis {SHOP.since}.
             </p>
             {(settings.instagram || settings.facebook) && (
@@ -70,7 +70,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-laine/15 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-x-6 gap-y-3 text-sm text-laine/65">
+        <div className="mt-12 pt-6 border-t border-laine/15 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-x-6 gap-y-3 text-sm text-laine/80">
           <span>© {new Date().getFullYear()} {SHOP.name} {SHOP.signature}. Tous droits réservés.</span>
           <span>Paiement sécurisé : Visa, Mastercard, CB, Apple Pay, Google Pay</span>
           <span className="flex flex-wrap gap-y-2 lg:ml-auto [&>*]:px-3 [&>*:not(:first-child)]:border-l [&>*]:border-laine/25 -mx-3">

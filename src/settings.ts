@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   hero_title: 'L’artisanat algérien, pièce après pièce.',
   hero_subtitle: 'Bijoux, accessoires et objets de décoration faits main en France, portés par un savoir-faire traditionnel et une passion transmise de génération en génération.',
   hero_image: '',
+  hero_image_position: 'center',
   story_image: '',
   story: `Tout commence en ${SHOP.since}, avec un savoir-faire familial transmis de génération en génération, nourri du patrimoine algérien et amazigh.
 

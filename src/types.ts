@@ -272,7 +272,8 @@ export interface ShopSettings {
   hero_title: string;
   hero_subtitle: string;
   story: string;                    // page « Notre histoire » (paragraphes séparés par une ligne vide)
-  hero_image?: string;              // grande photo de l'accueil (vide = photo d'un produit)
+  hero_image?: string;              // grande photo de l'accueil, indépendante du catalogue (vide = fond chaleureux)
+  hero_image_position?: 'center' | 'left' | 'right' | 'top' | 'bottom'; // partie de la photo à garder visible
   story_image?: string;             // photo de la section « Notre histoire » de l'accueil
   gift_message_enabled: boolean;    // champ « message / précisions » au paiement
   new_days: number;                 // durée du badge « Nouveauté »

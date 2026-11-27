@@ -38,37 +38,35 @@ export function HomePage() {
   const promos = available.filter((p) => discountOf(p)).sort((a, b) => (discountOf(b) ?? 0) - (discountOf(a) ?? 0)).slice(0, 4);
   const best = available.filter((p) => bestSellerIds.has(p.id)).sort((a, b) => b.sales_count - a.sales_count).slice(0, 4);
   const featured = [...available.filter((p) => p.featured), ...available.filter((p) => !p.featured)];
-  const withPhotos = featured.filter((p) => p.images.length > 0);
-  const heroImage = settings.hero_image || withPhotos[0]?.images[0];
-  // Photo de l'histoire : jamais la même que celle de l'ouverture (sinon, panneau décoratif)
-  const storyImage = settings.story_image
-    || [...withPhotos.flatMap((p) => p.images)].find((src) => src && src !== heroImage);
+  // Photos de mise en page : choisies dans Réglages, jamais tirées du catalogue
+  const heroImage = settings.hero_image || '';
+  const storyImage = settings.story_image || '';
+  const heroPosition = { center: 'object-center', left: 'object-left', right: 'object-right', top: 'object-top', bottom: 'object-bottom' }[settings.hero_image_position ?? 'center'];
   const years = new Date().getFullYear() - SHOP.since;
   const ready = featured.slice(0, 8);
 
   return (
     <>
-      {/* ---------- Ouverture : la photographie occupe tout le bandeau, le texte se pose sur un fondu ivoire ---------- */}
-      <section className="relative overflow-hidden lumiere-chaude">
-        <div className="relative h-[300px] sm:h-[400px] md:h-auto md:absolute md:inset-y-0 md:right-0 md:w-[64%]">
+      {/* ---------- Ouverture : photographie plein cadre, texte posé sur un voile ivoire léger ---------- */}
+      <section className="relative overflow-hidden bg-laine">
+        <div className="relative h-[320px] sm:h-[420px] md:h-auto md:absolute md:inset-y-0 md:right-0 md:w-[62%]">
           {heroImage
-            ? <ProductImage src={heroImage} alt="" className="absolute inset-0 w-full h-full" priority />
-            : <DecorPanel />}
-          {/* fondu ivoire vers le texte (bureau) et vers le bas (téléphone) */}
-          <div className="hidden md:block absolute inset-y-0 left-0 w-[55%] bg-gradient-to-r from-laine via-laine/70 to-transparent" aria-hidden />
-          <div className="md:hidden absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-laine to-transparent" aria-hidden />
+            ? <ProductImage src={heroImage} alt="" className={`absolute inset-0 w-full h-full ${heroPosition}`} priority />
+            : <WarmPanel />}
+          {/* voile ivoire uniquement sur le bord, pour ne pas ternir la photo */}
+          <div className="hidden md:block absolute inset-y-0 left-0 w-[30%] bg-gradient-to-r from-laine to-transparent" aria-hidden />
         </div>
         <div className="relative max-w-7xl mx-auto px-5 lg:px-8">
-          <div className="md:w-[52%] lg:w-[48%] pt-6 pb-12 md:py-24 lg:py-28 md:min-h-[620px] flex flex-col justify-center">
-            <p className="surtitre text-nuit/80">{SHOP.heritage}</p>
-            <div className="lisiere-fine w-12 mt-4" aria-hidden />
-            <h1 className="font-display text-nuit mt-6 text-[2.6rem] leading-[1.04] sm:text-[3.3rem] lg:text-[3.8rem] xl:text-[4.2rem]">
+          <div className="md:w-[46%] pt-8 pb-12 md:py-20 lg:py-24 md:min-h-[600px] flex flex-col justify-center">
+            <p className="surtitre text-henne">{SHOP.heritage}</p>
+            <div className="lisiere-fine w-10 mt-4" aria-hidden />
+            <h1 className="font-display font-medium text-nuit mt-6 text-[2.6rem] leading-[1.04] sm:text-[3.3rem] lg:text-[3.7rem] xl:text-[4.1rem]">
               <HeroTitle text={settings.hero_title} />
             </h1>
-            <p className="mt-6 text-[1.02rem] leading-relaxed text-encre/80 max-w-md">{settings.hero_subtitle}</p>
+            <p className="mt-6 text-[1.02rem] leading-relaxed text-encre/85 max-w-md">{settings.hero_subtitle}</p>
             <div className="mt-8 flex flex-col min-[420px]:flex-row gap-3">
               <Link to="/boutique" className="btn btn-primaire"><ShoppingBag className="w-4 h-4" /> Voir les créations</Link>
-              <Link to="/nos-realisations" className="btn btn-secondaire bg-laine/70">Découvrir l’atelier</Link>
+              <Link to="/nos-realisations" className="btn btn-secondaire">Découvrir l’atelier</Link>
             </div>
           </div>
         </div>
@@ -76,7 +74,7 @@ export function HomePage() {
       <div className="frise" aria-hidden />
 
       {/* ---------- Pièces disponibles ---------- */}
-      <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 md:pt-24">
+      <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-14 md:pt-20">
         <SectionHeading title="Prêts à partir" intro="Des pièces tissées, lavées et photographiées à l’atelier. Ce que vous voyez est ce que vous recevez."
           link={{ to: '/boutique', label: 'Toute la boutique' }} />
         {loading && <p className="text-henne">Chargement des créations…</p>}
@@ -87,10 +85,20 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* ---------- Respiration éditoriale : la phrase de la maison ---------- */}
+      <section className="max-w-3xl mx-auto px-5 text-center pt-16 md:pt-20" aria-label="Notre maison">
+        <Mark className="w-9 h-9 mx-auto" />
+        <p className="font-display italic font-medium text-nuit text-[1.9rem] sm:text-[2.5rem] leading-tight mt-5">{SHOP.slogan}</p>
+        <p className="mt-4 text-henne max-w-xl mx-auto">
+          Des pièces faites main, une à une, avec les motifs et les gestes hérités de notre famille.
+        </p>
+        <p className="mt-4 text-safran text-sm"><span className="tracking-[.14em]">by</span> <span className="signature">{SHOP.brand}</span></p>
+      </section>
+
       {/* ---------- Promotions : aplat indigo ---------- */}
       {promos.length > 0 && (
-        <section className="mt-20 md:mt-28 bg-nuit motif-fond text-laine">
-          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-14 md:py-16">
+        <section className="mt-16 md:mt-20 bg-nuit motif-fond text-laine">
+          <div className="max-w-7xl mx-auto px-5 lg:px-8 py-12 md:py-14">
             <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
               <div>
                 <div className="lisiere-fine w-12 mb-5" aria-hidden />
@@ -125,14 +133,14 @@ export function HomePage() {
       <Shelf title="Les plus choisis" intro="Les pièces que nos clients commandent le plus." link="/boutique?tri=ventes" products={best} />
 
       {/* ---------- Notre histoire ---------- */}
-      <section className="mt-20 md:mt-28 grid md:grid-cols-2 items-stretch">
-        <div className="relative min-h-[300px] sm:min-h-[420px]">
+      <section className="mt-16 md:mt-20 grid md:grid-cols-2 items-stretch">
+        <div className="relative min-h-[300px] sm:min-h-[400px]">
           {storyImage
             ? <ProductImage src={storyImage} alt="" className="absolute inset-0 w-full h-full" />
-            : <DecorPanel />}
+            : <WarmPanel />}
           <div className="hidden md:block absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-laine to-transparent" aria-hidden />
         </div>
-        <div className="px-5 sm:px-10 lg:px-16 py-14 md:py-20 max-w-2xl">
+        <div className="px-5 sm:px-10 lg:px-16 py-12 md:py-16 max-w-2xl self-center">
           <div className="lisiere-fine w-12" aria-hidden />
           <p className="font-display text-nuit text-3xl sm:text-4xl mt-5">{SHOP.name}</p>
           <p className="text-safran mt-1 text-sm"><span className="tracking-[.14em]">by</span> <span className="signature">{SHOP.brand}</span></p>
@@ -183,11 +191,11 @@ function PromoFeature({ product }: { product: Product }) {
   );
 }
 
-/** Panneau d'attente tant qu'aucune photo n'est choisie : aplat indigo, motif et emblème. */
-function DecorPanel() {
+/** Fond d'attente tant qu'aucune photo n'est choisie : sable chaud, grand emblème en filigrane. */
+function WarmPanel() {
   return (
-    <div className="absolute inset-0 bg-nuit motif-fond flex items-center justify-center" aria-hidden>
-      <Mark className="w-32 h-32 sm:w-44 sm:h-44 opacity-90" />
+    <div className="absolute inset-0 bg-gradient-to-br from-secondary via-gold-soft to-laine flex items-center justify-center overflow-hidden" aria-hidden>
+      <Mark className="w-[70%] max-w-[420px] h-auto aspect-square opacity-[0.14]" />
     </div>
   );
 }
@@ -205,7 +213,7 @@ function BigMotif() {
   }
   return (
     <svg viewBox="0 0 220 220" aria-hidden
-      className="hidden lg:block absolute -right-10 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rotate-12 opacity-40 [mask-image:linear-gradient(to_left,black_45%,transparent)]">
+      className="hidden lg:block absolute -right-10 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rotate-12 opacity-[0.16] [mask-image:linear-gradient(to_left,black_45%,transparent)]">
       {stitches}
     </svg>
   );
@@ -214,7 +222,7 @@ function BigMotif() {
 function Shelf({ title, intro, link, products }: { title: string; intro: string; link: string; products: Product[] }) {
   if (!products.length) return null;
   return (
-    <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-16 md:pt-24">
+    <section className="max-w-7xl mx-auto px-5 lg:px-8 pt-14 md:pt-20">
       <SectionHeading title={title} intro={intro} link={{ to: link, label: 'Tout voir' }} />
       <div className={`${gridFor(products.length)} gap-x-5 gap-y-10`}>
         {products.map((p) => <ProductCard key={p.id} product={p} />)}

@@ -78,7 +78,7 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 
 /* Titres : serif éditoriale, graisse moyenne */
 .font-display {
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.06;
 }
@@ -114,12 +114,15 @@ body { margin: 0; font-family: var(--font-sans); font-optical-sizing: auto; -web
 }
 /* Variante sur fond indigo : un peu plus lumineuse */
 .frise-claire { filter: brightness(1.2); }
+
+/* Icônes : un seul trait fin partout (menus, réassurance, boutons) */
+svg.lucide { stroke-width: 1.6; }
 /* Petit filet doré au-dessus des titres */
 .lisiere-fine { height: 3px; background: var(--color-gold); border-radius: 2px; }
 
 /* Motif géométrique très léger pour les grands aplats indigo (promotions, pied de page) */
 .motif-fond {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23B88746' stroke-opacity='.13' stroke-width='1'%3E%3Cpath d='M28 4 52 28 28 52 4 28Z'/%3E%3Cpath d='M28 14 42 28 28 42 14 28Z'/%3E%3Cpath d='M28 22 34 28 28 34 22 28Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23B88746' stroke-opacity='.05' stroke-width='1'%3E%3Cpath d='M28 4 52 28 28 52 4 28Z'/%3E%3Cpath d='M28 14 42 28 28 42 14 28Z'/%3E%3Cpath d='M28 22 34 28 28 34 22 28Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* Boutons : pilules sobres */
